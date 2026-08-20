@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Seguridad
+    url: https://github.com/TomasPosada0626/PawFound/security/policy
+    about: No informes vulnerabilidades en Issues públicos.
+  - name: Soporte y preguntas
+    url: https://github.com/TomasPosada0626/PawFound/discussions
+    about: Usa Discussions para preguntas generales cuando esté habilitado.
