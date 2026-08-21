@@ -4,8 +4,29 @@
 
 # PawFound
 
-[![Calidad documental](https://github.com/TomasPosada0626/PawFound/actions/workflows/quality.yml/badge.svg)](https://github.com/TomasPosada0626/PawFound/actions/workflows/quality.yml)
-[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://github.com/TomasPosada0626/PawFound/actions/workflows/quality.yml"><img src="https://github.com/TomasPosada0626/PawFound/actions/workflows/quality.yml/badge.svg" alt="Calidad documental" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="Licencia MIT" /></a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Go-1.x-00ADD8?style=flat-square&logo=go&logoColor=white" alt="Go" />
+  <img src="https://img.shields.io/badge/Chi-API_Router-555555?style=flat-square" alt="Chi" />
+  <img src="https://img.shields.io/badge/PostgreSQL-PostGIS-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL + PostGIS" />
+  <img src="https://img.shields.io/badge/WebSockets-Tiempo_real-4A4A4A?style=flat-square" alt="WebSockets" />
+  <img src="https://img.shields.io/badge/Redis-Cache_%2B_rate_limit-DC382D?style=flat-square&logo=redis&logoColor=white" alt="Upstash Redis" />
+  <br />
+  <img src="https://img.shields.io/badge/React_Native-Mobile-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React Native" />
+  <img src="https://img.shields.io/badge/Expo-Android-000020?style=flat-square&logo=expo&logoColor=white" alt="Expo" />
+  <img src="https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Android-Lanzamiento_inicial-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android" />
+  <br />
+  <img src="https://img.shields.io/badge/Cloudflare_R2-Imágenes-F38020?style=flat-square&logo=cloudflare&logoColor=white" alt="Cloudflare R2" />
+  <img src="https://img.shields.io/badge/Firebase-Push_FCM-FFCA28?style=flat-square&logo=firebase&logoColor=white" alt="Firebase Cloud Messaging" />
+  <img src="https://img.shields.io/badge/Sentry-Errores-362D59?style=flat-square&logo=sentry&logoColor=white" alt="Sentry" />
+  <img src="https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker Compose" />
+  <img src="https://img.shields.io/badge/GitHub_Actions-CI-2088FF?style=flat-square&logo=githubactions&logoColor=white" alt="GitHub Actions" />
+</p>
 
 PawFound es una plataforma comunitaria para reportar mascotas perdidas o encontradas y facilitar su reencuentro seguro con sus familias.
 
