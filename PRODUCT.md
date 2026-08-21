@@ -54,7 +54,7 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 - **Detalle de mascota**: se llega desde un pin del mapa o desde la lista de reportes debajo del mapa; muestra el "círculo de vida", el radio de búsqueda que se expande automáticamente con el tiempo.
 - **Reportar (botón +)**: reportar mascota perdida o mascota encontrada.
 - **Chats**, con tres secciones: DMs (conversación directa con otro usuario), Grupos (a los que el usuario se unió) y Notificaciones (todos los reportes de mascotas perdidas/encontradas cercanos + actualizaciones de casos).
-- **Grupos automáticos por caso**: nombre fijo "Encontremos a [Nombre del perrito]" para mascotas perdidas (tema rojo); "Encontremos a su familia" para mascotas encontradas (tema azul).
+- **Grupos automáticos por caso**: nombre fijo "Encontremos a [Nombre del perrito]" para mascotas perdidas (tema rojo); "Encontremos a su familia" para mascotas encontradas (tema teal/verde azulado — corregido de "azul" tras ver `Mapa.png`/`Home.png`, que usan el teal de marca para "Encontrada", no un azul separado; el mockup manda).
 - **Perfil**: editar perfil, notificaciones, privacidad y seguridad, soporte y ayuda.
 - Modo claro/oscuro conmutable desde el login.
 
@@ -103,4 +103,6 @@ Nombre: **PawFound**, isotipo de pin con silueta de perro/gato dentro de una hue
 
 ## Accessibility & Inclusion
 
-Sin requisito de accesibilidad específico confirmado todavía; no se ha establecido un estándar objetivo (p. ej. WCAG) para la app Android. Tratar como abierto, no asumir cumplimiento.
+Resuelto (issue #17): WCAG 2.1 nivel AA (contraste, estructura) combinado con las guías
+de accesibilidad de Material Design para Android (touch targets, TalkBack). Checklist
+completo y aplicación por pantalla en [docs/accesibilidad.md](docs/accesibilidad.md).

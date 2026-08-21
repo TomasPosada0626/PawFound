@@ -158,9 +158,11 @@ y en cualquier lugar donde aparezca el nombre de la persona (chats, grupos de ca
 
 ## Accesibilidad
 
-Aporta contexto a [issue #17](https://github.com/TomasPosada0626/PawFound/issues/17)
-(que fija el estándar), no lo reemplaza:
+Contra el estándar fijado en [docs/accesibilidad.md](../accesibilidad.md) (WCAG 2.1 AA +
+Material Design Android):
 
+- Todos los botones, checkboxes y casillas del código SMS con touch target ≥48×48dp y
+  ≥8dp de separación entre elementos contiguos.
 - Todos los campos con label asociado real, no solo el placeholder del mockup.
 - El ícono de "ojo" (mostrar/ocultar contraseña) necesita accessibilityLabel explícito.
 - Cada casilla del código SMS con accessibilityLabel ("Dígito 1 de 6", etc.).
@@ -170,8 +172,9 @@ Aporta contexto a [issue #17](https://github.com/TomasPosada0626/PawFound/issues
 - **Código incorrecto en el SMS anuncia el error a lectores de pantalla** (región viva /
   `accessibilityLiveRegion`), no solo limpia las casillas en silencio — hallazgo de la
   persona Sam en la crítica de #11.
-- El contraste del borde teal claro sobre blanco de los inputs se valida contra el
-  estándar que fije #17.
+- El contraste del borde teal claro sobre blanco de los inputs debe llegar a 3:1 (es un
+  componente de UI, no texto) contra el estándar de docs/accesibilidad.md — a confirmar
+  con el valor final de color al construir (#18/#19).
 
 ## Estado
 
