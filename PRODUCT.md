@@ -46,6 +46,10 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 
 ## Operating Context
 
+- **Modo exploración**: el mapa y el feed son visibles sin cuenta, en solo lectura — crear
+  cuenta se pide recién al intentar reportar, contactar por chat o unirse a un grupo de
+  caso. Decidido en la crítica de diseño del flujo de login/registro (issue #11), para no
+  forzar una cuenta antes de que alguien en una emergencia pueda ver qué hay cerca.
 - **Mapa**: muestra todas las mascotas reportadas (perdidas y encontradas) como pines.
 - **Detalle de mascota**: se llega desde un pin del mapa o desde la lista de reportes debajo del mapa; muestra el "círculo de vida", el radio de búsqueda que se expande automáticamente con el tiempo.
 - **Reportar (botón +)**: reportar mascota perdida o mascota encontrada.
