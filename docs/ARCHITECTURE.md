@@ -114,8 +114,9 @@ fusiona — ver `.github/pull_request_template.md`.
 
 ## Decisiones ya resueltas
 
-- Radio del "círculo de vida": `300 m + 250 m × √(horas transcurridas)`, tope 5 km — heurística v1, [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10), pendiente de validar con datos reales o una persona experta.
+- Radio del "círculo de vida" **por perfil** (especie + si hubo evento traumático), no una sola fórmula — [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10). Ver la tabla completa en [PRODUCT.md § Capabilities and Constraints](../PRODUCT.md#capabilities-and-constraints). Informado por literatura general de búsqueda de mascotas perdidas, no por consulta directa con un experto certificado.
 - Ubicación en mapa/detalle: siempre aproximada, nunca dirección exacta por defecto; la dirección exacta solo se comparte manualmente por mensaje directo — [issue #46](https://github.com/TomasPosada0626/PawFound/issues/46).
+- Métricas de éxito del MVP: tasa de reencuentro a 14 días como métrica principal — [issue #9](https://github.com/TomasPosada0626/PawFound/issues/9), detalle en [PRODUCT.md § Métricas de éxito](../PRODUCT.md#métricas-de-éxito-mvp).
 
 ## Decisiones abiertas
 
