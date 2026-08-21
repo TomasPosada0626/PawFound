@@ -14,6 +14,12 @@ Backend: API en Go (router Chi + contrato OpenAPI), PostgreSQL con PostGIS (bús
 
 Comunidad general en Colombia: cualquier persona (dueño/a de una mascota perdida, o vecino/a que encuentra una mascota) que necesita reportar o buscar por zona. Refugios, rescatistas y voluntariado participan como validadores durante el MVP (Fase 1), no como un tipo de cuenta con permisos propios dentro de la app.
 
+Señal real de investigación (issues #7/#8, 6 entrevistas): veterinarias y un refugio
+mostraron interés concreto en un rol de cuenta institucional para publicar una vez y
+llegar a más gente. Muestra chica, no concluyente — no cambia el modelo de arriba todavía;
+ver [issue #63](https://github.com/TomasPosada0626/PawFound/issues/63) antes de asumir
+que esto ya está decidido.
+
 ## Product Purpose
 
 Reducir el tiempo entre la pérdida de una mascota y su reencuentro seguro con su familia, mediante reportes claros, búsqueda geolocalizada por zona y coordinación responsable de la comunidad. Éxito = mascotas reencontradas y comunicación segura entre quien perdió y quien encontró, sin exponer datos sensibles.
