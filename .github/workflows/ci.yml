@@ -33,7 +33,7 @@ jobs:
             exit 1
           fi
       - run: go test ./... -race -coverprofile=coverage.out
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@v7
         with:
           working-directory: apps/api
           version: v2.13.1
