@@ -103,4 +103,6 @@ Nombre: **PawFound**, isotipo de pin con silueta de perro/gato dentro de una hue
 
 ## Accessibility & Inclusion
 
-Sin requisito de accesibilidad específico confirmado todavía; no se ha establecido un estándar objetivo (p. ej. WCAG) para la app Android. Tratar como abierto, no asumir cumplimiento.
+Resuelto (issue #17): WCAG 2.1 nivel AA (contraste, estructura) combinado con las guías
+de accesibilidad de Material Design para Android (touch targets, TalkBack). Checklist
+completo y aplicación por pantalla en [docs/accesibilidad.md](docs/accesibilidad.md).
