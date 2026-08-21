@@ -68,6 +68,24 @@ Ningún proveedor se activa en producción sin completar su evaluación de segur
 - **Entorno local**: Docker Compose (API + PostgreSQL/PostGIS + Redis), sin depender de servicios en la nube para desarrollar.
 - **Pruebas y CI**: GitHub Actions.
 
+## Estrategia de pruebas y seguridad
+
+Barra de calidad obligatoria para todo código (no documentación), definida en
+[docs/PROJECT_MANAGEMENT.md § Definición de terminado](PROJECT_MANAGEMENT.md#definición-de-terminado):
+pruebas unitarias, análisis estático, pruebas end-to-end de flujos completos y pruebas de
+vulnerabilidades, con cobertura ≥ 80 % en el código nuevo o modificado.
+
+| Capa | Unitarias | Estático | E2E | Vulnerabilidades |
+| --- | --- | --- | --- | --- |
+| API (Go) | `go test` + testify | `golangci-lint` | pruebas de integración contra Postgres/PostGIS real (Docker Compose) | `govulncheck` (dependencias) + `gosec` (código) |
+| App (Expo/RN/TS) | Jest + React Native Testing Library | ESLint + TypeScript en modo estricto | Detox o Maestro sobre los flujos completos (login→registro→reportar→chat de caso) | `npm audit` / Dependabot |
+| Ambas | — | — | — | Revisión de secretos antes de cada commit (no commitear tokens ni credenciales) |
+
+CI (GitHub Actions) ejecuta lint + pruebas unitarias + escaneo de vulnerabilidades en cada
+PR hacia `develop`; los E2E de flujo completo corren al menos antes de cada fusión de
+`develop` a `main` (cierre de fase). Un PR de código sin este checklist cubierto no se
+fusiona — ver `.github/pull_request_template.md`.
+
 ## Decisiones abiertas
 
 - Regla exacta de expansión del radio del "círculo de vida" (tiempo, avistamientos, o ambos) — [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10).
