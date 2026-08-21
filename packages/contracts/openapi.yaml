@@ -1,0 +1,35 @@
+openapi: 3.1.0
+info:
+  title: PawFound API
+  version: 0.1.0-dev
+  description: >
+    Contrato de la API de PawFound. Fuente de verdad del request/response shape entre
+    apps/api y apps/mobile — el cliente TypeScript de la app se genera desde este archivo,
+    no se escribe a mano.
+servers:
+  - url: http://localhost:8080
+    description: Desarrollo local
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Estado del proceso de la API
+      tags: [health]
+      responses:
+        "200":
+          description: La API está activa.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]

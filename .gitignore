@@ -1,0 +1,36 @@
+# Node / Expo / React Native
+node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Go
+apps/api/*.exe
+apps/api/*.test
+apps/api/coverage.out
+apps/api/coverage.html
+
+# Coverage reports (any language)
+coverage/
+
+# Env / secrets — never commit real values
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
