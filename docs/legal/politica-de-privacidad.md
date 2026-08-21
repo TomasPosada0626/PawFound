@@ -63,7 +63,9 @@ la revisión legal previa a producción, según [tratamiento-de-datos.md](tratam
 ## 6. Tus derechos (ARCO)
 
 Puedes conocer, actualizar, rectificar, solicitar la eliminación de tus datos, revocar
-consentimientos otorgados y pedir la exportación de tus datos, por el canal descrito en
+consentimientos otorgados y pedir la exportación de tus datos. Exportar tus datos y
+eliminar tu cuenta están disponibles como autoservicio desde Ajustes › Privacidad y
+seguridad; cualquier otra solicitud ARCO se atiende por el canal descrito en
 [SUPPORT.md](../../SUPPORT.md). Atenderemos tu solicitud dentro de los plazos que fije la
 normativa colombiana aplicable, previa verificación de tu identidad.
 

@@ -34,12 +34,18 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 
 ## Capabilities and Constraints
 
-- Login: correo/contraseña + continuar con Google, Facebook o Apple (confirmado en `Diseño ideal/login.png`).
-- Registro: verificación de cuenta por SMS al número registrado; al verificarse, la cuenta recibe automáticamente la insignia azul de verificado. No hay un paso de aprobación manual descrito.
-- No se muestran direcciones ni coordenadas exactas de forma predeterminada (regla ya fijada en `docs/legal/tratamiento-de-datos.md`); el mapa trabaja con ubicación aproximada.
-- El radio de búsqueda ("círculo de vida") se actualiza/amplía automáticamente; el mecanismo exacto de expansión (tiempo transcurrido, ausencia de avistamientos, etc.) queda como decisión abierta de producto, no inventar la regla.
+- Login: correo/contraseña + continuar con Google, Facebook o Apple (confirmado en `Diseño ideal/login.png`; es visual y fuente de verdad por encima de cualquier documento de spec que diga lo contrario).
+- Registro: verificación de cuenta por SMS al número registrado; al verificarse, la cuenta recibe automáticamente la insignia azul de verificado. No hay un paso de aprobación manual descrito. Declaración autoinformada de edad mínima durante el registro.
+- No se muestran direcciones ni coordenadas exactas de forma predeterminada (regla ya fijada en `docs/legal/tratamiento-de-datos.md`); el mapa trabaja con ubicación aproximada. Aplica también, y especialmente, a reportes de mascotas encontradas (revela dónde vive/está quien encontró la mascota).
+- Resuelto (issue #46): la dirección/coordenada exacta nunca se muestra en mapa ni detalle; solo se comparte manualmente por mensaje directo si el dueño decide dársela a alguien.
+- El radio de búsqueda ("círculo de vida") se actualiza/amplía automáticamente. Resuelto (issue #10) como heurística v1 pendiente de validar con datos/experto: `radio = 300 m + 250 m × √(horas transcurridas)`, tope 5 km.
 - Notificaciones de la app son avisos de la comunidad, explícitamente no alertas gubernamentales ni SMS (aclarado en `docs/legal/consentimientos.md`).
 - Publicación y su chat de caso se archivan al marcar la mascota como encontrada; no se eliminan automáticamente.
+- Límite de 2 publicaciones por cuenta por día, validado en backend (no solo en el cliente), para prevenir spam.
+- El autor de un reporte se muestra con nombre corto/inicial, nunca el nombre completo, a otras personas usuarias — minimización de datos frente a alguien que ya conoce tu ubicación aproximada por el radio de búsqueda.
+- La persona usuaria puede exportar sus datos y eliminar su cuenta (derecho de portabilidad y al olvido) de forma autoservicio desde Privacidad y seguridad, además del canal de soporte para solicitudes ARCO.
+- Bilingüe desde la arquitectura: español como idioma predeterminado, inglés como segundo idioma soportado desde el día uno de la implementación (ningún texto de UI embebido directamente en componentes).
+- Responsive en Android: debe verse correcto en pantallas pequeñas, grandes y plegables, no solo en el tamaño del mockup de referencia.
 
 ## Brand Commitments
 

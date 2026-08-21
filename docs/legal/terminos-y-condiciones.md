@@ -21,8 +21,10 @@ emergencia de bienestar animal, contacta a las autoridades u organizaciones comp
 
 ## 3. Cuentas y verificación
 
-- Debes registrarte con datos veraces y un número de teléfono al que tengas acceso real,
-  para completar la verificación por SMS.
+- Debes registrarte con datos veraces, declarar que cumples la edad mínima requerida, y un
+  número de teléfono al que tengas acceso real, para completar la verificación por SMS.
+- Cada cuenta puede publicar hasta 2 reportes por día. Este límite existe para prevenir
+  spam y proteger la confiabilidad de la comunidad.
 - La insignia azul de verificado indica que el número de teléfono de la cuenta fue
   confirmado por SMS; no es una certificación de identidad legal completa ni una garantía
   de buena conducta.

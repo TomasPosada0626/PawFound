@@ -11,7 +11,16 @@ Este borrador se orienta al marco colombiano de protección de datos personales:
 Estatutaria 1581 de 2012, su decreto reglamentario 1377 de 2013, y la Ley 1266 de 2008
 en lo que aplique a datos de contacto y verificación. La versión final debe confirmarse
 con asesoría legal antes de producción, incluyendo si aplica registro ante el Registro
-Nacional de Bases de Datos (RNBD) de la Superintendencia de Industria y Comercio (SIC).
+Nacional de Bases de Datos (RNBD) de la Superintendencia de Industria y Comercio (SIC) —
+verificar el umbral vigente; es recomendable registrar desde el inicio antes que asumir
+que no aplica.
+
+## Menores de edad
+
+PawFound probablemente tendrá personas usuarias menores de edad. El tratamiento de sus
+datos requiere un análisis reforzado (consentimiento de representante legal cuando
+corresponda, minimización adicional) que todavía no está definido — punto abierto
+explícito para la revisión legal, no asumir un tratamiento igual al de personas adultas.
 
 ## Datos y finalidades
 
@@ -32,6 +41,9 @@ plazos legales aplicables, por el canal descrito en [SUPPORT.md](../../SUPPORT.m
 
 Los proveedores se documentarán en el inventario de datos antes de activarse. Cualquier
 transferencia internacional se evaluará con las salvaguardas legales correspondientes.
+Aplica en particular a los proveedores previstos con infraestructura fuera de Colombia:
+Supabase (base de datos), Cloudflare (imágenes), Firebase (notificaciones) — ver
+[incidentes-y-proveedores.md](incidentes-y-proveedores.md) para el inventario completo.
 
 ## Retención
 
