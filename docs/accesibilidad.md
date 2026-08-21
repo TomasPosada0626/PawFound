@@ -22,7 +22,7 @@ Material 3 como base de componentes nativos, no controles estilo iOS).
   real, no solo ícono; cambios de estado asíncronos (error, confirmación, carga) se
   anuncian vía `accessibilityLiveRegion`, no solo cambio visual.
 - **Nunca solo color**: ningún significado se transmite únicamente por color. Aplica
-  directo al esquema rojo/azul de "perdida"/"encontrada" — siempre acompañado de texto o
+  directo al esquema rojo/teal de "perdida"/"encontrada" — siempre acompañado de texto o
   ícono, nunca solo el tinte del elemento.
 - **Texto escalable**: unidades `sp` en la app (no tamaños fijos en `px`), para respetar
   el ajuste de tamaño de fuente del sistema operativo.
