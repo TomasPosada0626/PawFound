@@ -36,7 +36,7 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           working-directory: apps/api
-          version: latest
+          version: v2.13.1
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
