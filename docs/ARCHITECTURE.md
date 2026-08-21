@@ -31,17 +31,22 @@ PawFound tiene dos componentes: una API en Go que expone el dominio (usuarios, m
 - **Lenguaje**: Go.
 - **API HTTP**: router Chi, con contrato OpenAPI explícito y versionable.
 - **Tiempo real**: WebSockets para mensajería (DM y grupos de caso).
-- **Base de datos**: PostgreSQL con la extensión PostGIS, para modelar ubicación aproximada y resolver búsquedas por radio ("círculo de vida").
-- **Acceso a datos**: pgx + sqlc (SQL explícito con generación de código tipado, sin ORM).
-- **Autenticación**: correo/contraseña + OAuth (Google, Facebook, Apple) para el login; verificación de identidad por SMS en el registro, que al completarse otorga automáticamente la insignia azul.
+- **Base de datos**: PostgreSQL con la extensión PostGIS, para modelar ubicación aproximada y resolver búsquedas por radio ("círculo de vida"). Hosting inicial: Supabase (Postgres + PostGIS, capa gratuita) para desarrollo/MVP; Supabase pausa proyectos tras una semana sin actividad, por lo que **no** es la solución definitiva de producción — reevaluar antes del lanzamiento público.
+- **Acceso a datos**: pgx + sqlc (SQL explícito con generación de código tipado, sin ORM). Migraciones SQL versionadas y revisadas por PR; nunca cambios manuales directos en una base de datos de staging/producción.
+- **Autenticación**: correo/contraseña (hash Argon2id) + OAuth (Google, Facebook, Apple) para el login; verificación de identidad por SMS en el registro, que al completarse otorga automáticamente la insignia azul. Sesión con JWT.
+- **Imágenes**: subida directa del cliente a Cloudflare R2 mediante URLs firmadas — la API nunca recibe ni retransmite el archivo pesado. Se les quita metadata EXIF y se calcula un hash perceptual (pHash) para detectar duplicados/fraude antes de aceptar la publicación.
+- **Límites de negocio en backend**: máximo 2 publicaciones por cuenta por día, validado en la API (nunca solo en el cliente).
 - **Geoespacial**: cada mascota reportada tiene una ubicación aproximada y un radio de búsqueda que se expande automáticamente con el tiempo transcurrido desde el último avistamiento (regla exacta pendiente de [definir en producto](https://github.com/TomasPosada0626/PawFound/issues) — épica Producto y descubrimiento).
 - **Mensajería**: modelo compartido para DMs y grupos; cada caso (mascota) crea automáticamente su grupo asociado ("Encontremos a [nombre]" / "Encontremos a su familia").
-- **Moderación**: reglas descritas en [docs/legal/moderacion-y-ugc.md](legal/moderacion-y-ugc.md) — revisión proporcional al riesgo, no ocultamiento automático solo por volumen de reportes.
+- **Moderación**: reglas descritas en [docs/legal/moderacion-y-ugc.md](legal/moderacion-y-ugc.md) — revisión proporcional al riesgo, no ocultamiento automático solo por volumen de reportes (3 reportes por sí solos no ocultan nada; se evalúan con señales adicionales, precisamente para evitar sabotaje coordinado).
 - **Alerta Ángel**: envío de SMS geolocalizado a usuarios cercanos cuando se publica un reporte de mascota perdida, con enlace profundo (`https://pawfound.app/alerta/angel/<id>`) al detalle en la app.
 
 ## App (Expo / Android)
 
-- **Framework**: Expo (React Native) + TypeScript. Lanzamiento inicial solo para Android; no se asume soporte iOS ni web hasta que se decida explícitamente. Idioma inicial español, inglés como segundo idioma previsto.
+- **Framework**: Expo (React Native) + TypeScript + NativeWind (Tailwind para React Native). Lanzamiento inicial solo para Android; no se asume soporte iOS ni web hasta que se decida explícitamente. Idioma inicial español, inglés soportado desde el día uno (sin strings embebidos en componentes).
+- **Certificate pinning**: mencionado como buena práctica de seguridad, pero es complejo bajo el flujo administrado de Expo — confirmar el flujo de build nativo elegido (EAS Build / bare workflow) antes de asumirlo como requisito duro.
+- **Notificaciones**: FCM para Android. No se requiere APNs mientras el lanzamiento sea Android-only; si se agrega iOS más adelante, evaluar Expo Notifications para simplificar ambas plataformas.
+- **Cliente API**: generado desde el contrato OpenAPI de la API, para evitar desincronización entre app y backend.
 - **Navegación principal**: Inicio, Mapa, Reportar (`+`), Mensajes (DM / Grupos / Notificaciones), Perfil.
 - **Tema**: soporta modo claro y modo oscuro.
 - **Referencia visual**: las 16 pantallas de [`Diseño ideal/`](../Diseño%20ideal/) son la fuente de verdad del diseño hasta que exista un `DESIGN.md` formal (`/impeccable document` o `/impeccable new-work`).
@@ -63,10 +68,31 @@ Ningún proveedor se activa en producción sin completar su evaluación de segur
 - Una publicación y su chat de caso se archivan al marcar la mascota como encontrada; no se eliminan automáticamente.
 - Los consentimientos (ubicación, notificaciones) son granulares, revocables y auditables — ver [docs/legal/consentimientos.md](legal/consentimientos.md).
 
+## Estructura del repositorio
+
+Monorepo: `apps/mobile` (Expo/React Native), `apps/api` (Go), `packages/contracts`
+(contrato OpenAPI compartido y cliente TypeScript generado), `infra` (Docker Compose,
+migraciones, configuración de entornos). Se documenta ahora como estructura objetivo; se
+crea cuando arranque el código real en Fase 3, no antes.
+
+## Entornos
+
+`local`, `staging` y `producción`, cada uno con su propia base de datos y sus propios
+secretos — nunca compartidos ni mezclados entre entornos. Alertas de presupuesto/cuota
+configuradas en cada proveedor gratuito desde el primer día (gratis no significa que no
+pueda generar un cobro al superar el umbral).
+
+## Fuera de alcance en v1
+
+Deliberadamente no se usan microservicios, Kubernetes, GraphQL, Kafka ni IA de matching en
+la primera versión — añaden complejidad antes de validar el producto.
+
 ## Entorno local y CI
 
 - **Entorno local**: Docker Compose (API + PostgreSQL/PostGIS + Redis), sin depender de servicios en la nube para desarrollar.
-- **Pruebas y CI**: GitHub Actions.
+- **Pruebas y CI**: GitHub Actions. `golangci-lint` + `gofumpt` + `go vet` en el backend; Renovate o Dependabot para mantener dependencias al día en ambos proyectos.
+- **Backups**: exportables, con una prueba real de restauración antes del lanzamiento.
+- **Antes del lanzamiento público**: pentest básico automatizado (OWASP ZAP); idealmente un servicio profesional pago antes de abrir la app al público general — más allá del escaneo de vulnerabilidades de dependencias que ya corre en cada PR.
 
 ## Estrategia de pruebas y seguridad
 
@@ -86,7 +112,12 @@ PR hacia `develop`; los E2E de flujo completo corren al menos antes de cada fusi
 `develop` a `main` (cierre de fase). Un PR de código sin este checklist cubierto no se
 fusiona — ver `.github/pull_request_template.md`.
 
+## Decisiones ya resueltas
+
+- Radio del "círculo de vida": `300 m + 250 m × √(horas transcurridas)`, tope 5 km — heurística v1, [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10), pendiente de validar con datos reales o una persona experta.
+- Ubicación en mapa/detalle: siempre aproximada, nunca dirección exacta por defecto; la dirección exacta solo se comparte manualmente por mensaje directo — [issue #46](https://github.com/TomasPosada0626/PawFound/issues/46).
+
 ## Decisiones abiertas
 
-- Regla exacta de expansión del radio del "círculo de vida" (tiempo, avistamientos, o ambos) — [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10).
-- Cómo conciliar mostrar una dirección aproximada en el mapa con el detalle de caso, que en el diseño de referencia muestra una dirección textual específica — [issue #46](https://github.com/TomasPosada0626/PawFound/issues/46).
+- Umbral y trámite vigente de registro ante el Registro Nacional de Bases de Datos (RNBD) de la SIC — verificar con asesoría legal.
+- Tratamiento reforzado de datos de personas menores de edad — pendiente de definición legal.
