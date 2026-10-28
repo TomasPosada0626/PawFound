@@ -61,6 +61,10 @@ jest.mock("expo-sharing", () => ({
   shareAsync: jest.fn(async () => {}),
 }));
 
+jest.mock("expo-clipboard", () => ({
+  setStringAsync: jest.fn(async () => true),
+}));
+
 jest.mock("react-native-view-shot", () => ({
   captureRef: jest.fn(async () => "file:///poster.png"),
 }));

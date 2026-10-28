@@ -5,7 +5,7 @@ import type { AppNotification, PetCase } from "@/domain/types";
 import { notificationUrl } from "@/features/notifications";
 import { relativeTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
-import { useBackend } from "@/store/backend";
+import { useBackend, useBackendState } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
 import { PetAvatar, PetPhoto, petDisplayName } from "./pets";
@@ -27,9 +27,12 @@ export function NotificationRow({ notification, pet, now }: { notification: AppN
   const { t, locale } = useI18n();
   const { colors } = useTheme();
   const backend = useBackend();
-  const name = petDisplayName(pet, t);
+  const state = useBackendState();
+  // "¿Es Rocky?": en owned_match el nombre es el de la mascota propia, no el del reporte encontrado.
+  const owned = notification.ownedPetId ? state.ownedPets.find((p) => p.id === notification.ownedPetId) : undefined;
+  const name = owned?.name ?? petDisplayName(pet, t);
   const isLostTone = pet.kind === "lost" && LOST_TONE.has(notification.kind);
-  const title = t(`notifications.${notification.kind}`);
+  const title = t(`notifications.${notification.kind}`, { name });
   const body = t(`notifications.body_${notification.kind}`, { name });
   const time = relativeTime(notification.at, now, locale);
 

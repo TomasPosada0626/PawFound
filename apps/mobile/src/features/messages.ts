@@ -62,7 +62,8 @@ export function messagePreview(
   autoTranslate = true,
 ): string {
   if (!message) return "";
-  const text = message.kind === "text" ? localizedText(message, viewer, autoTranslate).text : messageText(message, pet, t);
+  const localized = message.kind === "text" ? localizedText(message, viewer, autoTranslate).text : messageText(message, pet, t);
+  const text = message.photo && !localized ? t("chat.photo") : localized;
   if (message.kind !== "text") return text;
   const author = message.authorId === userId ? t("common.you") : message.authorShortName || t("common.deletedUser");
   return `${author}: ${text}`;

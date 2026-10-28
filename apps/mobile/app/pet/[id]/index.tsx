@@ -118,6 +118,11 @@ export default function PetDetailScreen() {
     router.push(`/pet/${pet.id}/poster`);
   };
 
+  const openStory = () => {
+    setMoreOpen(false);
+    router.push(`/pet/${pet.id}/story`);
+  };
+
   const reunite = (helperIds: string[]) =>
     run("reunite", async () => {
       await backend.markReunited(pet.id, helperIds);
@@ -351,6 +356,14 @@ export default function PetDetailScreen() {
                     />
                   </View>
                 </View>
+                <Button
+                  label={t("story.open")}
+                  subtitle={t("story.openHint")}
+                  icon="logo-instagram"
+                  variant="ghost"
+                  onPress={openStory}
+                  testID="story"
+                />
               </View>
             ) : null}
 
@@ -454,6 +467,14 @@ export default function PetDetailScreen() {
       <Sheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t("common.moreOptions")}>
         <ListRow icon="share-social-outline" title={t("common.share")} onPress={share} />
         <ListRow icon="qr-code-outline" title={t("poster.open")} description={t("poster.openHint")} onPress={openPoster} />
+        <ListRow
+          icon="logo-instagram"
+          tone="violet"
+          title={t("story.open")}
+          description={t("story.openHint")}
+          onPress={openStory}
+          testID="more-story"
+        />
         {!isOwner ? (
           <ListRow
             icon="flag-outline"

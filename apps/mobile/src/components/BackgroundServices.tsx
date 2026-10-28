@@ -84,16 +84,18 @@ export function BackgroundServices() {
       for (const n of fresh) {
         const pet = state.pets.find((p) => p.id === n.petId);
         if (!pet) continue;
+        const owned = n.ownedPetId ? state.ownedPets.find((p) => p.id === n.ownedPetId) : undefined;
+        const name = owned?.name ?? petDisplayName(pet, t);
         void presentLocal({
-          title: t(`notifications.${n.kind}`),
-          body: t(`notifications.body_${n.kind}`, { name: petDisplayName(pet, t) }),
+          title: t(`notifications.${n.kind}`, { name }),
+          body: t(`notifications.body_${n.kind}`, { name }),
           url: notificationUrl(n),
           channel: n.kind === "angel_alert" || n.kind === "life_circle" ? CHANNELS.angel : CHANNELS.updates,
           silent,
         });
       }
     });
-  }, [backend, state.notifications, state.pets, t, userId]);
+  }, [backend, state.notifications, state.ownedPets, state.pets, t, userId]);
 
   return null;
 }

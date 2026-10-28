@@ -1,4 +1,4 @@
-import { alertAudience, isQuietTime, MAX_ALERTS_PER_DAY, type AlertCandidate } from "../alerts";
+import { alertAudience, alertsGap, isQuietTime, MAX_ALERTS_PER_DAY, type AlertCandidate } from "../alerts";
 import { BADGE_ORDER, badgeProgress, newlyEarned, tierFor, tiersOf, type BadgeFacts } from "../badges";
 import { memberDays, mightBeOffensive } from "../moderation";
 import type { PetCase } from "../types";
@@ -130,5 +130,17 @@ describe("insignias", () => {
       { id: "eyes", tier: 1 },
     ]);
     expect(newlyEarned(tiersOf(after), after)).toEqual([]);
+  });
+});
+
+describe("alertsGap: por qué no llegarían las Alertas Ángel", () => {
+  const on = { push: true, angelAlerts: true };
+  it("señala lo primero que hay que resolver", () => {
+    expect(alertsGap("denied", on, true)).toBe("permission");
+    expect(alertsGap("undetermined", on, true)).toBe("permission");
+    expect(alertsGap("granted", { ...on, push: false }, true)).toBe("push");
+    expect(alertsGap("granted", { ...on, angelAlerts: false }, true)).toBe("angel");
+    expect(alertsGap("granted", on, false)).toBe("zone");
+    expect(alertsGap("granted", on, true)).toBeNull();
   });
 });

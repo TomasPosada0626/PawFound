@@ -141,6 +141,9 @@ export type User = {
 
 export type MessageKind = "text" | "system" | "sighting";
 
+/** Foto adjunta a un mensaje (grupos y DM). Se envía sin ubicación ni datos del celular. */
+export type MessagePhoto = { uri: string; width: number; height: number };
+
 export type Message = {
   id: string;
   threadId: string;
@@ -153,6 +156,8 @@ export type Message = {
   lang?: Lang;
   /** Traducciones generadas por el servidor (proveedor sujeto a evaluación de privacidad). */
   translations?: Partial<Record<Lang, string>>;
+  /** Foto adjunta; el texto puede ir vacío. */
+  photo?: MessagePhoto;
 };
 
 export type Thread = {
@@ -180,13 +185,17 @@ export type NotificationKind =
   /** El círculo de vida de una mascota perdida creció hasta tu zona. */
   | "life_circle"
   /** La familia te agradeció al cerrar el caso (insignia "Ángel de patas"). */
-  | "thanked";
+  | "thanked"
+  /** Alguien encontró una mascota parecida a una de "Mis mascotas": "¿Es Rocky?". */
+  | "owned_match";
 
 export type AppNotification = {
   id: string;
   userId: string;
   kind: NotificationKind;
   petId: string;
+  /** En owned_match: la mascota propia que se parece al reporte encontrado. */
+  ownedPetId?: string;
   at: string;
   read: boolean;
 };

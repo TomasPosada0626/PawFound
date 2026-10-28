@@ -106,7 +106,9 @@ describe("Mis mascotas", () => {
     const confirm = await screen.findAllByText("Eliminar perfil");
     await fireEvent.press(confirm[confirm.length - 1]!);
     await waitFor(() => expect(app.getPathname()).toBe("/my-pets"));
-    expect(await screen.findByTestId("my-pets-add")).toBeOnTheScreen();
+    // Rocky ya no está; queda Coco.
+    expect(await screen.findByTestId("owned-own_coco")).toBeOnTheScreen();
+    expect(screen.queryByTestId("owned-own_rocky")).toBeNull();
   });
 });
 

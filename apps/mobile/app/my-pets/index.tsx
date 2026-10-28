@@ -3,11 +3,13 @@ import { useMemo } from "react";
 import { View } from "react-native";
 
 import { AppHeader, BackButton, Screen } from "@/components/layout";
-import { PetPhoto } from "@/components/pets";
+import { PetPhoto, PetRow } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, EmptyState } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
+import { ownedMatches } from "@/domain/matching";
 import type { OwnedPet } from "@/domain/types";
+import { useNow } from "@/hooks/useNow";
 import { useI18n } from "@/i18n/I18nProvider";
 import { MAX_OWNED_PETS } from "@/services/mockBackend";
 import { ownedPetsOf } from "@/services/selectors";
@@ -18,7 +20,9 @@ export default function MyPetsScreen() {
   const { t } = useI18n();
   const state = useBackendState();
   const user = useCurrentUser();
+  const now = useNow();
   const pets = useMemo(() => (user ? ownedPetsOf(state, user.id) : []), [state, user]);
+  const zone = user ? state.alertZones[user.id] : undefined;
   if (!user) return <Redirect href={{ pathname: "/auth/login", params: { next: "/my-pets" } }} />;
 
   const activeCase = (pet: OwnedPet) => {
@@ -43,6 +47,9 @@ export default function MyPetsScreen() {
         <View className="gap-3">
           {pets.map((pet) => {
             const lostCase = activeCase(pet);
+            // "¿La encontraron?": solo si no tiene un reporte de pérdida activo (ese caso ya
+            // recibe sus propias coincidencias).
+            const matches = lostCase ? [] : ownedMatches(pet, zone?.location, state.pets).slice(0, 3);
             return (
               <Card key={pet.id} testID={`owned-${pet.id}`}>
                 <View className="flex-row items-center gap-4">
@@ -59,6 +66,17 @@ export default function MyPetsScreen() {
                     ) : null}
                   </View>
                 </View>
+                {matches.length ? (
+                  <View className="mt-3 gap-2 rounded-2xl bg-found-soft p-3" testID={`matches-${pet.id}`}>
+                    <Text variant="bodyStrong" tone="found">
+                      {t("myPets.matches", { count: matches.length, name: pet.name })}
+                    </Text>
+                    <Text variant="caption">{t("myPets.matchesHint", { name: pet.name })}</Text>
+                    {matches.map((m) => (
+                      <PetRow key={m.pet.id} pet={m.pet} distance={m.distance} now={now} />
+                    ))}
+                  </View>
+                ) : null}
                 <View className="mt-3 flex-row gap-3">
                   <View className="flex-1">
                     <Button
@@ -102,6 +120,18 @@ export default function MyPetsScreen() {
           )}
         </View>
       )}
+
+      {pets.length > 0 && !zone ? (
+        <View className="mt-4 gap-2" testID="matches-need-zone">
+          <Banner icon="search-outline" body={t("myPets.matchesNeedZone")} />
+          <Button
+            label={t("myPets.matchesZoneCta")}
+            icon="location-outline"
+            variant="ghost"
+            onPress={() => router.push("/settings/notifications")}
+          />
+        </View>
+      ) : null}
 
       <View className="mt-4">
         <Banner icon="lock-closed-outline" body={t("myPets.privateNote")} />

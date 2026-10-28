@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 
+import { AlertsOffBanner } from "@/components/AlertsOffBanner";
 import { PawDecoration } from "@/components/brand";
 import { HomeMenu } from "@/components/HomeMenu";
 import { AppHeader, Screen } from "@/components/layout";
@@ -89,6 +90,13 @@ export default function HomeScreen() {
         />
       }
     >
+      {/* Sin notificaciones o sin zona no llegan las alertas: la persona debe saberlo. */}
+      {user ? (
+        <View className="mt-3">
+          <AlertsOffBanner userId={user.id} />
+        </View>
+      ) : null}
+
       {/* Saludo */}
       <View className="mt-3 flex-row items-center gap-4">
         {user ? (

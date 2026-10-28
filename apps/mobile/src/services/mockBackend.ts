@@ -1,5 +1,6 @@
 import { alertAudience, type AlertCandidate } from "@/domain/alerts";
 import { approximateLocation } from "@/domain/geo";
+import { matchOwned } from "@/domain/matching";
 import { findPossibleMatches, publishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
@@ -7,6 +8,7 @@ import type {
   Lang,
   Message,
   MessageKind,
+  MessagePhoto,
   NotificationKind,
   NotificationPrefs,
   OwnedPet,
@@ -355,17 +357,39 @@ export class MockBackend {
     const angelNotifications = alertAudience(pet, this.alertCandidates(pet), this.now()).map((id) =>
       this.makeNotification(id, "angel_alert", petId),
     );
+    // "¿Es tu mascota?": una encontrada parecida a una de "Mis mascotas" avisa a su familia.
+    const ownedNotifications = pet.kind === "found" ? this.ownedMatchNotifications(pet) : [];
     this.commit({
       pets: [pet, ...this.state.pets],
       threads: [thread, ...this.state.threads],
       messages: [...this.state.messages, this.makeMessage(groupId, "system", user, "created")],
-      notifications: [...angelNotifications, ...matchNotifications, ...this.state.notifications],
+      notifications: [...angelNotifications, ...ownedNotifications, ...matchNotifications, ...this.state.notifications],
       ownedPets: this.state.ownedPets.map((p) =>
         p.id === input.ownedPetId && p.ownerId === user.id ? { ...p, lastCaseId: petId } : p,
       ),
       reportLog: { ...this.state.reportLog, [user.id]: [...(this.state.reportLog[user.id] ?? []), now] },
     });
     return pet;
+  }
+
+  /**
+   * Familias cuya mascota propia se parece a este reporte encontrado (domain/matching). Solo
+   * con zona de alertas (la única ubicación que tenemos, con consentimiento) y con "encontradas
+   * cerca" activado; si la mascota ya tiene un reporte de pérdida activo, ese caso recibe la
+   * coincidencia normal y no se avisa dos veces.
+   */
+  private ownedMatchNotifications(found: PetCase): AppNotification[] {
+    return this.state.ownedPets
+      .filter((owned) => owned.ownerId !== found.ownerId && this.notificationPrefsFor(owned.ownerId).foundNearby)
+      .filter((owned) => {
+        const lastCase = owned.lastCaseId ? this.getPet(owned.lastCaseId) : undefined;
+        return !(lastCase?.kind === "lost" && lastCase.state === "active");
+      })
+      .filter((owned) => {
+        const zone = this.state.alertZones[owned.ownerId];
+        return zone ? matchOwned(found, { ...owned, zone: zone.location }) !== null : false;
+      })
+      .map((owned) => ({ ...this.makeNotification(owned.ownerId, "owned_match", found.id), ownedPetId: owned.id }));
   }
 
   getPet(petId: string): PetCase | undefined {
@@ -462,7 +486,13 @@ export class MockBackend {
     const allowed = new Set(reunionHelperCandidates(this.state, petId).map((c) => c.userId));
     const helpers = [...new Set(helperIds)].filter((id) => allowed.has(id)).slice(0, MAX_HELPERS);
     const thread = this.state.threads.find((t) => t.id === pet.groupId);
-    const recipients = (thread?.memberIds ?? []).filter((id) => id !== user.id && !helpers.includes(id));
+    // También quienes lo compartieron: así saben que ya pueden quitar la historia o el afiche.
+    const sharers = Object.entries(this.state.shareLog)
+      .filter(([, pets]) => pets.includes(petId))
+      .map(([id]) => id);
+    const recipients = [...new Set([...(thread?.memberIds ?? []), ...sharers])].filter(
+      (id) => id !== user.id && !helpers.includes(id) && this.state.users[id],
+    );
     this.commit({
       pets: this.replacePet({
         ...pet,
@@ -603,12 +633,12 @@ export class MockBackend {
     return thread.id;
   }
 
-  async sendMessage(threadId: string, text: string, lang: Lang = "es"): Promise<void> {
+  async sendMessage(threadId: string, text: string, lang: Lang = "es", photo?: MessagePhoto): Promise<void> {
     const user = this.requireVerified();
     const thread = this.state.threads.find((t) => t.id === threadId);
     if (!thread || !thread.memberIds.includes(user.id) || thread.archived) throw new BackendError("not_allowed");
     const body = text.trim().slice(0, MESSAGE_MAX);
-    if (!body) return;
+    if (!body && !photo) return;
     if (user.mutedUntil && new Date(user.mutedUntil) > this.now()) {
       throw new BackendError("muted", { until: user.mutedUntil });
     }
@@ -621,11 +651,16 @@ export class MockBackend {
       thread.memberIds.map((id) => this.state.users[id]?.lang).filter((l): l is Lang => Boolean(l) && l !== lang),
     );
     const translations: Partial<Record<Lang, string>> = {};
-    for (const to of targets) {
+    for (const to of body ? targets : []) {
       const translated = this.translator?.(body, lang, to);
       if (translated) translations[to] = translated;
     }
-    const message = { ...this.makeMessage(threadId, "text", user, body), lang, translations };
+    const message: Message = {
+      ...this.makeMessage(threadId, "text", user, body),
+      lang,
+      translations,
+      ...(photo ? { photo } : {}),
+    };
     this.commit({
       messages: [...this.state.messages, message],
       threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, readAt: { ...t.readAt, [user.id]: message.at } } : t)),

@@ -77,7 +77,8 @@ export default function VerifyScreen() {
       await backend.verifyCode(code);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       toast(t("auth.verifiedToast"));
-      router.replace(next as never);
+      // Siguiente paso del registro: activar las alertas (opcional, con su porqué).
+      router.replace({ pathname: "/auth/alerts", params: { next } });
     } catch (e) {
       const err = e instanceof BackendError ? e : new BackendError("unknown");
       setError(

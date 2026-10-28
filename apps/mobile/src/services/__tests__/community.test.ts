@@ -242,7 +242,7 @@ describe("Mis mascotas", () => {
     await expect(backend.saveOwnedPet(profile, "own_x")).rejects.toBeInstanceOf(BackendError);
     await backend.deleteOwnedPet(nala.id);
     await backend.deleteOwnedPet("own_x");
-    expect(backend.getSnapshot().ownedPets.map((p) => p.id)).toEqual(["own_rocky"]);
+    expect(backend.getSnapshot().ownedPets.map((p) => p.id)).toEqual(["own_rocky", "own_coco"]);
   });
 
   it("nadie edita ni borra el perfil de otra cuenta", async () => {
@@ -259,7 +259,7 @@ describe("Mis mascotas", () => {
     const pet = await backend.createReport(lostReport({ name: "Nala", ownedPetId: nala.id }));
     expect(backend.getSnapshot().ownedPets.find((p) => p.id === nala.id)?.lastCaseId).toBe(pet.id);
     const exported = JSON.parse(await backend.exportData()) as { ownedPets: unknown[]; alertZone: unknown };
-    expect(exported.ownedPets).toHaveLength(2);
+    expect(exported.ownedPets).toHaveLength(3);
     expect(exported.alertZone).not.toBeNull();
     await backend.deleteAccount();
     const after = backend.getSnapshot();

@@ -70,7 +70,10 @@ __tests__/              # flujos completos sobre el router real
   patas" que la familia otorga al cerrar el caso.
 - **Perfiles públicos con "me gusta"** (`app/user/[id].tsx`), días en PawFound, y
   convivencia sin bloqueos: reportar persona, aviso amable y límite de mensajes.
-- **Mis mascotas** (perfil preventivo → reporte con un toque) y **afiche con QR**.
+- **Mis mascotas** (perfil preventivo → reporte con un toque), **afiche con QR** e
+  **historia para Instagram** (`app/pet/[id]/story.tsx`, con guía para Destacadas).
+- **Fotos en el chat** (grupos y DM) y **"¿Es tu mascota?"** (`src/domain/matching.ts`,
+  vectores compartidos con la API en `packages/contracts/fixtures/owned-matches.json`).
 - **Accesibilidad** (docs/accesibilidad.md): touch targets ≥ 48 dp, labels reales,
   regiones vivas para errores, estado nunca solo por color, contraste AA probado en tests.
 

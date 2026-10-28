@@ -36,6 +36,21 @@ export function alertAudience(pet: PetCase, candidates: AlertCandidate[], now: D
     .map((c) => c.userId);
 }
 
+/** Por qué una cuenta no recibiría Alertas Ángel, en el orden en que conviene resolverlo. */
+export type AlertsGap = "permission" | "push" | "angel" | "zone";
+
+export function alertsGap(
+  permission: "granted" | "denied" | "undetermined",
+  prefs: Pick<NotificationPrefs, "push" | "angelAlerts">,
+  hasZone: boolean,
+): AlertsGap | null {
+  if (permission !== "granted") return "permission";
+  if (!prefs.push) return "push";
+  if (!prefs.angelAlerts) return "angel";
+  if (!hasZone) return "zone";
+  return null;
+}
+
 const minutesOf = (hhmm: string) => {
   const [h = 0, m = 0] = hhmm.split(":").map(Number);
   return h * 60 + m;

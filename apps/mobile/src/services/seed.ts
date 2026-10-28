@@ -610,6 +610,22 @@ export function createSeed(now: Date = new Date()): SeedResult {
       createdAt: ago(60 * D),
       lastCaseId: "rocky",
     },
+    // Coco está en casa, pero se parece al collie encontrado en Belén: "¿Es Coco?" (domain/matching).
+    {
+      id: "own_coco",
+      ownerId: "u_valentina",
+      name: "Coco",
+      species: "dog",
+      breed: "Mestizo",
+      sex: "male",
+      age: "adult",
+      size: "medium",
+      color: "Negro con blanco",
+      description: "Tranquilo y muy dormilón. Le dan miedo los truenos.",
+      photos: [PHOTOS.terrier],
+      shyOrIndoor: false,
+      createdAt: ago(45 * D),
+    },
   ];
 
   return {

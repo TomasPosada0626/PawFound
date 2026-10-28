@@ -85,6 +85,14 @@ describe("registro y verificación SMS", () => {
     await fireEvent.changeText(screen.getByTestId("otp-0"), "123456");
     await fireEvent.press(screen.getByTestId("verify-submit"));
     expect(await screen.findByText("¡Cuenta verificada! Ya tienes tu insignia azul.")).toBeOnTheScreen();
+
+    // Paso siguiente: activar las alertas, con su porqué y sin obligar.
+    expect(await screen.findByTestId("alerts-onboarding")).toBeOnTheScreen();
+    expect(screen.getByText(/Las alertas son gratis/)).toBeOnTheScreen();
+    // Sin zona todavía: el letrero explica que así no llegan las alertas.
+    expect(await screen.findByText("No recibirás alertas de mascotas perdidas")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText("Continuar sin alertas"));
+    await waitFor(() => expect(screen.queryByTestId("alerts-onboarding")).toBeNull());
   });
 
   it("muestra un error genérico con credenciales inválidas", async () => {
