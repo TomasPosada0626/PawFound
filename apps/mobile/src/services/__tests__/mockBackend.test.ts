@@ -10,7 +10,7 @@ import {
   totalUnread,
   unreadCount,
   userActivity,
-  userBadges,
+  userBadgeProgress,
   userNotifications,
   userStats,
 } from "../selectors";
@@ -71,7 +71,7 @@ describe("autenticación", () => {
     expect(backend.getSnapshot().verification?.phone).toBe("+573105550000");
     await backend.verifyCode(DEMO_SMS_CODE);
     expect(backend.currentUser?.phoneVerified).toBe(true);
-    expect(userBadges(backend.getSnapshot(), user!.id)).toContain("verified");
+    expect(userBadgeProgress(backend.getSnapshot(), user!.id).find((b) => b.id === "verified")?.tier).toBe(1);
   });
 
   it("rechaza correos repetidos y celulares ya verificados por otra cuenta", async () => {
@@ -336,17 +336,24 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     expect(backend.currentUser?.bio).toHaveLength(150);
   });
 
-  it("guarda preferencias, bloquea y desbloquea", async () => {
+  it("guarda preferencias; no hay bloqueos: se reporta a la persona con contexto", async () => {
     const backend = makeBackend();
     await loginDemo(backend);
     await backend.updateNotificationPrefs({ quietHours: true, quietFrom: "23:00" });
     expect(backend.notificationPrefsFor("u_valentina")).toMatchObject({ quietHours: true, quietFrom: "23:00", lostNearby: true });
-    await backend.blockUser("u_maria");
-    await backend.blockUser("u_maria");
-    await backend.blockUser("u_valentina");
-    expect(backend.privacyPrefsFor("u_valentina").blockedUserIds).toEqual(["u_maria"]);
-    await backend.unblockUser("u_maria");
-    expect(backend.privacyPrefsFor("u_valentina").blockedUserIds).toEqual([]);
+    await backend.reportUser({
+      userId: "u_maria",
+      reason: "rude",
+      threadId: "dm_maria",
+      messageId: "m_seed_1",
+      note: " Me insultó ",
+    });
+    await backend.reportUser({ userId: "u_maria", reason: "rude", threadId: "dm_maria", messageId: "m_seed_1" });
+    expect(backend.getSnapshot().userReports).toEqual([
+      expect.objectContaining({ reporterId: "u_valentina", reportedId: "u_maria", reason: "rude", note: "Me insultó" }),
+    ]);
+    await expectCode(backend.reportUser({ userId: "u_valentina", reason: "spam" }), "not_allowed");
+    await expectCode(backend.reportUser({ userId: "u_nadie", reason: "spam" }), "not_allowed");
     await backend.setLanguage("en");
     expect(backend.currentUser?.lang).toBe("en");
   });
@@ -376,8 +383,11 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     const backend = makeBackend();
     const state = backend.getSnapshot();
     expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 4.8, ratingCount: 9 });
-    expect(userBadges(state, "u_valentina")).toEqual(["verified", "first_report", "first_rescue", "reunion", "community"]);
+    const earned = userBadgeProgress(state, "u_valentina")
+      .filter((b) => b.tier > 0)
+      .map((b) => `${b.id}:${b.tier}`);
+    expect(earned).toEqual(["verified:1", "reporter:1", "rescuer:1", "paw_angel:1", "reunion:1", "spreader:1", "community:1"]);
     expect(userActivity(state, "u_valentina").map((a) => a.kind)).toEqual(["lost", "reunited", "found"]);
-    expect(userBadges(state, "u_nadie")).toEqual([]);
+    expect(userBadgeProgress(state, "u_nadie")).toEqual([]);
   });
 });

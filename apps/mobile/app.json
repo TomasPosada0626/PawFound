@@ -9,7 +9,11 @@
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#F4F9F8",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "app.pawfound",
+      "associatedDomains": [
+        "applinks:pawfound.app"
+      ]
     },
     "android": {
       "package": "app.pawfound",
@@ -29,10 +33,21 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "pawfound.app", "pathPrefix": "/alerta" },
-            { "scheme": "https", "host": "pawfound.app", "pathPrefix": "/mascota" }
+            {
+              "scheme": "https",
+              "host": "pawfound.app",
+              "pathPrefix": "/alerta"
+            },
+            {
+              "scheme": "https",
+              "host": "pawfound.app",
+              "pathPrefix": "/mascota"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -70,6 +85,14 @@
           "dark": {
             "backgroundColor": "#0B1622"
           }
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#0E7C6B",
+          "defaultChannel": "case-updates"
         }
       ]
     ]

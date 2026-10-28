@@ -33,10 +33,12 @@ describe("perfil", () => {
     expect(await screen.findByText("Valentina Arango")).toBeOnTheScreen();
     expect(screen.getByLabelText("Cuenta verificada")).toBeOnTheScreen();
     expect(screen.getByText("@valentina")).toBeOnTheScreen();
-    expect(screen.getByText("4,8")).toBeOnTheScreen();
+    expect(screen.getByLabelText("7 Me gusta")).toBeOnTheScreen();
     await fireEvent.press(screen.getAllByText("Ver todas")[0]!);
     expect(await screen.findByText("Todas las insignias")).toBeOnTheScreen();
-    expect(screen.getByText("Publica 10 reportes.")).toBeOnTheScreen();
+    expect(screen.getByText("Publica 5 reportes.")).toBeOnTheScreen();
+    expect(screen.getByText("2 de 5 para Plata")).toBeOnTheScreen();
+    expect(screen.getByTestId("member-days")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("logout"));
     await fireEvent.press(await screen.findAllByText("Cerrar sesión").then((all) => all[all.length - 1]!));
     await waitFor(() => expect(app.getPathname()).toBe("/"));

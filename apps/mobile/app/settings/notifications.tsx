@@ -1,6 +1,7 @@
 import { Redirect } from "expo-router";
 import { View } from "react-native";
 
+import { AngelAlertSettings } from "@/components/AngelAlertSettings";
 import { SettingsCard, SettingsLayout } from "@/components/SettingsLayout";
 import { Banner, Divider, ToggleRow } from "@/components/ui/Controls";
 import { SelectField } from "@/components/ui/SelectField";
@@ -29,6 +30,8 @@ export default function NotificationSettingsScreen() {
 
   return (
     <SettingsLayout section="notifications" title={t("settings.notifications")}>
+      <AngelAlertSettings prefs={prefs} userId={user.id} />
+
       <SettingsCard title={t("notificationSettings.prefsTitle")} subtitle={t("notificationSettings.prefsSubtitle")}>
         <ToggleRow
           icon="paw"

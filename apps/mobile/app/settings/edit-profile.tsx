@@ -15,7 +15,7 @@ import type { AvatarId, ProfileTitle } from "@/domain/types";
 import { BIO_MAX } from "@/domain/validation";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
-import { userBadges, userStats } from "@/services/selectors";
+import { userBadgeProgress, userStats } from "@/services/selectors";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -41,7 +41,7 @@ export default function EditProfileScreen() {
 
   if (!user) return <Redirect href={{ pathname: "/auth/login", params: { next: "/settings/edit-profile" } }} />;
   const stats = userStats(state, user.id);
-  const badges = userBadges(state, user.id);
+  const badges = userBadgeProgress(state, user.id).filter((b) => b.tier > 0);
 
   const save = async () => {
     setSaving(true);
@@ -164,7 +164,7 @@ export default function EditProfileScreen() {
         ) : (
           <View className="flex-row flex-wrap">
             {badges.map((b) => (
-              <BadgeTile key={b} id={b} size={48} />
+              <BadgeTile key={b.id} progress={b} size={48} />
             ))}
           </View>
         )}

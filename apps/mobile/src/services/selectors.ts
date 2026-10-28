@@ -1,5 +1,6 @@
+import { badgeProgress, type BadgeFacts, type BadgeProgress } from "@/domain/badges";
 import { distanceMeters } from "@/domain/geo";
-import type { AppNotification, LatLng, Message, PetCase, Species, Thread, User } from "@/domain/types";
+import type { AppNotification, LatLng, Message, OwnedPet, PetCase, Species, Thread, User } from "@/domain/types";
 
 import type { BackendState } from "./backendTypes";
 
@@ -106,22 +107,72 @@ export function userStats(state: BackendState, userId: string): UserStats {
   };
 }
 
-export type BadgeId = "verified" | "first_report" | "first_rescue" | "reunion" | "ten_reports" | "community";
-
-/** Insignias calculadas a partir de actividad real (issue #61, sin datos inventados). */
-export function userBadges(state: BackendState, userId: string): BadgeId[] {
+/** Hechos reales que cuentan para cada insignia (los reportes retirados por moderación no cuentan). */
+export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
   const user = state.users[userId];
-  if (!user) return [];
-  const own = state.pets.filter((p) => p.ownerId === userId);
-  const groupsJoined = state.threads.filter((t) => t.kind === "group" && t.memberIds.includes(userId)).length;
-  const badges: BadgeId[] = [];
-  if (user.phoneVerified) badges.push("verified");
-  if (own.length >= 1) badges.push("first_report");
-  if (own.some((p) => p.kind === "found")) badges.push("first_rescue");
-  if (own.some((p) => p.state === "reunited")) badges.push("reunion");
-  if (own.length >= 10) badges.push("ten_reports");
-  if (groupsJoined >= 3) badges.push("community");
-  return badges;
+  const valid = state.pets.filter((p) => !p.moderationRemoved);
+  const own = valid.filter((p) => p.ownerId === userId);
+  const ownGroups = new Set(own.map((p) => p.groupId));
+  return {
+    verified: user?.phoneVerified ? 1 : 0,
+    reporter: own.length,
+    rescuer: own.filter((p) => p.kind === "found").length,
+    eyes: valid
+      .filter((p) => p.ownerId !== userId)
+      .reduce((sum, p) => sum + p.sightings.filter((s) => s.authorId === userId).length, 0),
+    paw_angel: valid.filter((p) => p.helperIds?.includes(userId)).length,
+    reunion: own.filter((p) => p.state === "reunited").length,
+    spreader: (state.shareLog[userId] ?? []).length,
+    community: state.threads.filter((t) => t.kind === "group" && t.memberIds.includes(userId) && !ownGroups.has(t.id)).length,
+  };
+}
+
+/** Progreso de todas las insignias; en producción lo calcula y devuelve la API. */
+export function userBadgeProgress(state: BackendState, userId: string): BadgeProgress[] {
+  if (!state.users[userId]) return [];
+  return badgeProgress(badgeFacts(state, userId));
+}
+
+export type HelperReason = "sighting" | "group" | "direct";
+export type HelperCandidate = { user: User; userId: string; reasons: HelperReason[] };
+
+/**
+ * Personas que participaron en el caso y a las que la familia puede agradecer al cerrarlo:
+ * reportaron un avistamiento, escribieron en el grupo o le escribieron por mensaje directo.
+ */
+export function reunionHelperCandidates(state: BackendState, petId: string): HelperCandidate[] {
+  const pet = state.pets.find((p) => p.id === petId);
+  if (!pet) return [];
+  const reasons = new Map<string, Set<HelperReason>>();
+  const add = (userId: string, reason: HelperReason) => {
+    if (userId === pet.ownerId || !state.users[userId]) return;
+    const set = reasons.get(userId) ?? new Set<HelperReason>();
+    set.add(reason);
+    reasons.set(userId, set);
+  };
+  for (const s of pet.sightings) add(s.authorId, "sighting");
+  for (const m of state.messages) {
+    if (m.threadId === pet.groupId && m.kind !== "system") add(m.authorId, m.kind === "sighting" ? "sighting" : "group");
+  }
+  const directThreads = new Set(
+    state.threads.filter((t) => t.kind === "dm" && t.petId === petId && t.memberIds.includes(pet.ownerId)).map((t) => t.id),
+  );
+  for (const m of state.messages) if (directThreads.has(m.threadId) && m.kind === "text") add(m.authorId, "direct");
+  return [...reasons.entries()]
+    .map(([userId, set]) => ({ userId, user: state.users[userId] as User, reasons: [...set] }))
+    .sort((a, b) => b.reasons.length - a.reasons.length || a.user.name.localeCompare(b.user.name));
+}
+
+export function likesOf(state: BackendState, userId: string): number {
+  return (state.profileLikes[userId] ?? []).length;
+}
+
+export function hasLiked(state: BackendState, fromId: string | null, toId: string): boolean {
+  return Boolean(fromId && state.profileLikes[toId]?.includes(fromId));
+}
+
+export function ownedPetsOf(state: BackendState, userId: string): OwnedPet[] {
+  return state.ownedPets.filter((p) => p.ownerId === userId);
 }
 
 export type ActivityItem = { pet: PetCase; kind: "lost" | "found" | "reunited"; at: string };

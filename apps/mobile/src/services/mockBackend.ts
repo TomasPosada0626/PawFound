@@ -1,25 +1,33 @@
+import { alertAudience, type AlertCandidate } from "@/domain/alerts";
 import { approximateLocation } from "@/domain/geo";
 import { findPossibleMatches, publishAllowance } from "@/domain/rules";
 import type {
+  AlertZone,
   AppNotification,
   Lang,
   Message,
   MessageKind,
   NotificationKind,
   NotificationPrefs,
+  OwnedPet,
   PetCase,
   PrivacyPrefs,
   Thread,
   User,
+  UserReport,
+  UserReportReason,
 } from "@/domain/types";
 import { shortName } from "@/domain/privacy";
 import { normalizeColombianMobile } from "@/domain/validation";
+
+import { reunionHelperCandidates } from "./selectors";
 
 import {
   BackendError,
   type BackendState,
   type NewReportInput,
   type NewSightingInput,
+  type OwnedPetInput,
   type ProfilePatch,
   type SocialProvider,
 } from "./backendTypes";
@@ -41,6 +49,12 @@ export const CODE_TTL_MIN = 10;
 export const MAX_CODE_ATTEMPTS = 5;
 export const LOCK_MINUTES = 5;
 export const MESSAGE_MAX = 1000;
+/** Máximo de personas que la familia puede agradecer al cerrar un caso. */
+export const MAX_HELPERS = 5;
+export const MAX_OWNED_PETS = 10;
+/** Antispam: mensajes por minuto por cuenta. */
+export const MESSAGES_PER_MINUTE = 12;
+const ALERT_KINDS = new Set<NotificationKind>(["angel_alert", "life_circle"]);
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   lostNearby: true,
@@ -49,6 +63,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   directMessages: true,
   groups: true,
   lifeCircle: true,
+  angelAlerts: true,
   quietHours: false,
   quietFrom: "22:00",
   quietTo: "07:00",
@@ -57,7 +72,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   dailyDigest: false,
 };
 
-export const DEFAULT_PRIVACY_PREFS: PrivacyPrefs = { whoCanMessage: "everyone", blockedUserIds: [] };
+export const DEFAULT_PRIVACY_PREFS: PrivacyPrefs = { whoCanMessage: "everyone" };
 
 type Listener = () => void;
 
@@ -336,11 +351,18 @@ export class MockBackend {
     };
     const matches = findPossibleMatches(pet, this.state.pets, this.now());
     const matchNotifications = matches.map((m) => this.makeNotification(m.pet.ownerId, "possible_match", petId));
+    // Alerta Ángel: push a los celulares dentro del círculo de vida inicial (issue #45).
+    const angelNotifications = alertAudience(pet, this.alertCandidates(pet), this.now()).map((id) =>
+      this.makeNotification(id, "angel_alert", petId),
+    );
     this.commit({
       pets: [pet, ...this.state.pets],
       threads: [thread, ...this.state.threads],
       messages: [...this.state.messages, this.makeMessage(groupId, "system", user, "created")],
-      notifications: [...matchNotifications, ...this.state.notifications],
+      notifications: [...angelNotifications, ...matchNotifications, ...this.state.notifications],
+      ownedPets: this.state.ownedPets.map((p) =>
+        p.id === input.ownedPetId && p.ownerId === user.id ? { ...p, lastCaseId: petId } : p,
+      ),
       reportLog: { ...this.state.reportLog, [user.id]: [...(this.state.reportLog[user.id] ?? []), now] },
     });
     return pet;
@@ -360,6 +382,41 @@ export class MockBackend {
     return this.state.pets.map((p) => (p.id === pet.id ? pet : p));
   }
 
+  /** Cuentas con zona de alertas, con lo necesario para decidir si se les avisa de este caso. */
+  private alertCandidates(pet: PetCase): AlertCandidate[] {
+    const dayAgo = new Date(this.now().getTime() - 24 * 3_600_000).toISOString();
+    return Object.entries(this.state.alertZones).map(([userId, zone]) => {
+      const received = this.state.notifications.filter((n) => n.userId === userId && ALERT_KINDS.has(n.kind));
+      return {
+        userId,
+        zone,
+        prefs: this.notificationPrefsFor(userId),
+        alertsLast24h: received.filter((n) => n.at > dayAgo).length,
+        alreadyAlerted: received.some((n) => n.petId === pet.id),
+      };
+    });
+  }
+
+  /**
+   * Tareas periódicas del servidor (en la API, un job cada pocos minutos). Hoy: a medida que
+   * el círculo de vida crece, la Alerta Ángel llega a los celulares que van quedando dentro.
+   * Devuelve cuántas notificaciones nuevas generó.
+   */
+  runScheduledJobs(): number {
+    let total = 0;
+    for (const pet of this.state.pets) {
+      if (pet.kind !== "lost" || pet.state !== "active") continue;
+      const created = alertAudience(pet, this.alertCandidates(pet), this.now()).map((id) =>
+        this.makeNotification(id, "life_circle", pet.id),
+      );
+      if (!created.length) continue;
+      // Caso por caso: lo recién avisado cuenta para el límite diario del siguiente.
+      this.commit({ notifications: [...created, ...this.state.notifications] });
+      total += created.length;
+    }
+    return total;
+  }
+
   async addSighting(petId: string, input: NewSightingInput): Promise<void> {
     const user = this.requireVerified();
     const pet = this.requirePet(petId);
@@ -371,6 +428,7 @@ export class MockBackend {
       location,
       zone: input.zone,
       note: input.note?.trim() || undefined,
+      authorId: user.id,
       authorShortName: shortName(user.name),
     };
     // Solo un avistamiento más reciente mueve el último punto conocido (y reinicia el círculo).
@@ -391,29 +449,112 @@ export class MockBackend {
     });
   }
 
-  async markReunited(petId: string): Promise<void> {
+  /**
+   * Cierra el caso con un reencuentro. La familia puede agradecer a quienes ayudaron
+   * ("Ángel de patas"): solo cuentan personas que de verdad participaron en el caso
+   * (avistamientos, grupo o mensaje directo), para que la insignia no se pueda regalar.
+   */
+  async markReunited(petId: string, helperIds: string[] = []): Promise<void> {
     const user = this.requireUser();
     const pet = this.requirePet(petId);
     if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
+    if (pet.state !== "active") throw new BackendError("not_allowed");
+    const allowed = new Set(reunionHelperCandidates(this.state, petId).map((c) => c.userId));
+    const helpers = [...new Set(helperIds)].filter((id) => allowed.has(id)).slice(0, MAX_HELPERS);
     const thread = this.state.threads.find((t) => t.id === pet.groupId);
-    const recipients = (thread?.memberIds ?? []).filter((id) => id !== user.id);
+    const recipients = (thread?.memberIds ?? []).filter((id) => id !== user.id && !helpers.includes(id));
     this.commit({
-      pets: this.replacePet({ ...pet, state: "reunited", reunitedAt: this.iso() }),
+      pets: this.replacePet({
+        ...pet,
+        state: "reunited",
+        reunitedAt: this.iso(),
+        ...(helpers.length ? { helperIds: helpers } : {}),
+      }),
       threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
       messages: [...this.state.messages, this.makeMessage(pet.groupId, "system", user, "reunited")],
-      notifications: [...recipients.map((id) => this.makeNotification(id, "case_closed", pet.id)), ...this.state.notifications],
+      notifications: [
+        ...helpers.map((id) => this.makeNotification(id, "thanked", pet.id)),
+        ...recipients.map((id) => this.makeNotification(id, "case_closed", pet.id)),
+        ...this.state.notifications,
+      ],
     });
   }
 
   async sharePet(petId: string): Promise<void> {
     const pet = this.requirePet(petId);
-    this.commit({ pets: this.replacePet({ ...pet, shareCount: pet.shareCount + 1 }) });
+    const user = this.currentUser;
+    const shared = user ? (this.state.shareLog[user.id] ?? []) : [];
+    this.commit({
+      pets: this.replacePet({ ...pet, shareCount: pet.shareCount + 1 }),
+      ...(user && !shared.includes(petId) ? { shareLog: { ...this.state.shareLog, [user.id]: [...shared, petId] } } : {}),
+    });
   }
 
   async reportPost(petId: string): Promise<void> {
     // La moderación real es proporcional al riesgo (docs/legal/moderacion-y-ugc.md);
     // en demo solo se valida que exista.
     this.requirePet(petId);
+  }
+
+  /**
+   * Decisión del equipo de moderación (no la expone la app): el reporte se archiva y deja
+   * de contar para insignias y estadísticas, que se recalculan solas.
+   */
+  applyModerationRemoval(petId: string): void {
+    const pet = this.requirePet(petId);
+    this.commit({
+      pets: this.replacePet({ ...pet, moderationRemoved: true, state: pet.state === "active" ? "archived" : pet.state }),
+    });
+  }
+
+  // --- Mis mascotas (perfil preventivo) --------------------------------------
+
+  async saveOwnedPet(input: OwnedPetInput, id?: string): Promise<OwnedPet> {
+    const user = this.requireUser();
+    const clean: OwnedPetInput = {
+      ...input,
+      name: input.name.trim(),
+      breed: input.breed?.trim() || undefined,
+      color: input.color?.trim() || undefined,
+      collar: input.collar?.trim() || undefined,
+      marks: input.marks?.trim() || undefined,
+      description: input.description.trim(),
+      photos: input.photos.slice(0, 5),
+    };
+    if (!clean.name) throw new BackendError("unknown");
+    if (id) {
+      const existing = this.state.ownedPets.find((p) => p.id === id);
+      if (!existing) throw new BackendError("not_found");
+      if (existing.ownerId !== user.id) throw new BackendError("not_allowed");
+      const updated = { ...existing, ...clean };
+      this.commit({ ownedPets: this.state.ownedPets.map((p) => (p.id === id ? updated : p)) });
+      return updated;
+    }
+    if (this.state.ownedPets.filter((p) => p.ownerId === user.id).length >= MAX_OWNED_PETS) {
+      throw new BackendError("not_allowed");
+    }
+    const created: OwnedPet = { ...clean, id: this.id("own"), ownerId: user.id, createdAt: this.iso() };
+    this.commit({ ownedPets: [...this.state.ownedPets, created] });
+    return created;
+  }
+
+  async deleteOwnedPet(id: string): Promise<void> {
+    const user = this.requireUser();
+    const existing = this.state.ownedPets.find((p) => p.id === id);
+    if (!existing) return;
+    if (existing.ownerId !== user.id) throw new BackendError("not_allowed");
+    this.commit({ ownedPets: this.state.ownedPets.filter((p) => p.id !== id) });
+  }
+
+  // --- Zona de Alertas Ángel --------------------------------------------------
+
+  /** Guarda la zona aproximada (nunca el punto exacto) o la borra con null (revoca). */
+  async setAlertZone(zone: AlertZone | null): Promise<void> {
+    const user = this.requireUser();
+    const zones = { ...this.state.alertZones };
+    if (zone) zones[user.id] = { ...zone, location: approximateLocation(zone.location) };
+    else delete zones[user.id];
+    this.commit({ alertZones: zones });
   }
 
   // --- Mensajería ----------------------------------------------------------
@@ -442,7 +583,7 @@ export class MockBackend {
     const other = this.state.users[otherId];
     if (!other) throw new BackendError("not_found");
     const prefs = this.state.privacyPrefs[otherId] ?? DEFAULT_PRIVACY_PREFS;
-    if (prefs.blockedUserIds.includes(user.id) || prefs.whoCanMessage === "nobody") {
+    if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.phoneVerified)) {
       throw new BackendError("cannot_message");
     }
     const existing = this.state.threads.find(
@@ -468,6 +609,13 @@ export class MockBackend {
     if (!thread || !thread.memberIds.includes(user.id) || thread.archived) throw new BackendError("not_allowed");
     const body = text.trim().slice(0, MESSAGE_MAX);
     if (!body) return;
+    if (user.mutedUntil && new Date(user.mutedUntil) > this.now()) {
+      throw new BackendError("muted", { until: user.mutedUntil });
+    }
+    // Antispam: límite por minuto (en la API, con Redis; docs/ARCHITECTURE.md).
+    const minuteAgo = new Date(this.now().getTime() - 60_000).toISOString();
+    const recent = this.state.messages.filter((m) => m.authorId === user.id && m.kind === "text" && m.at > minuteAgo);
+    if (recent.length >= MESSAGES_PER_MINUTE) throw new BackendError("rate_limited", {});
     // Se traduce una vez hacia cada idioma que usan los miembros, no por cada lector.
     const targets = new Set(
       thread.memberIds.map((id) => this.state.users[id]?.lang).filter((l): l is Lang => Boolean(l) && l !== lang),
@@ -579,17 +727,57 @@ export class MockBackend {
     this.commit({ privacyPrefs: { ...this.state.privacyPrefs, [user.id]: { ...this.privacyPrefsFor(user.id), ...patch } } });
   }
 
-  async blockUser(userId: string): Promise<void> {
-    const user = this.requireUser();
-    const prefs = this.privacyPrefsFor(user.id);
-    if (userId === user.id || prefs.blockedUserIds.includes(userId)) return;
-    await this.updatePrivacy({ blockedUserIds: [...prefs.blockedUserIds, userId] });
+  /**
+   * "Me gusta" en el perfil de otra persona (o quitarlo). Solo cuentas verificadas, uno por
+   * persona y nunca a uno mismo, para que el contador refleje confianza real.
+   */
+  async toggleProfileLike(userId: string): Promise<boolean> {
+    const user = this.requireVerified();
+    if (userId === user.id || !this.state.users[userId]) throw new BackendError("not_allowed");
+    const likers = this.state.profileLikes[userId] ?? [];
+    const liked = !likers.includes(user.id);
+    this.commit({
+      profileLikes: {
+        ...this.state.profileLikes,
+        [userId]: liked ? [...likers, user.id] : likers.filter((id) => id !== user.id),
+      },
+    });
+    return liked;
   }
 
-  async unblockUser(userId: string): Promise<void> {
+  /**
+   * Reportar a una persona (spam, groserías, estafa…). No hay bloqueos: el equipo de
+   * moderación revisa con contexto (el mensaje reportado) y decide la sanción.
+   */
+  async reportUser(input: { userId: string; reason: UserReportReason; threadId?: string; messageId?: string; note?: string }) {
     const user = this.requireUser();
-    const prefs = this.privacyPrefsFor(user.id);
-    await this.updatePrivacy({ blockedUserIds: prefs.blockedUserIds.filter((id) => id !== userId) });
+    if (input.userId === user.id || !this.state.users[input.userId]) throw new BackendError("not_allowed");
+    const duplicate = this.state.userReports.some(
+      (r) => r.reporterId === user.id && r.reportedId === input.userId && r.messageId === input.messageId,
+    );
+    if (duplicate) return;
+    const report: UserReport = {
+      id: this.id("rep"),
+      reporterId: user.id,
+      reportedId: input.userId,
+      reason: input.reason,
+      threadId: input.threadId,
+      messageId: input.messageId,
+      note: input.note?.trim().slice(0, 300) || undefined,
+      at: this.iso(),
+    };
+    this.commit({ userReports: [...this.state.userReports, report] });
+  }
+
+  /**
+   * Sanción del equipo de moderación (no la expone la app): sin enviar mensajes por un
+   * tiempo. Escalamiento: aviso → 24 h → 7 días → suspensión (docs/legal/moderacion-y-ugc.md).
+   */
+  applyModerationMute(userId: string, hours: number): void {
+    const user = this.state.users[userId];
+    if (!user) throw new BackendError("not_found");
+    const mutedUntil = new Date(this.now().getTime() + hours * 3_600_000).toISOString();
+    this.commit({ users: { ...this.state.users, [userId]: { ...user, mutedUntil } } });
   }
 
   /** Portabilidad (Ley 1581): todo lo que la cuenta generó, en JSON. */
@@ -602,6 +790,8 @@ export class MockBackend {
       messages: this.state.messages.filter((m) => m.authorId === user.id),
       notificationPrefs: this.notificationPrefsFor(user.id),
       privacyPrefs: this.privacyPrefsFor(user.id),
+      ownedPets: this.state.ownedPets.filter((p) => p.ownerId === user.id),
+      alertZone: this.state.alertZones[user.id] ?? null,
     };
     return JSON.stringify(data, null, 2);
   }
@@ -612,7 +802,20 @@ export class MockBackend {
     for (const [email, entry] of this.credentials) if (entry.userId === user.id) this.credentials.delete(email);
     const users = { ...this.state.users };
     delete users[user.id];
+    const alertZones = { ...this.state.alertZones };
+    delete alertZones[user.id];
+    const shareLog = { ...this.state.shareLog };
+    delete shareLog[user.id];
+    const profileLikes = Object.fromEntries(
+      Object.entries(this.state.profileLikes)
+        .filter(([target]) => target !== user.id)
+        .map(([target, likers]) => [target, likers.filter((id) => id !== user.id)]),
+    );
     this.commit({
+      profileLikes,
+      alertZones,
+      shareLog,
+      ownedPets: this.state.ownedPets.filter((p) => p.ownerId !== user.id),
       users,
       sessionUserId: null,
       verification: null,

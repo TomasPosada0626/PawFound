@@ -2,15 +2,13 @@ import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import { Share, View } from "react-native";
 
-import { UserAvatar } from "@/components/pets";
 import { SettingsCard, SettingsLayout } from "@/components/SettingsLayout";
-import { Button } from "@/components/ui/Button";
 import { Divider, IconBubble, ListRow, ToggleRow } from "@/components/ui/Controls";
 import { Icon } from "@/components/ui/Icon";
 import { ConfirmSheet, OptionList, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
-import { maskEmail, shortName } from "@/domain/privacy";
+import { maskEmail } from "@/domain/privacy";
 import type { WhoCanMessage } from "@/domain/types";
 import { formatColombianMobile } from "@/domain/validation";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -27,14 +25,12 @@ export default function PrivacyScreen() {
   const user = useCurrentUser();
   const toast = useToast();
   const [whoOpen, setWhoOpen] = useState(false);
-  const [blockedOpen, setBlockedOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   if (!user) return <Redirect href={{ pathname: "/auth/login", params: { next: "/settings/privacy" } }} />;
   const prefs = state.privacyPrefs[user.id] ?? DEFAULT_PRIVACY_PREFS;
   const whoLabel = (w: WhoCanMessage) =>
     w === "everyone" ? t("privacy.everyone") : w === "verified" ? t("privacy.verified") : t("privacy.nobody");
-  const blockedUsers = prefs.blockedUserIds.map((id) => state.users[id]).filter((u): u is NonNullable<typeof u> => Boolean(u));
 
   const exportData = async () => {
     try {
@@ -104,13 +100,8 @@ export default function PrivacyScreen() {
         <ToggleRow title={t("privacy.hideExact")} description={t("privacy.hideExactDesc")} value onChange={() => {}} disabled />
       </SettingsCard>
 
-      <SettingsCard title={t("privacy.blocked")} icon="person-remove-outline">
-        <ListRow
-          title={t("privacy.blocked")}
-          description={t("privacy.blockedDesc")}
-          value={String(blockedUsers.length)}
-          onPress={() => setBlockedOpen(true)}
-        />
+      <SettingsCard title={t("privacy.safetyTitle")} icon="flag-outline">
+        <ListRow title={t("privacy.safetyNoBlocks")} description={t("privacy.safetyBody")} />
       </SettingsCard>
 
       <SettingsCard title={t("privacy.yourData")} icon="download-outline">
@@ -154,24 +145,6 @@ export default function PrivacyScreen() {
             setWhoOpen(false);
           }}
         />
-      </Sheet>
-
-      <Sheet visible={blockedOpen} onClose={() => setBlockedOpen(false)} title={t("privacy.blocked")}>
-        {blockedUsers.length === 0 ? (
-          <Text variant="body" tone="muted" className="pb-4">
-            {t("privacy.noBlocked")}
-          </Text>
-        ) : (
-          blockedUsers.map((u) => (
-            <View key={u.id} className="flex-row items-center gap-3 border-b border-border py-3">
-              <UserAvatar user={u} size={44} />
-              <Text variant="bodyStrong" className="flex-1">
-                {shortName(u.name)}
-              </Text>
-              <Button label={t("privacy.unblock")} variant="outline" compact onPress={() => void backend.unblockUser(u.id)} />
-            </View>
-          ))
-        )}
       </Sheet>
 
       <ConfirmSheet

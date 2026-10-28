@@ -2,6 +2,7 @@ import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 
 import type { AppNotification, PetCase } from "@/domain/types";
+import { notificationUrl } from "@/features/notifications";
 import { relativeTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useBackend } from "@/store/backend";
@@ -11,7 +12,15 @@ import { PetAvatar, PetPhoto, petDisplayName } from "./pets";
 import { Icon } from "./ui/Icon";
 import { cn, Text } from "./ui/Text";
 
-const LOST_TONE = new Set<AppNotification["kind"]>(["lost_nearby", "case_update", "comment", "sighting", "case_closed"]);
+const LOST_TONE = new Set<AppNotification["kind"]>([
+  "lost_nearby",
+  "case_update",
+  "comment",
+  "sighting",
+  "case_closed",
+  "angel_alert",
+  "life_circle",
+]);
 
 /** Fila de notificación (pestaña Notificaciones y "Actividad reciente" de Inicio). */
 export function NotificationRow({ notification, pet, now }: { notification: AppNotification; pet: PetCase; now: Date }) {
@@ -30,7 +39,7 @@ export function NotificationRow({ notification, pet, now }: { notification: AppN
       accessibilityLabel={`${notification.read ? "" : "• "}${title}. ${body}. ${pet.zone}. ${time}`}
       onPress={() => {
         void backend.markNotificationRead(notification.id);
-        router.push(`/pet/${pet.id}`);
+        router.push(notificationUrl(notification) as never);
       }}
       className="min-h-[92px] flex-row items-center gap-3 rounded-3xl border border-border/60 bg-surface p-3 active:opacity-80"
       testID={`notification-${notification.id}`}

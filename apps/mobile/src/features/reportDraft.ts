@@ -1,5 +1,5 @@
 import { FOUND_RADIUS_OPTIONS } from "@/domain/lifeCircle";
-import type { AgeRange, CaseKind, FoundCondition, FoundCustody, LatLng, PetSize, Sex, Species } from "@/domain/types";
+import type { AgeRange, CaseKind, FoundCondition, FoundCustody, LatLng, OwnedPet, PetSize, Sex, Species } from "@/domain/types";
 import { validateReport, type FieldErrors } from "@/domain/validation";
 import type { NewReportInput } from "@/services/backendTypes";
 
@@ -55,6 +55,25 @@ export function emptyDraft(kind: CaseKind = "lost"): ReportDraft {
     foundRadius: FOUND_RADIUS_OPTIONS[0],
     condition: null,
     custody: null,
+  };
+}
+
+/** "Se perdió" desde Mis mascotas: todo listo menos dónde y cuándo. */
+export function draftFromOwnedPet(pet: OwnedPet): ReportDraft {
+  return {
+    ...emptyDraft("lost"),
+    photos: pet.photos,
+    name: pet.name,
+    species: pet.species,
+    breed: pet.breed ?? "",
+    sex: pet.sex,
+    age: pet.age,
+    size: pet.size,
+    color: pet.color ?? "",
+    collar: pet.collar ?? "",
+    marks: pet.marks ?? "",
+    description: pet.description,
+    shyOrIndoor: pet.shyOrIndoor,
   };
 }
 

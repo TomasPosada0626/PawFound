@@ -63,6 +63,14 @@ __tests__/              # flujos completos sobre el router real
 - **Traducción de chats**: cada mensaje guarda su idioma; quien lee en otro idioma ve la
   traducción generada por el servidor, con "Ver original". En demo no hay proveedor y no
   se inventan traducciones de mensajes nuevos.
+- **Alerta Ángel por push** (no SMS): llega a los celulares dentro del círculo de vida y a
+  más celulares a medida que crece (`src/domain/alerts.ts`, `BackgroundServices`). En demo
+  son notificaciones locales (funcionan en Expo Go); en producción las envía la API.
+- **Insignias por niveles** (`src/domain/badges.ts`), celebración al ganarlas y "Ángel de
+  patas" que la familia otorga al cerrar el caso.
+- **Perfiles públicos con "me gusta"** (`app/user/[id].tsx`), días en PawFound, y
+  convivencia sin bloqueos: reportar persona, aviso amable y límite de mensajes.
+- **Mis mascotas** (perfil preventivo → reporte con un toque) y **afiche con QR**.
 - **Accesibilidad** (docs/accesibilidad.md): touch targets ≥ 48 dp, labels reales,
   regiones vivas para errores, estado nunca solo por color, contraste AA probado en tests.
 

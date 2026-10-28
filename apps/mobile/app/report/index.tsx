@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { Image } from "expo-image";
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 
@@ -23,6 +23,7 @@ import { DAILY_REPORT_LIMIT } from "@/domain/rules";
 import type { AgeRange, FoundCondition, FoundCustody, PetSize, Sex, Species } from "@/domain/types";
 import { DESCRIPTION_MAX, hasErrors, MAX_PHOTOS } from "@/domain/validation";
 import {
+  draftFromOwnedPet,
   emptyDraft,
   isDraftMeaningful,
   toReportInput,
@@ -48,8 +49,13 @@ export default function ReportScreen() {
   const toast = useToast();
   const { location } = useUserLocation();
   const pickPlace = usePlacePicker();
+  const { fromPet } = useLocalSearchParams<{ fromPet?: string }>();
+  // Perfil de "Mis mascotas" desde el que se abrió (solo si es de la cuenta actual).
+  const [ownedPet] = useState(() =>
+    backend.getSnapshot().ownedPets.find((p) => p.id === fromPet && p.ownerId === backend.getSnapshot().sessionUserId),
+  );
 
-  const [draft, setDraft] = useState<ReportDraft>(() => emptyDraft("lost"));
+  const [draft, setDraft] = useState<ReportDraft>(() => (ownedPet ? draftFromOwnedPet(ownedPet) : emptyDraft("lost")));
   const [restored, setRestored] = useState(false);
   const [errors, setErrors] = useState<DraftErrors>({});
   const [submitting, setSubmitting] = useState(false);
@@ -62,6 +68,10 @@ export default function ReportScreen() {
 
   // Borrador: se recupera al abrir y se guarda mientras se escribe.
   useEffect(() => {
+    if (ownedPet) {
+      loaded.current = true;
+      return;
+    }
     void readJSON<ReportDraft>(STORAGE_KEYS.reportDraft).then((saved) => {
       if (saved && isDraftMeaningful(saved)) {
         setDraft({ ...emptyDraft(saved.kind), ...saved });
@@ -69,7 +79,7 @@ export default function ReportScreen() {
       }
       loaded.current = true;
     });
-  }, []);
+  }, [ownedPet]);
   useEffect(() => {
     if (!loaded.current) return;
     const timer = setTimeout(() => void writeJSON(STORAGE_KEYS.reportDraft, isDraftMeaningful(draft) ? draft : null), 400);
@@ -142,7 +152,10 @@ export default function ReportScreen() {
     }
     setSubmitting(true);
     try {
-      const pet = await backend.createReport(toReportInput(draft, new Date(), t("report.zoneUnknown")));
+      const pet = await backend.createReport({
+        ...toReportInput(draft, new Date(), t("report.zoneUnknown")),
+        ownedPetId: ownedPet?.id,
+      });
       await writeJSON(STORAGE_KEYS.reportDraft, null);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       router.replace({ pathname: "/report/success", params: { id: pet.id } });
@@ -201,6 +214,11 @@ export default function ReportScreen() {
             icon="time-outline"
             body={t("report.limitReached", { limit: DAILY_REPORT_LIMIT, time: clockTime(allowance.retryAt, locale) })}
           />
+        </View>
+      ) : null}
+      {ownedPet ? (
+        <View className="mb-4">
+          <Banner icon="paw" body={t("myPets.prefilled", { name: ownedPet.name })} />
         </View>
       ) : null}
       {restored ? (

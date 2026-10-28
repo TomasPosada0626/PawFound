@@ -15,6 +15,10 @@ export const STORAGE_KEYS = {
   reportDraft: "pawfound.reportDraft",
   session: "pawfound.session",
   autoTranslate: "pawfound.autoTranslate",
+  /** Niveles de insignias ya celebrados, por cuenta (sufijo .<userId>). */
+  badgesSeen: "pawfound.badgesSeen",
+  /** Ids de notificaciones ya mostradas en el sistema, para no repetirlas. */
+  pushShown: "pawfound.pushShown",
 } as const;
 
 export async function readJSON<T>(key: string): Promise<T | null> {

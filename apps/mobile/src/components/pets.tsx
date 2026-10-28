@@ -56,7 +56,8 @@ export function PetPhoto({
   rounded = "rounded-2xl",
   label,
 }: {
-  pet: Pick<PetCase, "photos" | "species" | "kind">;
+  /** Sin `kind` (perfil de "Mis mascotas") se usa el color de marca. */
+  pet: Pick<PetCase, "photos" | "species"> & { kind?: PetCase["kind"] };
   className?: string;
   rounded?: string;
   label?: string;

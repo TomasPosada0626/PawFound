@@ -7,16 +7,17 @@ import { PawDecoration } from "@/components/brand";
 import { HomeMenu } from "@/components/HomeMenu";
 import { AppHeader, Screen } from "@/components/layout";
 import { NotificationRow } from "@/components/notifications";
-import { PetCard, UserAvatar } from "@/components/pets";
+import { PetCard, PetPhoto, UserAvatar } from "@/components/pets";
 import { Banner, Card, EmptyState, SectionHeader } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
+import { OptionList, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { impactStats } from "@/domain/rules";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useNow } from "@/hooks/useNow";
 import { useI18n } from "@/i18n/I18nProvider";
-import { DEFAULT_FILTERS, filterPets, userNotifications } from "@/services/selectors";
+import { DEFAULT_FILTERS, filterPets, ownedPetsOf, userNotifications } from "@/services/selectors";
 import { useBackendState, useCurrentUser } from "@/store/backend";
 import { useUserLocation } from "@/store/location";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -31,6 +32,7 @@ export default function HomeScreen() {
   const { location } = useUserLocation();
   const requireAccount = useAuthGate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pickPetOpen, setPickPetOpen] = useState(false);
 
   const nearby = useMemo(() => filterPets(state.pets, location, now, DEFAULT_FILTERS).slice(0, 10), [state.pets, location, now]);
   const stats = useMemo(() => impactStats(state.pets, now), [state.pets, now]);
@@ -48,6 +50,14 @@ export default function HomeScreen() {
 
   const openReport = () => {
     if (requireAccount("/report")) router.push("/report");
+  };
+
+  // Con perfiles en "Mis mascotas", la emergencia empieza eligiendo cuál se perdió.
+  const ownedPets = useMemo(() => (user ? ownedPetsOf(state, user.id) : []), [state, user]);
+  const openEmergency = () => {
+    if (!requireAccount("/report")) return;
+    if (ownedPets.length) setPickPetOpen(true);
+    else router.push("/report");
   };
 
   const firstName = user?.name.split(" ")[0];
@@ -145,7 +155,7 @@ export default function HomeScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${t("home.emergencyTitle")}. ${t("home.emergencyBody")}`}
-        onPress={openReport}
+        onPress={openEmergency}
         className="mt-3 flex-row items-center gap-3 rounded-3xl border border-lost/30 bg-lost-soft p-4 active:opacity-90"
         testID="home-emergency"
       >
@@ -243,6 +253,35 @@ export default function HomeScreen() {
       </View>
 
       <HomeMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      <Sheet visible={pickPetOpen} onClose={() => setPickPetOpen(false)} title={t("myPets.whichLost")} testID="pick-owned-pet">
+        {ownedPets.map((p) => (
+          <Pressable
+            key={p.id}
+            accessibilityRole="button"
+            accessibilityLabel={`${t("myPets.lostCta")}: ${p.name}`}
+            onPress={() => {
+              setPickPetOpen(false);
+              router.push({ pathname: "/report", params: { fromPet: p.id } });
+            }}
+            className="mb-2 min-h-[64px] flex-row items-center gap-3 rounded-2xl border border-border p-3 active:opacity-80"
+            testID={`pick-${p.id}`}
+          >
+            <PetPhoto pet={p} className="h-12 w-12" rounded="rounded-full" />
+            <Text variant="bodyStrong" className="flex-1">
+              {p.name}
+            </Text>
+            <Icon name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
+        ))}
+        <OptionList
+          options={[{ value: "other", label: t("myPets.otherPet"), icon: "add-circle-outline" as const }]}
+          value={null}
+          onSelect={() => {
+            setPickPetOpen(false);
+            router.push("/report");
+          }}
+        />
+      </Sheet>
     </Screen>
   );
 }

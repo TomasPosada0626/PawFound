@@ -44,3 +44,23 @@ jest.mock("expo-haptics", () => ({
   NotificationFeedbackType: { Success: "success", Error: "error" },
   ImpactFeedbackStyle: { Light: "light" },
 }));
+
+jest.mock("expo-notifications", () => ({
+  AndroidImportance: { HIGH: 4, DEFAULT: 3 },
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(async () => null),
+  getPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  requestPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  scheduleNotificationAsync: jest.fn(async () => "notification-id"),
+  getLastNotificationResponseAsync: jest.fn(async () => null),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+}));
+
+jest.mock("expo-sharing", () => ({
+  isAvailableAsync: jest.fn(async () => true),
+  shareAsync: jest.fn(async () => {}),
+}));
+
+jest.mock("react-native-view-shot", () => ({
+  captureRef: jest.fn(async () => "file:///poster.png"),
+}));

@@ -13,6 +13,8 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 
 import { AppProviders } from "@/AppProviders";
+import { BackgroundServices } from "@/components/BackgroundServices";
+import { BadgeCelebration } from "@/components/BadgeCelebration";
 import { useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -33,7 +35,10 @@ function RootStack() {
         <Stack.Screen name="report/index" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="report/success" options={{ animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="pet/[id]/sighting" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="alerta/angel/[id]" options={{ animation: "slide_from_bottom" }} />
       </Stack>
+      <BackgroundServices />
+      <BadgeCelebration />
     </>
   );
 }

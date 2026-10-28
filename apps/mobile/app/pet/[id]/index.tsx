@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, Share, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Wordmark } from "@/components/brand";
@@ -9,19 +9,21 @@ import { BackButton } from "@/components/layout";
 import { LifeCircleCard } from "@/components/lifeCircle";
 import { PetMap } from "@/components/map/PetMap";
 import { PetPhoto, PetRow, StatusBadge, petDisplayName } from "@/components/pets";
+import { ReunionSheet } from "@/components/ReunionSheet";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Divider, EmptyState, ListRow } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
-import { ConfirmSheet, Sheet } from "@/components/ui/Sheet";
+import { Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { formatDistance, regionForRadius } from "@/domain/geo";
 import { currentRadius, profileFor, radiusInFuture } from "@/domain/lifeCircle";
+import { memberDays } from "@/domain/moderation";
 import { findPossibleMatches } from "@/domain/rules";
 import { useAuthGate } from "@/hooks/useAuthGate";
-import { SHARE_BASE_URL } from "@/config";
 import { useNow } from "@/hooks/useNow";
+import { useSharePet } from "@/hooks/useSharePet";
 import { relativeTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
@@ -40,6 +42,7 @@ export default function PetDetailScreen() {
   const now = useNow(30_000);
   const toast = useToast();
   const requireAccount = useAuthGate();
+  const sharePet = useSharePet();
   const { isFavorite, toggleFavorite } = useDevicePrefs();
   const [moreOpen, setMoreOpen] = useState(false);
   const [confirmReunite, setConfirmReunite] = useState(false);
@@ -76,7 +79,6 @@ export default function PetDetailScreen() {
   const thread = state.threads.find((th) => th.id === pet.groupId);
   const isMember = Boolean(user && thread?.memberIds.includes(user.id));
   const favorite = isFavorite(pet.id);
-  const statusLabel = pet.kind === "lost" ? t("status.lost") : t("status.found");
 
   const run = async (key: string, action: () => Promise<void>) => {
     setBusy(key);
@@ -106,33 +108,22 @@ export default function PetDetailScreen() {
     });
   };
 
-  const share = async () => {
+  const share = () => {
     setMoreOpen(false);
-    try {
-      const result = await Share.share({
-        message: t("pet.shareMessage", {
-          status: statusLabel.toUpperCase(),
-          name,
-          species: t(`speciesLower.${pet.species}`),
-          zone: pet.zone,
-          url: `${SHARE_BASE_URL}${pet.id}`,
-        }),
-      });
-      if (result.action !== Share.dismissedAction) {
-        await backend.sharePet(pet.id);
-        toast(t("pet.shared"));
-      }
-    } catch {
-      toast(t("errors.unknown"), "error");
-    }
+    void sharePet(pet);
   };
 
-  const reunite = () =>
+  const openPoster = () => {
+    setMoreOpen(false);
+    router.push(`/pet/${pet.id}/poster`);
+  };
+
+  const reunite = (helperIds: string[]) =>
     run("reunite", async () => {
-      await backend.markReunited(pet.id);
+      await backend.markReunited(pet.id, helperIds);
       setConfirmReunite(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      toast(t("pet.reunitedBanner", { name }));
+      toast(helperIds.length ? t("pet.thankedToast", { name, count: helperIds.length }) : t("pet.reunitedBanner", { name }));
     });
 
   return (
@@ -275,8 +266,20 @@ export default function PetDetailScreen() {
             <Text variant="body" className="mt-1">
               {pet.description}
             </Text>
-            <Text variant="caption" className="mt-2">
-              {isOwner ? t("pet.yourReport") : t("pet.reportedBy", { name: pet.ownerShortName })}
+            <Text
+              variant="caption"
+              className="mt-2"
+              accessibilityRole={isOwner ? undefined : "link"}
+              onPress={isOwner ? undefined : () => router.push(`/user/${pet.ownerId}`)}
+              testID="owner-profile"
+            >
+              {isOwner
+                ? t("pet.yourReport")
+                : `${t("pet.reportedBy", { name: pet.ownerShortName })}${
+                    state.users[pet.ownerId]
+                      ? ` · ${t("profile.memberDays", { count: memberDays(state.users[pet.ownerId]!.createdAt, now) })}`
+                      : ""
+                  }`}
             </Text>
 
             {/* Acciones */}
@@ -328,13 +331,26 @@ export default function PetDetailScreen() {
                     testID="reunite"
                   />
                 ) : null}
-                <Button
-                  label={t("common.share")}
-                  icon="share-social-outline"
-                  variant="ghost"
-                  onPress={() => void share()}
-                  testID="share"
-                />
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <Button
+                      label={t("common.share")}
+                      icon="share-social-outline"
+                      variant="ghost"
+                      onPress={share}
+                      testID="share"
+                    />
+                  </View>
+                  <View className="flex-1">
+                    <Button
+                      label={t("poster.open")}
+                      icon="qr-code-outline"
+                      variant="ghost"
+                      onPress={openPoster}
+                      testID="poster"
+                    />
+                  </View>
+                </View>
               </View>
             ) : null}
 
@@ -436,7 +452,8 @@ export default function PetDetailScreen() {
       </ScrollView>
 
       <Sheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t("common.moreOptions")}>
-        <ListRow icon="share-social-outline" title={t("common.share")} onPress={() => void share()} />
+        <ListRow icon="share-social-outline" title={t("common.share")} onPress={share} />
+        <ListRow icon="qr-code-outline" title={t("poster.open")} description={t("poster.openHint")} onPress={openPoster} />
         {!isOwner ? (
           <ListRow
             icon="flag-outline"
@@ -462,14 +479,13 @@ export default function PetDetailScreen() {
         ) : null}
       </Sheet>
 
-      <ConfirmSheet
+      <ReunionSheet
+        pet={pet}
+        name={name}
         visible={confirmReunite}
-        title={t("pet.reuniteConfirmTitle", { name })}
-        body={t("pet.reuniteConfirmBody")}
-        confirmLabel={t("pet.reuniteConfirm")}
-        onConfirm={() => void reunite()}
-        onCancel={() => setConfirmReunite(false)}
         loading={busy === "reunite"}
+        onConfirm={(helperIds) => void reunite(helperIds)}
+        onCancel={() => setConfirmReunite(false)}
       />
     </View>
   );

@@ -1,5 +1,5 @@
 import { approximateLocation } from "@/domain/geo";
-import type { AppNotification, Message, PetCase, Thread, User } from "@/domain/types";
+import type { AppNotification, Message, OwnedPet, PetCase, Thread, User } from "@/domain/types";
 
 import type { BackendState } from "./backendTypes";
 import { foldText } from "./selectors";
@@ -242,6 +242,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
           location: approximateLocation(ZONES.poblado),
           zone: "Parque Lleras, El Poblado",
           note: "Estaba debajo de un carro, se fue hacia la Provenza.",
+          authorId: "u_daniel",
           authorShortName: "Daniel O.",
         },
       ],
@@ -377,6 +378,8 @@ export function createSeed(now: Date = new Date()): SeedResult {
       reward: false,
       ownerId: "u_maria",
       createdAt: ago(9 * D),
+      // La familia agradeció a Valentina al cerrar el caso ("Ángel de patas").
+      helperIds: ["u_valentina"],
       reunitedAt: ago(8 * D),
       state: "reunited",
       shareCount: 40,
@@ -578,14 +581,35 @@ export function createSeed(now: Date = new Date()): SeedResult {
   });
 
   const notifications: AppNotification[] = [
-    notification("n1", "lost_nearby", "max", 5),
+    notification("n1", "angel_alert", "max", 39),
     notification("n2", "found_nearby", "collie", 15),
     notification("n3", "case_update", "toby", 35),
     notification("n4", "found_nearby", "tigre", 1 * H),
     notification("n5", "comment", "rocky", 2 * H),
     notification("n6", "found_nearby", "beagle", 3 * H, true),
     notification("n7", "lost_nearby", "negrita", 6 * H, true),
-    notification("n8", "case_closed", "canela", 8 * D, true),
+    notification("n8", "thanked", "canela", 8 * D, true),
+  ];
+
+  // Perfil preventivo: Rocky ya tenía perfil, por eso su reporte se publicó con un toque.
+  const ownedPets: OwnedPet[] = [
+    {
+      id: "own_rocky",
+      ownerId: "u_valentina",
+      name: "Rocky",
+      species: "dog",
+      breed: "Husky Siberiano",
+      sex: "male",
+      age: "adult",
+      size: "large",
+      color: "Gris y blanco, ojos azules",
+      collar: "Rojo, sin placa",
+      description: "Es muy curioso y se escapa cuando ve la puerta abierta. Es amigable con la gente.",
+      photos: [PHOTOS.husky],
+      shyOrIndoor: false,
+      createdAt: ago(60 * D),
+      lastCaseId: "rocky",
+    },
   ];
 
   return {
@@ -600,6 +624,21 @@ export function createSeed(now: Date = new Date()): SeedResult {
       notificationPrefs: {},
       privacyPrefs: {},
       verification: null,
+      // Zonas de alertas aproximadas (con consentimiento) de algunas cuentas de ejemplo.
+      alertZones: {
+        u_valentina: { location: approximateLocation(ZONES.laureles), zone: "Laureles, Medellín" },
+        u_carlos: { location: approximateLocation(ZONES.estadio), zone: "Estadio, Medellín" },
+        u_laura: { location: approximateLocation(ZONES.belen), zone: "Belén, Medellín" },
+      },
+      userReports: [],
+      profileLikes: {
+        u_valentina: ["u_maria", "u_ana", "u_carlos", "u_laura", "u_daniel", "u_sofia", "u_emily"],
+        u_maria: ["u_valentina", "u_carlos"],
+        u_daniel: ["u_sebastian", "u_laura", "u_sofia"],
+        u_laura: ["u_sofia"],
+      },
+      shareLog: { u_valentina: ["max", "collie"] },
+      ownedPets,
     },
     credentials: { [DEMO_EMAIL]: DEMO_PASSWORD },
   };

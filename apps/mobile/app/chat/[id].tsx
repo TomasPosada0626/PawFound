@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { ReportUserSheet } from "@/components/ReportUserSheet";
 import { BackButton } from "@/components/layout";
 import { PetAvatar, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
@@ -14,10 +15,13 @@ import { cn, Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { shortName } from "@/domain/privacy";
 import { localizedText, messageText, threadTitle } from "@/features/messages";
-import { clockTime } from "@/i18n/format";
+import { clockTime, shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { MESSAGE_MAX } from "@/services/mockBackend";
 import { counterpart, threadMessages } from "@/services/selectors";
+import { memberDays, mightBeOffensive } from "@/domain/moderation";
+import { BackendError } from "@/services/backendTypes";
+import type { User } from "@/domain/types";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useDevicePrefs } from "@/store/devicePrefs";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -32,6 +36,8 @@ export default function ChatScreen() {
   const toast = useToast();
   const [text, setText] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ user: User; messageId?: string } | null>(null);
+  const [kindNudge, setKindNudge] = useState(false);
   const [originals, setOriginals] = useState<Set<string>>(new Set());
   const { autoTranslate, setAutoTranslate } = useDevicePrefs();
   const scroll = useRef<ScrollView>(null);
@@ -40,9 +46,8 @@ export default function ChatScreen() {
   const pet = thread?.petId ? state.pets.find((p) => p.id === thread.petId) : undefined;
   const messages = useMemo(() => {
     if (!thread) return [];
-    const blocked = user ? (state.privacyPrefs[user.id]?.blockedUserIds ?? []) : [];
-    return threadMessages(state, thread.id).filter((m) => !blocked.includes(m.authorId));
-  }, [state, thread, user]);
+    return threadMessages(state, thread.id);
+  }, [state, thread]);
   const isMember = Boolean(user && thread?.memberIds.includes(user.id));
 
   const threadId = thread?.id;
@@ -68,16 +73,30 @@ export default function ChatScreen() {
   const muted = thread.mutedBy.includes(user.id);
   const isGroup = thread.kind === "group";
 
-  const send = async () => {
+  const send = async (confirmed = false) => {
     const body = text.trim();
     if (!body) return;
+    // Aviso amable (no censura): un tono respetuoso consigue más ayuda.
+    if (!confirmed && mightBeOffensive(body)) {
+      setKindNudge(true);
+      return;
+    }
+    setKindNudge(false);
     setText("");
     try {
       await backend.sendMessage(thread.id, body, locale);
       requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true }));
-    } catch {
+    } catch (error) {
       setText(body);
-      toast(t("errors.unknown"), "error");
+      const code = error instanceof BackendError ? error.code : "unknown";
+      toast(
+        code === "muted"
+          ? t("chat.mutedNotice", { date: shortDate(new Date(String((error as BackendError).params.until)), locale) })
+          : code === "rate_limited"
+            ? t("chat.rateLimited")
+            : t("errors.unknown"),
+        "error",
+      );
     }
   };
 
@@ -93,10 +112,17 @@ export default function ChatScreen() {
             onPress={() => pet && router.push(`/pet/${pet.id}`)}
             className="flex-1 flex-row items-center gap-3 active:opacity-80"
           >
-            {pet ? (
-              <PetAvatar pet={pet} size={44} badgeIcon={isGroup ? "people" : null} />
-            ) : other ? (
-              <UserAvatar user={other} size={44} />
+            {!isGroup && other ? (
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel={t("publicProfile.view", { name: shortName(other.name) })}
+                onPress={() => router.push(`/user/${other.id}`)}
+                testID="dm-avatar"
+              >
+                <UserAvatar user={other} size={44} />
+              </Pressable>
+            ) : pet ? (
+              <PetAvatar pet={pet} size={44} badgeIcon="people" />
             ) : null}
             <View className="flex-1">
               <Text variant="subheading" numberOfLines={1} accessibilityRole="header">
@@ -105,9 +131,11 @@ export default function ChatScreen() {
               <Text variant="caption" numberOfLines={1}>
                 {isGroup
                   ? t("messages.members", { count: thread.memberIds.length })
-                  : pet
-                    ? (pet.name ?? t("common.unnamed"))
-                    : ""}
+                  : other
+                    ? t("profile.memberDays", { count: memberDays(other.createdAt, new Date()) })
+                    : pet
+                      ? (pet.name ?? t("common.unnamed"))
+                      : ""}
               </Text>
             </View>
           </Pressable>
@@ -152,11 +180,15 @@ export default function ChatScreen() {
                 </Pressable>
               );
             }
+            const author = state.users[m.authorId];
             return (
-              <View
+              <Pressable
                 key={m.id}
                 accessible
                 accessibilityLabel={`${mine ? t("common.you") : m.authorShortName}: ${body}. ${clockTime(new Date(m.at), locale)}`}
+                accessibilityHint={!mine && author ? t("chat.reportHint") : undefined}
+                onLongPress={!mine && author ? () => setReportTarget({ user: author, messageId: m.id }) : undefined}
+                testID={`message-${m.id}`}
                 className={cn(
                   "max-w-[82%] rounded-3xl px-4 py-2.5",
                   mine
@@ -165,9 +197,24 @@ export default function ChatScreen() {
                 )}
               >
                 {isGroup && !mine ? (
-                  <Text variant="label" tone="primary">
-                    {m.authorShortName || t("common.deletedUser")}
-                  </Text>
+                  author ? (
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel={t("publicProfile.view", { name: m.authorShortName })}
+                      onPress={() => router.push(`/user/${author.id}`)}
+                      hitSlop={10}
+                      className="self-start"
+                      testID={`author-${m.id}`}
+                    >
+                      <Text variant="label" tone="primary" className="underline">
+                        {m.authorShortName}
+                      </Text>
+                    </Pressable>
+                  ) : (
+                    <Text variant="label" tone="muted">
+                      {t("common.deletedUser")}
+                    </Text>
+                  )
                 ) : null}
                 <Text variant="body" tone={mine ? "white" : "ink"}>
                   {body}
@@ -192,7 +239,7 @@ export default function ChatScreen() {
                 <Text variant="label" tone={mine ? "white" : "muted"} className="mt-0.5 self-end opacity-80">
                   {clockTime(new Date(m.at), locale)}
                 </Text>
-              </View>
+              </Pressable>
             );
           })}
         </ScrollView>
@@ -262,19 +309,49 @@ export default function ChatScreen() {
           }}
         />
         {!isGroup && other ? (
-          <View className="mt-2">
-            <Button
-              label={t("chat.block", { name: shortName(other.name) })}
-              variant="danger"
-              icon="ban"
-              onPress={() => {
-                void backend.blockUser(other.id);
-                setMenuOpen(false);
-                toast(t("chat.blocked"), "info");
-              }}
-            />
-          </View>
+          <ListRow
+            icon="person-circle-outline"
+            tone="violet"
+            title={t("publicProfile.view", { name: shortName(other.name) })}
+            onPress={() => {
+              setMenuOpen(false);
+              router.push(`/user/${other.id}`);
+            }}
+          />
         ) : null}
+        {!isGroup && other ? (
+          <ListRow
+            icon="flag-outline"
+            danger
+            title={t("chat.reportUser", { name: shortName(other.name) })}
+            onPress={() => {
+              setMenuOpen(false);
+              setReportTarget({ user: other });
+            }}
+            testID="report-user"
+          />
+        ) : (
+          <Text variant="caption" className="mt-2">
+            {t("chat.reportHint")}
+          </Text>
+        )}
+      </Sheet>
+
+      <ReportUserSheet
+        target={reportTarget?.user ?? null}
+        threadId={thread.id}
+        messageId={reportTarget?.messageId}
+        onClose={() => setReportTarget(null)}
+      />
+
+      <Sheet visible={kindNudge} onClose={() => setKindNudge(false)} title={t("chat.kindTitle")} testID="kind-nudge">
+        <Text variant="body" className="mb-5">
+          {t("chat.kindBody")}
+        </Text>
+        <View className="gap-3 pb-2">
+          <Button label={t("chat.kindEdit")} onPress={() => setKindNudge(false)} />
+          <Button label={t("chat.kindSend")} variant="ghost" onPress={() => void send(true)} testID="kind-send" />
+        </View>
       </Sheet>
     </SafeAreaView>
   );

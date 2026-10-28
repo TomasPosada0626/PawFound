@@ -1,20 +1,21 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
-import { BadgeHex, BadgeTile, BADGE_ORDER } from "@/components/badges";
+import { BadgeCatalog, BadgeTile } from "@/components/badges";
 import { AppHeader, Screen } from "@/components/layout";
-import { PetAvatar, UserAvatar } from "@/components/pets";
+import { PetAvatar, PetPhoto, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Divider, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { ConfirmSheet, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useNow } from "@/hooks/useNow";
-import { relativeTime } from "@/i18n/format";
+import { memberDays } from "@/domain/moderation";
+import { relativeTime, shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
-import { userActivity, userBadges, userStats } from "@/services/selectors";
+import { likesOf, ownedPetsOf, userActivity, userBadgeProgress, userStats } from "@/services/selectors";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -25,11 +26,15 @@ export default function ProfileScreen() {
   const state = useBackendState();
   const user = useCurrentUser();
   const now = useNow();
-  const [badgesOpen, setBadgesOpen] = useState(false);
+  const params = useLocalSearchParams<{ badges?: string }>();
+  // "Ver mis insignias" desde la celebración abre el catálogo directamente.
+  const [badgesOpen, setBadgesOpen] = useState(params.badges === "open");
   const [logoutOpen, setLogoutOpen] = useState(false);
 
   const stats = useMemo(() => (user ? userStats(state, user.id) : null), [state, user]);
-  const badges = useMemo(() => (user ? userBadges(state, user.id) : []), [state, user]);
+  const progress = useMemo(() => (user ? userBadgeProgress(state, user.id) : []), [state, user]);
+  const badges = useMemo(() => progress.filter((p) => p.tier > 0), [progress]);
+  const ownedPets = useMemo(() => (user ? ownedPetsOf(state, user.id) : []), [state, user]);
   const activity = useMemo(() => (user ? userActivity(state, user.id).slice(0, 4) : []), [state, user]);
 
   if (!user || !stats) {
@@ -91,6 +96,13 @@ export default function ProfileScreen() {
             ) : null}
           </View>
           <Text variant="body" tone="muted">{`@${user.username}`}</Text>
+          <View className="flex-row items-center gap-1" accessible testID="member-days">
+            <Icon name="calendar-outline" size={14} color={colors.primaryStrong} />
+            <Text variant="captionStrong" tone="primary">
+              {t("profile.memberDays", { count: memberDays(user.createdAt, now) })}
+            </Text>
+            <Text variant="caption">{`· ${t("profile.memberSince", { date: shortDate(new Date(user.createdAt), locale) })}`}</Text>
+          </View>
           <View className="self-start rounded-full border border-border px-3 py-1">
             <Text variant="captionStrong">{t(`titles.${user.title}`)}</Text>
           </View>
@@ -141,16 +153,7 @@ export default function ProfileScreen() {
         <View className="flex-row">
           <Stat icon="paw" color={colors.lost} value={String(stats.reported)} label={t("profile.reported")} />
           <Stat icon="home" color={colors.primaryStrong} value={String(stats.found)} label={t("profile.foundStat")} />
-          <Stat
-            icon="star"
-            color="#F5A524"
-            value={stats.ratingAvg !== null ? stats.ratingAvg.toLocaleString(locale) : "—"}
-            label={
-              stats.ratingAvg !== null
-                ? `${t("profile.rating")} ${t("profile.ratingCount", { count: stats.ratingCount })}`
-                : t("profile.noRatings")
-            }
-          />
+          <Stat icon="heart" color="#E8466C" value={String(likesOf(state, user.id))} label={t("profile.likes")} />
           <Stat icon="shield" color="#6D4AD6" value={String(badges.length)} label={t("profile.badges")} last />
         </View>
       </Card>
@@ -163,8 +166,56 @@ export default function ProfileScreen() {
         ) : (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 4 }}>
             {badges.map((b) => (
-              <BadgeTile key={b} id={b} />
+              <BadgeTile key={b.id} progress={b} />
             ))}
+          </ScrollView>
+        )}
+      </Card>
+
+      {/* Mis mascotas: perfil preventivo para reportar con un toque */}
+      <Card className="mt-4">
+        <SectionHeader title={t("myPets.title")} actionLabel={t("common.seeAll")} onAction={() => router.push("/my-pets")} />
+        {ownedPets.length === 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push("/my-pets/edit")}
+            className="min-h-[56px] flex-row items-center gap-3 rounded-2xl border border-dashed border-border p-3 active:opacity-70"
+            testID="profile-add-pet"
+          >
+            <Icon name="add-circle-outline" size={26} color={colors.primaryStrong} />
+            <Text variant="caption" tone="body" className="flex-1">
+              {t("myPets.empty")}
+            </Text>
+          </Pressable>
+        ) : (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+            {ownedPets.map((p) => (
+              <Pressable
+                key={p.id}
+                accessibilityRole="button"
+                accessibilityLabel={p.name}
+                onPress={() => router.push({ pathname: "/my-pets/edit", params: { id: p.id } })}
+                className="w-[76px] items-center gap-1 active:opacity-70"
+              >
+                <PetPhoto pet={p} className="h-16 w-16" rounded="rounded-full" />
+                <Text variant="label" numberOfLines={1}>
+                  {p.name}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("myPets.add")}
+              onPress={() => router.push("/my-pets/edit")}
+              className="w-[76px] items-center gap-1 active:opacity-70"
+            >
+              <View className="h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-border">
+                <Icon name="add" size={26} color={colors.primaryStrong} />
+              </View>
+              <Text variant="label" numberOfLines={1}>
+                {t("myPets.add")}
+              </Text>
+            </Pressable>
           </ScrollView>
         )}
       </Card>
@@ -213,6 +264,14 @@ export default function ProfileScreen() {
 
       {/* Ajustes */}
       <Card className="mt-4">
+        <ListRow
+          icon="eye-outline"
+          tone="violet"
+          title={t("publicProfile.preview")}
+          description={t("publicProfile.previewDesc")}
+          onPress={() => router.push({ pathname: "/user/[id]", params: { id: user.id, preview: "1" } })}
+          testID="public-preview"
+        />
         <ListRow icon="person-outline" title={t("settings.personal")} onPress={() => router.push("/settings/edit-profile")} />
         <ListRow
           icon="notifications-outline"
@@ -241,21 +300,7 @@ export default function ProfileScreen() {
         title={t("badgesHow.title")}
         subtitle={t("badgesHow.subtitle")}
       >
-        {BADGE_ORDER.map((id) => {
-          const earned = badges.includes(id);
-          return (
-            <View key={id} className="flex-row items-center gap-4 border-b border-border py-3" accessible>
-              <BadgeHex id={id} locked={!earned} size={56} />
-              <View className="flex-1">
-                <Text variant="bodyStrong">{t(`badges.${id}`)}</Text>
-                <Text variant="caption">{t(`badgesHow.${id}`)}</Text>
-              </View>
-              <Text variant="label" tone={earned ? "primary" : "muted"}>
-                {earned ? t("badgesHow.earned") : t("badgesHow.locked")}
-              </Text>
-            </View>
-          );
-        })}
+        <BadgeCatalog progress={progress} />
       </Sheet>
 
       <ConfirmSheet

@@ -1,5 +1,6 @@
 import type {
   AgeRange,
+  AlertZone,
   AppNotification,
   CaseKind,
   FoundCondition,
@@ -7,10 +8,12 @@ import type {
   LatLng,
   Message,
   NotificationPrefs,
+  OwnedPet,
   PetCase,
   PetSize,
   PrivacyPrefs,
   Sex,
+  UserReport,
   Species,
   Thread,
   User,
@@ -30,6 +33,7 @@ export type ErrorCode =
   | "cannot_message"
   | "invalid_username"
   | "username_taken"
+  | "muted"
   | "network"
   | "unknown";
 
@@ -65,7 +69,19 @@ export type BackendState = {
   notificationPrefs: Record<string, NotificationPrefs>;
   privacyPrefs: Record<string, PrivacyPrefs>;
   verification: Verification | null;
+  /** Zonas de Alerta Ángel por cuenta (solo con consentimiento; punto aproximado). */
+  alertZones: Record<string, AlertZone>;
+  /** Casos que cada cuenta compartió (sin repetir), para la insignia "Difusor". */
+  shareLog: Record<string, string[]>;
+  /** Perfiles preventivos de mascotas propias. */
+  ownedPets: OwnedPet[];
+  /** Reportes de personas (spam, groserías, estafas) para el equipo de moderación. */
+  userReports: UserReport[];
+  /** "Me gusta" de perfil: cuenta → quienes le dieron me gusta (uno por persona). */
+  profileLikes: Record<string, string[]>;
 };
+
+export type OwnedPetInput = Omit<OwnedPet, "id" | "ownerId" | "createdAt" | "lastCaseId">;
 
 export type NewReportInput = {
   kind: CaseKind;
@@ -90,6 +106,8 @@ export type NewReportInput = {
   reward: boolean;
   foundCondition?: FoundCondition;
   foundCustody?: FoundCustody;
+  /** Si se publicó desde "Mis mascotas", el perfil queda enlazado al caso. */
+  ownedPetId?: string;
 };
 
 export type NewSightingInput = {

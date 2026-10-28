@@ -130,7 +130,8 @@ describe("mensajes, mapa, ajustes e idioma", () => {
   it("lista grupos y marca notificaciones como leídas", async () => {
     await loginAs("u_valentina");
     await open("/messages?tab=notifications");
-    expect(await screen.findAllByText("Mascota perdida reportada")).toHaveLength(2);
+    expect(await screen.findByText("🚨 Alerta Ángel")).toBeOnTheScreen();
+    expect(screen.getAllByText("Mascota perdida reportada")).toHaveLength(1);
     await fireEvent.press(screen.getByTestId("mark-all-read"));
     await waitFor(() => expect(screen.queryByTestId("mark-all-read")).not.toBeOnTheScreen());
     await fireEvent.press(screen.getByRole("tab", { name: "Grupos" }));
@@ -170,8 +171,16 @@ describe("mensajes, mapa, ajustes e idioma", () => {
     expect(await screen.findByText("¡Hola!")).toBeOnTheScreen();
   });
 
-  it("los enlaces de Alerta Ángel abren el caso", async () => {
+  it("los enlaces de Alerta Ángel abren la alerta, con aviso comunitario y acceso al caso", async () => {
     const app = await open("/alerta/angel/max");
+    expect(await screen.findByText("Una mascota se perdió cerca de ti")).toBeOnTheScreen();
+    expect(screen.getByText(/No es un servicio de emergencia ni del gobierno/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText("Ver el caso completo"));
     await waitFor(() => expect(app.getPathname()).toBe("/pet/max"));
+  });
+
+  it("una alerta inexistente muestra un estado claro", async () => {
+    await open("/alerta/angel/no-existe");
+    expect(await screen.findByText("Esta alerta ya no está disponible.")).toBeOnTheScreen();
   });
 });
