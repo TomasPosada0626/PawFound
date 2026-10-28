@@ -46,3 +46,12 @@ func mustExec[T any](t *testing.T, exec func(context.Context, string, ...any) (T
 		t.Fatalf("%s: %v", sql, err)
 	}
 }
+
+func TestOpenRejectsBadURLs(t *testing.T) {
+	if _, err := db.Open(context.Background(), "no es una url ::"); err == nil {
+		t.Fatal("URL inválida aceptada")
+	}
+	if _, err := db.Open(context.Background(), "postgres://x:y@127.0.0.1:1/nada?connect_timeout=1"); err == nil {
+		t.Fatal("base inaccesible aceptada")
+	}
+}

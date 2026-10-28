@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -113,17 +112,4 @@ func applyOne(ctx context.Context, pool *pgxpool.Pool, name string) (bool, error
 		return false, err
 	}
 	return true, tx.Commit(ctx)
-}
-
-// Tx ejecuta fn dentro de una transacción; hace rollback si fn devuelve error.
-func Tx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error {
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = tx.Rollback(ctx) }()
-	if err := fn(tx); err != nil {
-		return err
-	}
-	return tx.Commit(ctx)
 }

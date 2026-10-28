@@ -85,6 +85,9 @@ func (a *App) Register(ctx context.Context, in RegisterInput) (Session, error) {
 		return Session{}, err
 	}
 	if err := a.issueCode(ctx, userID, phone); err != nil {
+		// Sin código enviado no hay forma de verificar: se deshace la cuenta para que la
+		// persona pueda volver a intentarlo con el mismo correo.
+		_, _ = a.DB.Exec(context.WithoutCancel(ctx), `DELETE FROM users WHERE id = $1`, userID)
 		return Session{}, err
 	}
 	return a.newSession(ctx, userID)

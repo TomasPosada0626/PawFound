@@ -3,12 +3,16 @@ package httpapi
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"image"
 	"image/color"
 	"image/jpeg"
 	"io"
 	"log/slog"
+	"math/big"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +20,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/auth"
@@ -303,4 +309,38 @@ func (h *harness) count(sql string, args ...any) int {
 		h.t.Fatalf("%s: %v", sql, err)
 	}
 	return n
+}
+
+type testIDP struct {
+	t   *testing.T
+	key *rsa.PrivateKey
+	url string
+}
+
+// newTestIDP levanta un proveedor OIDC falso (llaves JWKS propias) para Google o Apple.
+func newTestIDP(t *testing.T) *testIDP {
+	t.Helper()
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"keys": []map[string]string{{
+			"kid": "k", "kty": "RSA",
+			"n": base64.RawURLEncoding.EncodeToString(key.N.Bytes()), "e": base64.RawURLEncoding.EncodeToString(big.NewInt(int64(key.E)).Bytes()),
+		}}})
+	}))
+	t.Cleanup(srv.Close)
+	return &testIDP{t: t, key: key, url: srv.URL}
+}
+
+func (p *testIDP) provider(name string) *auth.OIDCProvider {
+	return &auth.OIDCProvider{Name: name, Issuers: []string{"https://accounts.google.com"}, JWKSURL: p.url, Audiences: []string{"pawfound-android"}}
+}
+
+func (p *testIDP) token(sub, email string, verified bool) string {
+	tok := jwt.NewWithClaims(jwt.SigningMethodRS256, jwt.MapClaims{
+		"iss": "https://accounts.google.com", "aud": "pawfound-android",
+		"sub": sub, "email": email, "email_verified": verified, "name": "Persona Prueba", "exp": time.Now().Add(time.Hour).Unix(),
+	})
+	tok.Header["kid"] = "k"
+	s, _ := tok.SignedString(p.key)
+	return s
 }

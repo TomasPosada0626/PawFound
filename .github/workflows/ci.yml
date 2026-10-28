@@ -52,11 +52,11 @@ jobs:
             exit 1
           fi
       - run: go test ./... -race -coverpkg=./internal/... -coverprofile=coverage.out
-      - name: Cobertura mínima (80 %)
+      - name: Cobertura mínima (90 %)
         run: |
           total="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')"
           echo "Cobertura total: ${total} %"
-          awk -v t="$total" 'BEGIN { exit (t + 0 >= 80) ? 0 : 1 }'
+          awk -v t="$total" 'BEGIN { exit (t + 0 >= 90) ? 0 : 1 }'
       - uses: golangci/golangci-lint-action@v7
         with:
           working-directory: apps/api
