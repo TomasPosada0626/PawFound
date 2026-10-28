@@ -71,7 +71,7 @@ func (a *App) AppActivity(ctx context.Context) (Activity, error) {
 		(SELECT count(*) FROM pets WHERE created_at > $2),
 		(SELECT count(*) FROM pets WHERE state = 'reunited'),
 		(SELECT count(*) FROM pets WHERE state = 'reunited' AND reunited_at > $3),
-		(SELECT count(*) FROM pets WHERE kind = 'lost' AND NOT moderation_removed AND (state = 'reunited' OR created_at <= $4 - interval '14 days')),
+		(SELECT count(*) FROM pets WHERE kind = 'lost' AND NOT moderation_removed AND (state = 'reunited' OR created_at <= $4::timestamptz - interval '14 days')),
 		(SELECT count(*) FROM pets WHERE kind = 'lost' AND NOT moderation_removed AND state = 'reunited' AND reunited_at - created_at <= interval '14 days'),
 		(SELECT count(*) FROM notifications WHERE kind IN ('angel_alert', 'life_circle') AND at > $1),
 		(SELECT count(*) FROM notifications WHERE kind IN ('angel_alert', 'life_circle') AND at > $2),
@@ -79,7 +79,7 @@ func (a *App) AppActivity(ctx context.Context) (Activity, error) {
 		(SELECT count(DISTINCT thread_id) FROM messages WHERE kind = 'text' AND at > $2),
 		(SELECT count(*) FROM stories WHERE removed_at IS NULL),
 		(SELECT count(*) FROM reports WHERE status = 'open'),
-		(SELECT avg(extract(epoch FROM resolved_at - created_at) / 3600) FROM reports WHERE resolved_at > $3)`,
+		(SELECT (avg(extract(epoch FROM resolved_at - created_at)) / 3600)::float8 FROM reports WHERE resolved_at > $3)`,
 		day, week, month, now).Scan(&s.Users, &s.UsersNew7, &s.UsersVerified, &s.ActiveLost, &s.ActiveFound, &s.Reports7, &s.Reunited,
 		&s.Reunited30, &s.Eligible14, &s.Reunited14, &s.Alerts24, &s.Alerts7, &s.Messages7, &s.ActiveChats7, &s.StoryUpdates,
 		&s.OpenReports, &s.AvgResolutionH)
