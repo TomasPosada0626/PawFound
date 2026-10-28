@@ -16,6 +16,12 @@ import type { AlertZone, NotificationPrefs, PetCase } from "./types";
 
 export const MAX_ALERTS_PER_DAY = 5;
 
+/** A menos de esta distancia del reporte llega de inmediato, aunque el círculo sea menor. */
+export const ALERT_MIN_RADIUS = 250;
+
+/** Una ubicación sin actualizar en este tiempo deja de usarse (no se avisa por un lugar viejo). */
+export const ALERT_LOCATION_TTL_H = 24;
+
 export type AlertCandidate = {
   userId: string;
   zone: AlertZone;
@@ -29,9 +35,12 @@ export type AlertCandidate = {
 /** Quién debe recibir la Alerta Ángel de este caso ahora: su zona quedó dentro del círculo. */
 export function alertAudience(pet: PetCase, candidates: AlertCandidate[], now: Date): string[] {
   if (pet.kind !== "lost" || pet.state !== "active") return [];
-  const radius = currentRadius(pet, now);
+  // Alcance: donde está cada persona ahora (su última ubicación), no una zona fija.
+  const radius = Math.max(ALERT_MIN_RADIUS, currentRadius(pet, now));
+  const freshSince = now.getTime() - ALERT_LOCATION_TTL_H * 3_600_000;
   return candidates
     .filter((c) => c.userId !== pet.ownerId && c.prefs.angelAlerts && !c.alreadyAlerted && c.alertsLast24h < MAX_ALERTS_PER_DAY)
+    .filter((c) => !c.zone.updatedAt || new Date(c.zone.updatedAt).getTime() >= freshSince)
     .filter((c) => distanceMeters(c.zone.location, pet.location) <= radius)
     .map((c) => c.userId);
 }

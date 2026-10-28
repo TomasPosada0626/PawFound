@@ -38,12 +38,16 @@ type SMTPMailer struct {
 }
 
 var verificationTexts = map[string][3]string{
-	"es": {"Tu código de PawFound: %s", "Hola,\r\n\r\nTu código para verificar tu cuenta de PawFound es:\r\n\r\n    %s\r\n\r\n" +
-		"Vence en 10 minutos. Si no creaste una cuenta, ignora este correo.\r\n\r\nNunca compartas este código: PawFound jamás te lo pedirá por chat.\r\n",
-		"Restablece tu contraseña de PawFound"},
-	"en": {"Your PawFound code: %s", "Hi,\r\n\r\nYour code to verify your PawFound account is:\r\n\r\n    %s\r\n\r\n" +
-		"It expires in 10 minutes. If you didn't create an account, ignore this email.\r\n\r\nNever share this code: PawFound will never ask for it in a chat.\r\n",
-		"Reset your PawFound password"},
+	"es": {
+		"Tu código de PawFound: %s", "Hola,\r\n\r\nTu código para verificar tu cuenta de PawFound es:\r\n\r\n    %s\r\n\r\n" +
+			"Vence en 10 minutos. Si no creaste una cuenta, ignora este correo.\r\n\r\nNunca compartas este código: PawFound jamás te lo pedirá por chat.\r\n",
+		"Restablece tu contraseña de PawFound",
+	},
+	"en": {
+		"Your PawFound code: %s", "Hi,\r\n\r\nYour code to verify your PawFound account is:\r\n\r\n    %s\r\n\r\n" +
+			"It expires in 10 minutes. If you didn't create an account, ignore this email.\r\n\r\nNever share this code: PawFound will never ask for it in a chat.\r\n",
+		"Reset your PawFound password",
+	},
 }
 
 // SendVerificationCode envía el código de 6 dígitos.

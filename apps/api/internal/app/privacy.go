@@ -15,10 +15,15 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/media"
 )
 
-// SetAlertZone guarda la zona aproximada (nunca el punto exacto) y deja constancia del
-// consentimiento (issue #43). nil la borra y registra la revocación.
+// SetAlertZone guarda la última ubicación aproximada para las alertas (nunca el punto exacto ni
+// un historial: cada punto reemplaza al anterior). El consentimiento queda registrado al
+// activarla y al revocarla (issue #43), no en cada actualización del GPS. nil la borra.
 func (a *App) SetAlertZone(ctx context.Context, ac Actor, zone *AlertZone) error {
 	now := a.now()
+	var existed bool
+	if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM alert_zones WHERE user_id = $1)`, ac.ID).Scan(&existed); err != nil {
+		return err
+	}
 	return a.withTx(ctx, func(tx pgx.Tx) error {
 		if zone == nil {
 			if _, err := tx.Exec(ctx, `DELETE FROM alert_zones WHERE user_id = $1`, ac.ID); err != nil {
@@ -36,7 +41,10 @@ func (a *App) SetAlertZone(ctx context.Context, ac Actor, zone *AlertZone) error
 				return err
 			}
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO consents (user_id, kind, granted, at) VALUES ($1, 'alert_zone', $2, $3)`, ac.ID, zone != nil, now)
+		if existed == (zone != nil) {
+			return nil
+		}
+		_, err := tx.Exec(ctx, `INSERT INTO consents (user_id, kind, granted, at) VALUES ($1, 'location', $2, $3)`, ac.ID, zone != nil, now)
 		return err
 	})
 }

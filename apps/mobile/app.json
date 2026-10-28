@@ -61,7 +61,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "PawFound usa tu ubicación para mostrarte mascotas reportadas cerca y ubicar tus reportes. Tu ubicación exacta nunca se muestra a otras personas."
+          "locationWhenInUsePermission": "PawFound usa tu ubicación para mostrarte mascotas reportadas cerca y ubicar tus reportes. Tu ubicación exacta nunca se muestra a otras personas.",
+          "locationAlwaysAndWhenInUsePermission": "PawFound usa tu ubicación aproximada, también con la app cerrada, solo para avisarte cuando se pierde una mascota cerca de donde estás. Nunca se muestra a otras personas.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       [

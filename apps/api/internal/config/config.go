@@ -57,15 +57,17 @@ func Load(getenv func(string) string) (Config, error) {
 		return def
 	}
 	c := Config{
-		Env:            get("APP_ENV", "development"),
-		Port:           get("PORT", "8080"),
-		DatabaseURL:    get("DATABASE_URL", ""),
-		JWTSecret:      get("JWT_SECRET", ""),
-		APIBaseURL:     get("PUBLIC_API_URL", "http://localhost:8080"),
-		WebBaseURL:     get("PUBLIC_WEB_URL", "https://pawfound.app"),
-		MediaDir:       get("MEDIA_DIR", "./data/media"),
-		SMTP: SMTP{Host: get("SMTP_HOST", ""), Port: get("SMTP_PORT", "587"), Username: get("SMTP_USERNAME", ""),
-			Password: get("SMTP_PASSWORD", ""), From: get("SMTP_FROM", "")},
+		Env:         get("APP_ENV", "development"),
+		Port:        get("PORT", "8080"),
+		DatabaseURL: get("DATABASE_URL", ""),
+		JWTSecret:   get("JWT_SECRET", ""),
+		APIBaseURL:  get("PUBLIC_API_URL", "http://localhost:8080"),
+		WebBaseURL:  get("PUBLIC_WEB_URL", "https://pawfound.app"),
+		MediaDir:    get("MEDIA_DIR", "./data/media"),
+		SMTP: SMTP{
+			Host: get("SMTP_HOST", ""), Port: get("SMTP_PORT", "587"), Username: get("SMTP_USERNAME", ""),
+			Password: get("SMTP_PASSWORD", ""), From: get("SMTP_FROM", ""),
+		},
 		PushProvider:   get("PUSH_PROVIDER", ""),
 		ExpoToken:      get("EXPO_ACCESS_TOKEN", ""),
 		GoogleClients:  list(get("GOOGLE_CLIENT_IDS", "")),

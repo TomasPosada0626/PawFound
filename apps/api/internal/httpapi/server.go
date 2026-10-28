@@ -109,6 +109,9 @@ func (s *Server) routes(r chi.Router) {
 		r.Put("/me/privacy", s.privacy)
 		r.Put("/me/alert-zone", s.setAlertZone)
 		r.Delete("/me/alert-zone", s.deleteAlertZone)
+		// Alertas donde estés: el celular envía su último punto (la API lo aproxima a 250 m).
+		r.Put("/me/location", s.setAlertZone)
+		r.Delete("/me/location", s.deleteAlertZone)
 		r.Post("/me/devices", s.registerDevice)
 		r.Delete("/me/devices", s.unregisterDevice)
 		r.Get("/me/pets", s.myPets)

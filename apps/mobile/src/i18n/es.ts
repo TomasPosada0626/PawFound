@@ -680,7 +680,7 @@ export const es = {
       "Las notificaciones de PawFound están desactivadas en tu celular. Actívalas para que te avisemos cuando una mascota se pierda cerca de ti.",
     push: "Desactivaste las notificaciones en los ajustes de PawFound.",
     angel: "Desactivaste las Alertas Ángel.",
-    zone: "Todavía no elegiste tu zona de alertas: sin ella no sabemos dónde avisarte.",
+    zone: "Activa «Alertas donde estés»: sin tu ubicación no sabemos a quién avisar cerca de una mascota perdida.",
     cta: "Activar alertas",
   },
   alertsOnboarding: {
@@ -865,6 +865,27 @@ export const es = {
     permissionCta: "Permitir notificaciones",
     permissionDenied: "Las notificaciones están bloqueadas para PawFound. Actívalas en los ajustes de Android.",
     openSettings: "Abrir ajustes",
+    liveTitle: "Alertas donde estés",
+    liveDesc:
+      "Te avisamos según tu ubicación real: si se pierde una mascota a menos de 250 m de donde estás, o cuando su círculo de búsqueda crece hasta llegar a ti.",
+    liveOn: "Activas · ahora cerca de {zone}",
+    liveHere: "tu ubicación actual",
+    liveUpdated: "Ubicación actualizada {time}",
+    liveModeAlways: "Funcionan aunque la app esté cerrada.",
+    liveModeForeground: "Solo se actualizan cuando abres la app.",
+    liveForegroundHint:
+      "Para recibir alertas con la app cerrada, en el permiso de ubicación de PawFound elige «Permitir todo el tiempo».",
+    liveEnable: "Activar alertas donde estés",
+    liveDisable: "Desactivar",
+    liveEnabled: "Listo: te avisaremos de mascotas perdidas cerca de donde estés.",
+    liveDisabled: "Desactivadas. Borramos tu última ubicación y ya no recibirás Alertas Ángel.",
+    livePrivacy:
+      "Solo guardamos el último punto aproximado (250 m), sin historial de recorridos. Se borra si no se actualiza en 24 horas y nunca se muestra a nadie.",
+    disclosureTitle: "Tu ubicación para las Alertas Ángel",
+    disclosureBody:
+      "PawFound usa tu ubicación aproximada, también cuando la app está cerrada o no la estás usando, solo para avisarte cuando se pierde una mascota cerca de donde estás. Guardamos únicamente el último punto, aproximado a 250 m, sin historial, y nunca se muestra a otras personas. Puedes desactivarlo cuando quieras.",
+    disclosureContinue: "Continuar",
+    disclosureCancel: "Ahora no",
   },
   privacy: {
     accountSecurity: "Seguridad de la cuenta",

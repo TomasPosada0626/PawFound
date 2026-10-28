@@ -170,15 +170,17 @@ func (a *App) alertAudience(ctx context.Context, row petRow, kind string) (int, 
 		return 0, nil
 	}
 	now := a.now()
-	radius := domain.CurrentRadius(row.domainCase(), now)
+	// Alcance: la última ubicación real de cada persona (alertas donde estés), no una zona fija.
+	radius := max(domain.AlertMinRadius, domain.CurrentRadius(row.domainCase(), now))
 	rows, _ := a.DB.Query(ctx, `
 		SELECT z.user_id FROM alert_zones z JOIN users u ON u.id = z.user_id
 		WHERE z.user_id IS DISTINCT FROM $1 AND u.suspended_at IS NULL
 		  AND coalesce((u.notification_prefs->>'angelAlerts')::boolean, true)
+		  AND z.updated_at > $8
 		  AND ST_DWithin(z.location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
 		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5 AND n.kind IN ('angel_alert', 'life_circle'))
 		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle') AND n.at > $6) < $7`,
-		deref(row.OwnerID), row.Lat, row.Lng, radius, row.ID, now.Add(-24*time.Hour), domain.MaxAlertsPerDay)
+		deref(row.OwnerID), row.Lat, row.Lng, radius, row.ID, now.Add(-24*time.Hour), domain.MaxAlertsPerDay, now.Add(-domain.AlertLocationTTL))
 	audience, err := pgx.CollectRows(rows, pgx.RowTo[string])
 	if err != nil {
 		return 0, err

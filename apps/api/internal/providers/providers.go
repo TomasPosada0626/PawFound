@@ -19,8 +19,6 @@ import (
 	"time"
 )
 
-
-
 // Push entrega notificaciones a los celulares.
 type Push interface {
 	Send(ctx context.Context, messages []PushMessage) error
@@ -52,8 +50,6 @@ type Mailer interface {
 
 // ErrDisabled: la función necesita un proveedor que todavía no se activó.
 var ErrDisabled = errors.New("proveedor no configurado")
-
-
 
 // ExpoPush envía por el servicio push de Expo, que entrega por FCM (Android) y APNs (iOS)
 // con el mismo código. Requiere la evaluación del proveedor (issue #39) antes de activarse

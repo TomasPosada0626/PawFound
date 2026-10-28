@@ -72,6 +72,13 @@ func IsQuietTime(p NotificationPrefs, now time.Time) bool {
 // MaxAlertsPerDay: nunca más de 5 Alertas Ángel por persona en 24 h (alerts.ts).
 const MaxAlertsPerDay = 5
 
+// AlertMinRadius: a menos de 250 m del reporte la alerta llega de inmediato, aunque el círculo
+// de vida inicial sea menor (alerts.ts → ALERT_MIN_RADIUS).
+const AlertMinRadius = 250
+
+// AlertLocationTTL: una ubicación sin actualizar en 24 h deja de usarse.
+const AlertLocationTTL = 24 * time.Hour
+
 // Límites de la comunidad (mockBackend.ts).
 const (
 	MessageMax        = 1000

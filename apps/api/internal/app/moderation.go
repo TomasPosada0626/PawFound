@@ -17,16 +17,16 @@ import (
 
 // UserBrief es lo que el equipo de moderación ve de una cuenta.
 type UserBrief struct {
-	ID            string     `db:"id"`
-	Name          string     `db:"name"`
-	Username      string     `db:"username"`
-	Email         string     `db:"email"`
-	Role          string     `db:"role"`
-	Verified bool       `db:"email_verified"`
-	CreatedAt     time.Time  `db:"created_at"`
-	MutedUntil    *time.Time `db:"muted_until"`
-	SuspendedAt   *time.Time `db:"suspended_at"`
-	Warnings      int        `db:"warnings"`
+	ID          string     `db:"id"`
+	Name        string     `db:"name"`
+	Username    string     `db:"username"`
+	Email       string     `db:"email"`
+	Role        string     `db:"role"`
+	Verified    bool       `db:"email_verified"`
+	CreatedAt   time.Time  `db:"created_at"`
+	MutedUntil  *time.Time `db:"muted_until"`
+	SuspendedAt *time.Time `db:"suspended_at"`
+	Warnings    int        `db:"warnings"`
 }
 
 const briefCols = `id, name, username, email, role, email_verified, created_at, muted_until, suspended_at, warnings`

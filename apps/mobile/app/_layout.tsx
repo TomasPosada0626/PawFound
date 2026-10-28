@@ -1,3 +1,5 @@
+// Registra la tarea de ubicación de la Alerta Ángel (debe correr al cargar la app).
+import "@/services/alertLocation";
 import "../global.css";
 
 import {

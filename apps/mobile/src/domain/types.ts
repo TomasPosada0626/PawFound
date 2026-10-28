@@ -112,6 +112,8 @@ export type OwnedPet = {
 export type AlertZone = {
   location: LatLng;
   zone: string;
+  /** Última actualización del GPS; pasadas 24 h sin actualizar deja de usarse. */
+  updatedAt?: string;
 };
 
 export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear";

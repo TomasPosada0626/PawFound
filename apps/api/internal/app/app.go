@@ -137,13 +137,13 @@ func notFoundIfNoRows(err error) error {
 
 // Actor es la cuenta que hace la petición, cargada una vez por el middleware.
 type Actor struct {
-	ID            string     `db:"id"`
-	Name          string     `db:"name"`
-	Verified bool       `db:"email_verified"`
-	Role          string     `db:"role"`
-	Lang          string     `db:"lang"`
-	MutedUntil    *time.Time `db:"muted_until"`
-	SuspendedAt   *time.Time `db:"suspended_at"`
+	ID          string     `db:"id"`
+	Name        string     `db:"name"`
+	Verified    bool       `db:"email_verified"`
+	Role        string     `db:"role"`
+	Lang        string     `db:"lang"`
+	MutedUntil  *time.Time `db:"muted_until"`
+	SuspendedAt *time.Time `db:"suspended_at"`
 }
 
 // ShortName es como ven a esta cuenta las demás personas.

@@ -6,6 +6,7 @@ import { AppState } from "react-native";
 import { isQuietTime } from "@/domain/alerts";
 import { notificationUrl } from "@/features/notifications";
 import { useI18n } from "@/i18n/I18nProvider";
+import { currentPoint, setAlertLocationSink } from "@/services/alertLocation";
 import { CHANNELS, configurePush, getPushPermission, presentLocal, safeNotificationUrl } from "@/services/pushNotifications";
 import { useBackend, useBackendState } from "@/store/backend";
 
@@ -49,6 +50,27 @@ export function BackgroundServices() {
       subscription.remove();
     };
   }, []);
+
+  // Alertas donde estés: los puntos del GPS (segundo plano) van a la cuenta actual, y al
+  // abrir o volver a la app se refresca la ubicación con lo que ya permitió.
+  const hasAlertLocation = Boolean(userId && state.alertZones[userId]);
+  useEffect(() => {
+    if (!hasAlertLocation) {
+      setAlertLocationSink(null);
+      return;
+    }
+    setAlertLocationSink((point) => backend.updateAlertLocation(point));
+    const refresh = () =>
+      void currentPoint().then((point) => {
+        if (point) void backend.updateAlertLocation(point);
+      });
+    refresh();
+    const sub = AppState.addEventListener("change", (status) => status === "active" && refresh());
+    return () => {
+      setAlertLocationSink(null);
+      sub.remove();
+    };
+  }, [backend, hasAlertLocation]);
 
   // Tareas del servidor: al abrir, al volver a la app y cada minuto.
   useEffect(() => {

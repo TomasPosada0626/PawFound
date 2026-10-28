@@ -4,6 +4,7 @@ import { matchOwned } from "@/domain/matching";
 import { findPossibleMatches, publishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
+  LatLng,
   AppNotification,
   Lang,
   Message,
@@ -584,9 +585,30 @@ export class MockBackend {
   async setAlertZone(zone: AlertZone | null): Promise<void> {
     const user = this.requireUser();
     const zones = { ...this.state.alertZones };
-    if (zone) zones[user.id] = { ...zone, location: approximateLocation(zone.location) };
+    if (zone) zones[user.id] = { ...zone, location: approximateLocation(zone.location), updatedAt: this.iso() };
     else delete zones[user.id];
     this.commit({ alertZones: zones });
+  }
+
+  /**
+   * Nuevo punto del GPS (alertas donde estés). Solo cuenta si la persona activó las alertas
+   * por ubicación; se guarda aproximado y sin historial. Si sigue en la misma celda, solo se
+   * renueva cada 30 minutos para no reescribir el estado en cada lectura.
+   */
+  async updateAlertLocation(point: LatLng, zoneName?: string): Promise<void> {
+    const user = this.currentUser;
+    const current = user ? this.state.alertZones[user.id] : undefined;
+    if (!user || !current) return;
+    const location = approximateLocation(point);
+    const sameCell = location.latitude === current.location.latitude && location.longitude === current.location.longitude;
+    const recent = current.updatedAt && this.now().getTime() - new Date(current.updatedAt).getTime() < 30 * 60_000;
+    if (sameCell && recent && !zoneName) return;
+    this.commit({
+      alertZones: {
+        ...this.state.alertZones,
+        [user.id]: { location, zone: zoneName ?? current.zone, updatedAt: this.iso() },
+      },
+    });
   }
 
   // --- Mensajería ----------------------------------------------------------

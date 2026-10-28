@@ -13,40 +13,40 @@ var shortName = domain.ShortName
 
 // User es la cuenta propia (solo la ve su dueño).
 type User struct {
-	ID            string     `json:"id" db:"id"`
-	Name          string     `json:"name" db:"name"`
-	Username      string     `json:"username" db:"username"`
-	Email         string     `json:"email" db:"email"`
-	Phone         *string    `json:"phone,omitempty" db:"phone"`
-	Verified bool       `json:"verified" db:"email_verified"`
-	Avatar        string     `json:"avatar" db:"avatar"`
-	Title         string     `json:"title" db:"title"`
-	Bio           string     `json:"bio" db:"bio"`
-	City          string     `json:"city" db:"city"`
-	Neighborhood  *string    `json:"neighborhood,omitempty" db:"neighborhood"`
-	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
-	MutedUntil    *time.Time `json:"mutedUntil,omitempty" db:"muted_until"`
-	Lang          string     `json:"lang" db:"lang"`
-	Role          string     `json:"role" db:"role"`
-	RatingSum     int        `json:"ratingSum" db:"-"`
-	RatingCount   int        `json:"ratingCount" db:"-"`
+	ID           string     `json:"id" db:"id"`
+	Name         string     `json:"name" db:"name"`
+	Username     string     `json:"username" db:"username"`
+	Email        string     `json:"email" db:"email"`
+	Phone        *string    `json:"phone,omitempty" db:"phone"`
+	Verified     bool       `json:"verified" db:"email_verified"`
+	Avatar       string     `json:"avatar" db:"avatar"`
+	Title        string     `json:"title" db:"title"`
+	Bio          string     `json:"bio" db:"bio"`
+	City         string     `json:"city" db:"city"`
+	Neighborhood *string    `json:"neighborhood,omitempty" db:"neighborhood"`
+	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
+	MutedUntil   *time.Time `json:"mutedUntil,omitempty" db:"muted_until"`
+	Lang         string     `json:"lang" db:"lang"`
+	Role         string     `json:"role" db:"role"`
+	RatingSum    int        `json:"ratingSum" db:"-"`
+	RatingCount  int        `json:"ratingCount" db:"-"`
 }
 
 const userCols = `id, name, username, email, phone, email_verified, avatar, title, bio, city, neighborhood, created_at, muted_until, lang, role`
 
 // PublicUser es lo que ven las demás personas: nombre corto, nunca correo ni celular.
 type PublicUser struct {
-	ID            string    `json:"id"`
-	Name          string    `json:"name"`
-	Username      string    `json:"username"`
-	Avatar        string    `json:"avatar"`
-	Title         string    `json:"title"`
-	Bio           string    `json:"bio"`
-	City          string    `json:"city"`
-	Neighborhood  *string   `json:"neighborhood,omitempty"`
-	Verified bool      `json:"verified"`
-	CreatedAt     time.Time `json:"createdAt"`
-	Lang          string    `json:"lang"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Username     string    `json:"username"`
+	Avatar       string    `json:"avatar"`
+	Title        string    `json:"title"`
+	Bio          string    `json:"bio"`
+	City         string    `json:"city"`
+	Neighborhood *string   `json:"neighborhood,omitempty"`
+	Verified     bool      `json:"verified"`
+	CreatedAt    time.Time `json:"createdAt"`
+	Lang         string    `json:"lang"`
 }
 
 func publicOf(u User) PublicUser {
@@ -104,12 +104,12 @@ type Sighting struct {
 
 // UserSummary acompaña reportes y chats para mostrar avatar, insignia azul y antigüedad.
 type UserSummary struct {
-	ID            string    `json:"id"`
-	ShortName     string    `json:"shortName"`
-	Avatar        string    `json:"avatar"`
-	Verified bool      `json:"verified"`
-	CreatedAt     time.Time `json:"createdAt"`
-	Lang          string    `json:"lang"`
+	ID        string    `json:"id"`
+	ShortName string    `json:"shortName"`
+	Avatar    string    `json:"avatar"`
+	Verified  bool      `json:"verified"`
+	CreatedAt time.Time `json:"createdAt"`
+	Lang      string    `json:"lang"`
 }
 
 // Pet es un reporte (caso) tal como lo ve la app.

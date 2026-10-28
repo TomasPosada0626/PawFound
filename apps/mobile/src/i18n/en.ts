@@ -677,7 +677,7 @@ export const en: Translations = {
       "PawFound notifications are turned off on your phone. Turn them on so we can tell you when a pet goes missing near you.",
     push: "You turned off notifications in PawFound settings.",
     angel: "You turned off Angel Alerts.",
-    zone: "You haven't chosen your alert area yet: without it we don't know where to alert you.",
+    zone: "Turn on “Alerts where you are”: without your location we can\’t alert you about lost pets nearby.",
     cta: "Turn on alerts",
   },
   alertsOnboarding: {
@@ -858,6 +858,26 @@ export const en: Translations = {
     permissionCta: "Allow notifications",
     permissionDenied: "Notifications are blocked for PawFound. Turn them on in Android settings.",
     openSettings: "Open settings",
+    liveTitle: "Alerts where you are",
+    liveDesc:
+      "We alert you based on your real location: when a pet goes missing within 250 m of where you are, or when its search circle grows to reach you.",
+    liveOn: "On · now near {zone}",
+    liveHere: "your current location",
+    liveUpdated: "Location updated {time}",
+    liveModeAlways: "They work even when the app is closed.",
+    liveModeForeground: "They only update when you open the app.",
+    liveForegroundHint: "To get alerts with the app closed, choose “Allow all the time” in PawFound\’s location permission.",
+    liveEnable: "Turn on alerts where you are",
+    liveDisable: "Turn off",
+    liveEnabled: "Done: we\’ll alert you about lost pets near wherever you are.",
+    liveDisabled: "Turned off. We deleted your last location and you won\’t get Angel Alerts.",
+    livePrivacy:
+      "We only keep your last approximate point (250 m), with no route history. It is deleted if not updated in 24 hours and is never shown to anyone.",
+    disclosureTitle: "Your location for Angel Alerts",
+    disclosureBody:
+      "PawFound uses your approximate location, also when the app is closed or not in use, only to alert you when a pet goes missing near you. We keep only your last point, approximated to 250 m, with no history, and it is never shown to other people. You can turn it off anytime.",
+    disclosureContinue: "Continue",
+    disclosureCancel: "Not now",
   },
   privacy: {
     accountSecurity: "Account security",
