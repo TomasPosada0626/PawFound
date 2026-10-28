@@ -16,14 +16,24 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
 
 ## 2. Qué datos recolectamos
 
-- **Cuenta**: nombre, correo, número de teléfono (para verificación SMS), contraseña
-  cifrada o proveedor de inicio de sesión (Google, Facebook, Apple).
+- **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
+  dígitos), contraseña cifrada o proveedor de inicio de sesión (Google, Apple). El número de
+  celular es opcional: no se verifica ni se muestra a otras personas.
 - **Perfil**: foto y datos que decidas agregar a tu perfil.
 - **Reportes de mascotas**: descripción, fotos, ubicación aproximada, fecha y estado del
   caso.
 - **Ubicación**: ubicación aproximada, solo si la activas, para mostrar reportes cercanos
   y calcular el "círculo de vida" (radio de búsqueda) de cada caso.
-- **Mensajes**: contenido de tus conversaciones directas y de grupo dentro de la app.
+- **Ubicación para las Alertas Ángel** ("Alertas donde estés"), solo si la activas: el
+  celular envía su posición, también con la app cerrada, cuando te mueves unos 250 m.
+  Guardamos únicamente el último punto, aproximado a una celda de 250 m, sin historial de
+  recorridos; se descarta si no se actualiza en 24 horas y nunca se muestra a nadie. Puedes
+  desactivarla en cualquier momento y se borra.
+- **Mensajes**: contenido de tus conversaciones directas y de grupo dentro de la app,
+  incluidas las fotos que envíes. Las fotos se guardan sin metadatos (EXIF ni GPS) y solo
+  las ven quienes participan en esa conversación.
+- **Historias de casos**: las actualizaciones (foto y texto) que la familia agrega a la
+  historia de su caso. Se quitan al cerrarse el caso o cuando la familia las borra.
 - **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push,
   registros de error y uso, con retención minimizada.
 - **Consentimientos**: registro auditable de qué autorizaste, cuándo y con qué versión de
@@ -36,7 +46,7 @@ reportes usan ubicación aproximada.
 
 - Prestar el servicio: mostrar reportes, calcular radios de búsqueda, generar los grupos
   de caso ("Encontremos a…") y habilitar la mensajería.
-- Verificar tu identidad por SMS y otorgar la insignia azul de verificado.
+- Verificar tu correo con un código y otorgar la insignia azul de verificado.
 - Enviarte notificaciones que consientas, incluida la Alerta Ángel.
 - Prevenir fraude, abuso y contenido que comprometa el bienestar animal.
 - Atender tus solicitudes y cumplir obligaciones legales.

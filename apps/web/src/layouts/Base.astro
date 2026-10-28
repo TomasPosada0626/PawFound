@@ -1,0 +1,91 @@
+---
+import "@fontsource-variable/nunito";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description: string;
+  section?: "inicio" | "guia" | "ayuda" | "legal";
+}
+const { title, description, section = "inicio" } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const nav = [
+  { href: "/#como-funciona", label: "Cómo funciona", key: "inicio" },
+  { href: "/#tutorial", label: "Tutorial", key: "tutorial" },
+  { href: "/guia", label: "Guía", key: "guia" },
+  { href: "/ayuda", label: "Ayuda", key: "ayuda" },
+];
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <meta name="theme-color" content="#0B2239" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={new URL("/logo.png", Astro.site)} />
+    <meta property="og:locale" content="es_CO" />
+  </head>
+  <body>
+    <a class="skip" href="#contenido">Saltar al contenido</a>
+    <header class="topbar">
+      <div class="wrap">
+        <a class="brand" href="/" aria-label="PawFound, inicio"><img src="/logo.png" alt="" width="34" height="34" /> PawFound</a>
+        <nav class="nav" aria-label="Principal">
+          {nav.map((item) => <a href={item.href} aria-current={item.key === section ? "page" : undefined}>{item.label}</a>)}
+        </nav>
+        <a class="btn btn-primary nav-cta" href="/#descargar">Descargar</a>
+        <details class="menu">
+          <summary aria-label="Abrir menú">Menú</summary>
+          <div class="menu-panel">
+            {nav.map((item) => <a href={item.href}>{item.label}</a>)}
+            <a href="/#descargar">Descargar</a>
+          </div>
+        </details>
+      </div>
+    </header>
+    <main id="contenido">
+      <slot />
+    </main>
+    <footer class="footer">
+      <div class="wrap">
+        <div>
+          <a class="brand" href="/" style="color:#fff"><img src="/logo.png" alt="" width="34" height="34" /> PawFound</a>
+          <p style="margin-top:0.8rem;max-width:26rem">
+            La red de vecinos que ayuda a que las mascotas perdidas vuelvan a casa. Gratis, sin publicidad, hecha en Medellín para el Valle de
+            Aburrá.
+          </p>
+        </div>
+        <div>
+          <h3>Aprende</h3>
+          <ul>
+            <li><a href="/#como-funciona">Cómo funciona</a></li>
+            <li><a href="/#tutorial">Tutorial</a></li>
+            <li><a href="/guia">Guía: se perdió, encontré una</a></li>
+            <li><a href="/ayuda">Ayuda y preguntas</a></li>
+          </ul>
+        </div>
+        <div>
+          <h3>Confianza</h3>
+          <ul>
+            <li><a href="/privacidad">Política de privacidad</a></li>
+            <li><a href="/terminos">Términos y condiciones</a></li>
+            <li><a href="/ayuda#seguridad">Seguridad y convivencia</a></li>
+          </ul>
+        </div>
+        <p class="legal">
+          © {new Date().getFullYear()} PawFound. Las Alertas Ángel son avisos de la comunidad, no alertas gubernamentales ni un servicio de
+          emergencias. Ante una emergencia veterinaria acude a una clínica de inmediato.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

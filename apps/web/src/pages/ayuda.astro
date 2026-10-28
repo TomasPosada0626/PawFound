@@ -1,0 +1,80 @@
+---
+import Base from "../layouts/Base.astro";
+
+const groups = [
+  {
+    id: "cuenta",
+    title: "Cuenta y verificación",
+    items: [
+      { q: "¿Cómo creo mi cuenta?", a: "Con tu correo, nombre y apellidos, un nombre de usuario y una contraseña segura (mínimo 8 caracteres con mayúscula, minúscula y número). También puedes entrar con Google." },
+      { q: "¿Cómo verifico mi cuenta?", a: "Te enviamos un código de 6 dígitos a tu correo. Al escribirlo en la app recibes la insignia azul «Protector verificado». Si no te llega, revisa la carpeta de spam y toca «Reenviar código»." },
+      { q: "¿Puedo entrar con mi nombre de usuario?", a: "Sí: en «Iniciar sesión» puedes escribir tu correo o tu nombre de usuario." },
+      { q: "¿Necesito dar mi número de celular?", a: "No. Es opcional, no se verifica y nunca se muestra a otras personas." },
+    ],
+  },
+  {
+    id: "alertas",
+    title: "Alertas y notificaciones",
+    items: [
+      { q: "¿Qué es la Alerta Ángel?", a: "Una notificación de la app cuando se pierde una mascota cerca de ti: al instante si estás a menos de 250 m del reporte, o cuando su círculo de búsqueda crece hasta donde estás. Máximo 5 al día." },
+      { q: "¿Por qué la app pide mi ubicación «todo el tiempo»?", a: "Para avisarte según dónde estás aunque la app esté cerrada. Solo guardamos tu último punto aproximado (250 m), sin historial, y se borra si no se actualiza en 24 horas. Puedes elegir «solo mientras uso la app»: las alertas se actualizarán al abrirla." },
+      { q: "¿Puedo desactivar las notificaciones?", a: "Sí, en Ajustes › Notificaciones. Te mostraremos un aviso recordando que así no recibirás alertas de mascotas perdidas." },
+      { q: "¿Las alertas cuestan?", a: "No. Son notificaciones de la app, no mensajes de texto." },
+    ],
+  },
+  {
+    id: "casos",
+    title: "Reportes, historias y chats",
+    items: [
+      { q: "¿Cuántos reportes puedo publicar?", a: "Hasta 2 por día por cuenta, para evitar el spam." },
+      { q: "¿Las historias se borran a las 24 horas?", a: "No. La historia de un caso sigue visible hasta que la mascota vuelve a casa o la familia la quita." },
+      { q: "¿Se cierran los chats cuando termina el caso?", a: "No. Los chats se quedan; cada persona decide si archivarlos o eliminarlos de su lista. Un mensaje directo lo puede cerrar cualquiera de las dos personas." },
+      { q: "¿Puedo enviar fotos por el chat?", a: "Sí, en el grupo del caso y en los mensajes directos. Se envían sin la ubicación ni los datos del celular." },
+    ],
+  },
+  {
+    id: "seguridad",
+    title: "Seguridad y convivencia",
+    items: [
+      { q: "Alguien me escribió de forma grosera o intenta estafarme", a: "Mantén presionado su mensaje y toca «Reportar», o hazlo desde su perfil. Una persona del equipo revisa cada reporte con su contexto, en menos de 24 horas." },
+      { q: "¿Por qué no hay bloqueos?", a: "Para que nadie quede aislado por error y para que las sanciones las decida el equipo con criterio: aviso, restricción de 24 horas, de 7 días y suspensión." },
+      { q: "¿Alguien puede ver mi dirección?", a: "No. Todo se muestra aproximado a 250 m. La dirección exacta solo la compartes tú, si quieres, por mensaje directo." },
+    ],
+  },
+  {
+    id: "datos",
+    title: "Tus datos",
+    items: [
+      { q: "¿Puedo descargar mis datos?", a: "Sí, en Ajustes › Privacidad › Descargar mis datos (derecho de acceso, Ley 1581 de 2012)." },
+      { q: "¿Puedo eliminar mi cuenta?", a: "Sí, en Ajustes › Privacidad › Eliminar cuenta. Borramos tu perfil, tus mensajes, tus mascotas y tu ubicación; los reportes activos se archivan sin tu nombre." },
+    ],
+  },
+];
+---
+
+<Base title="Ayuda · PawFound" description="Preguntas frecuentes sobre PawFound: cuenta, Alertas Ángel, reportes, historias, chats, seguridad y tus datos." section="ayuda">
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="eyebrow" style="color:#7fe0cb">Ayuda</p>
+      <h1>¿En qué te ayudamos?</h1>
+      <p>Si no encuentras tu respuesta, escríbenos desde la app en Ajustes › Soporte y ayuda.</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap">
+      <nav class="toc" aria-label="Temas">
+        {groups.map((g) => <a href={`#${g.id}`}>{g.title}</a>)}
+      </nav>
+      {groups.map((g) => (
+        <section id={g.id} style="margin-bottom:2.5rem" aria-labelledby={`${g.id}-title`}>
+          <h2 id={`${g.id}-title`} style="font-size:1.6rem;margin-bottom:1rem">{g.title}</h2>
+          <div class="faq">
+            {g.items.map((it) => (
+              <details><summary>{it.q}</summary><p>{it.a}</p></details>
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  </section>
+</Base>
