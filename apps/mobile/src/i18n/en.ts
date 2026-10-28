@@ -358,6 +358,8 @@ export const en: Translations = {
     left_there: "I left it where it was",
   },
   auth: {
+    show: "Show",
+    hide: "Hide",
     loginTitle: "Sign in",
     loginSubtitle: "Sign in to report, help and reunite families.",
     email: "Email",

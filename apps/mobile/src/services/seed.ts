@@ -1,7 +1,8 @@
 import { approximateLocation } from "@/domain/geo";
-import type { AppNotification, Message, OwnedPet, PetCase, Thread, User } from "@/domain/types";
+import type { AppNotification, Message, OwnedPet, PetCase, Place, Thread, User } from "@/domain/types";
 
 import type { BackendState } from "./backendTypes";
+import osmPlaces from "./places.osm.json";
 import { foldText } from "./selectors";
 
 /**
@@ -659,7 +660,9 @@ export function createSeed(now: Date = new Date()): SeedResult {
         u_laura: ["u_sofia"],
       },
       shareLog: { u_valentina: ["max", "collie"] },
-      places: [],
+      // Veterinarias y refugios reales del Valle de Aburrá, importados de OpenStreetMap con
+      // `api import-places` (© colaboradores de OpenStreetMap, licencia ODbL).
+      places: osmPlaces as Place[],
       remoteBadges: {},
       // La familia de Max fue contando novedades en su historia.
       stories: [

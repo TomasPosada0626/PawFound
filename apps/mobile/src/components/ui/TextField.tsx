@@ -102,10 +102,18 @@ export const TextField = forwardRef<TextInput, TextFieldProps>(function TextFiel
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={hidden ? t("auth.showPassword") : t("auth.hidePassword")}
+            accessibilityState={{ checked: !hidden }}
             onPress={() => setHidden((h) => !h)}
-            className="-mr-2 h-12 w-12 items-center justify-center"
+            hitSlop={6}
+            className="-mr-1 min-h-[48px] flex-row items-center gap-1.5 rounded-full px-2 active:opacity-70"
+            testID={rest.testID ? `${rest.testID}-toggle` : undefined}
           >
-            <Icon name={hidden ? "eye-outline" : "eye-off-outline"} size={22} color={colors.muted} />
+            <View className="flex-row items-center gap-1.5 rounded-full bg-primary-soft px-3 py-1.5">
+              <Icon name={hidden ? "eye-outline" : "eye-off-outline"} size={20} color={colors.primaryStrong} />
+              <Text variant="captionStrong" tone="primary">
+                {hidden ? t("auth.show") : t("auth.hide")}
+              </Text>
+            </View>
           </Pressable>
         ) : null}
         {trailing}

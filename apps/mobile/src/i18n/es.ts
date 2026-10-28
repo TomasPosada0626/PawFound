@@ -357,6 +357,8 @@ export const es = {
     left_there: "La dejé donde estaba",
   },
   auth: {
+    show: "Ver",
+    hide: "Ocultar",
     loginTitle: "Inicia sesión",
     loginSubtitle: "Accede para reportar, ayudar y reunirte con familias.",
     email: "Correo electrónico",
