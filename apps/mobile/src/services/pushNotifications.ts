@@ -1,3 +1,4 @@
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
@@ -51,6 +52,22 @@ export async function configurePush(names: { angel: string; updates: string }): 
 
 const toPermission = (status: string): PushPermission =>
   status === "granted" ? "granted" : status === "denied" ? "denied" : "undetermined";
+
+/**
+ * Token del servicio push de Expo (entrega por FCM en Android y APNs en iOS). Necesita el
+ * projectId de EAS (app.json → extra.eas.projectId), que existe al configurar los builds; sin
+ * él devuelve null y las notificaciones quedan en la bandeja de la app.
+ */
+export async function getPushToken(): Promise<string | null> {
+  try {
+    const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
+    if (!projectId) return null;
+    const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
+    return data;
+  } catch {
+    return null;
+  }
+}
 
 export async function getPushPermission(): Promise<PushPermission> {
   try {

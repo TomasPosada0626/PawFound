@@ -947,6 +947,9 @@ export class MockBackend {
 
   async loadPlaces(_center: LatLng): Promise<void> {}
 
+  /** Con la API registra el celular para recibir push; en demostración se usan avisos locales. */
+  async registerPushToken(_token: string, _platform: "android" | "ios"): Promise<void> {}
+
   /** Portabilidad (Ley 1581): todo lo que la cuenta generó, en JSON. */
   async exportData(): Promise<string> {
     const user = this.requireUser();

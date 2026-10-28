@@ -1,13 +1,20 @@
 import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { isQuietTime } from "@/domain/alerts";
 import { notificationUrl } from "@/features/notifications";
 import { useI18n } from "@/i18n/I18nProvider";
 import { currentPoint, setAlertLocationSink } from "@/services/alertLocation";
-import { CHANNELS, configurePush, getPushPermission, presentLocal, safeNotificationUrl } from "@/services/pushNotifications";
+import {
+  CHANNELS,
+  configurePush,
+  getPushPermission,
+  getPushToken,
+  presentLocal,
+  safeNotificationUrl,
+} from "@/services/pushNotifications";
 import { useBackend, useBackendState } from "@/store/backend";
 
 import { petDisplayName } from "./pets";
@@ -71,6 +78,17 @@ export function BackgroundServices() {
       sub.remove();
     };
   }, [backend, hasAlertLocation]);
+
+  // Con la API: el celular se registra para recibir push cuando hay permiso (las alertas llegan
+  // aunque la app esté cerrada). En la demostración registerPushToken no hace nada.
+  useEffect(() => {
+    if (!userId) return;
+    void getPushPermission().then(async (permission) => {
+      if (permission !== "granted") return;
+      const token = await getPushToken();
+      if (token) await backend.registerPushToken(token, Platform.OS === "ios" ? "ios" : "android").catch(() => {});
+    });
+  }, [backend, userId]);
 
   // Tareas del servidor: al abrir, al volver a la app y cada minuto.
   useEffect(() => {

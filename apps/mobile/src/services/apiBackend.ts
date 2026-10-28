@@ -778,6 +778,10 @@ export class ApiBackend {
     });
   }
 
+  async registerPushToken(token: string, platform: "android" | "ios"): Promise<void> {
+    if (this.tokens) await this.request("POST", "/v1/me/devices", { token, platform });
+  }
+
   async loadPlaces(center: LatLng): Promise<void> {
     const { places } = await this.request<{ places: Place[] }>(
       "GET",
