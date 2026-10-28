@@ -467,6 +467,18 @@ export default function PetDetailScreen() {
       <Sheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t("common.moreOptions")}>
         <ListRow icon="share-social-outline" title={t("common.share")} onPress={share} />
         <ListRow icon="qr-code-outline" title={t("poster.open")} description={t("poster.openHint")} onPress={openPoster} />
+        {active ? (
+          <ListRow
+            icon="albums-outline"
+            tone="lost"
+            title={t("stories.viewThis")}
+            onPress={() => {
+              setMoreOpen(false);
+              router.push(`/historias/${pet.id}`);
+            }}
+            testID="more-view-story"
+          />
+        ) : null}
         <ListRow
           icon="logo-instagram"
           tone="violet"

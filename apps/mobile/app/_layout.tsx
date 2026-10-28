@@ -38,6 +38,7 @@ function RootStack() {
         <Stack.Screen name="report/success" options={{ animation: "fade", gestureEnabled: false }} />
         <Stack.Screen name="pet/[id]/sighting" options={{ animation: "slide_from_bottom" }} />
         <Stack.Screen name="alerta/angel/[id]" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="historias/[id]" options={{ animation: "fade", presentation: "fullScreenModal" }} />
       </Stack>
       <BackgroundServices />
       <BadgeCelebration />

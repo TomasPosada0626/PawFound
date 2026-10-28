@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import { FlatList, Pressable, View } from "react-native";
 
+import { StoriesBar } from "@/components/StoriesBar";
 import { AlertsOffBanner } from "@/components/AlertsOffBanner";
 import { PawDecoration } from "@/components/brand";
 import { HomeMenu } from "@/components/HomeMenu";
@@ -129,6 +130,9 @@ export default function HomeScreen() {
           ) : null}
         </View>
       </View>
+
+      {/* Historias de los casos cerca: no vencen hasta que la mascota vuelve a casa */}
+      <StoriesBar now={now} />
 
       {/* CTA Reportar */}
       <Pressable

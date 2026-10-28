@@ -15,6 +15,7 @@ import type {
   OwnedPet,
   PetCase,
   PrivacyPrefs,
+  StoryItem,
   Thread,
   User,
   UserReport,
@@ -504,6 +505,8 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
+      // La historia del caso se quita: ya está en casa.
+      stories: this.state.stories.filter((s) => s.petId !== petId),
       messages: [...this.state.messages, this.makeMessage(pet.groupId, "system", user, "reunited")],
       notifications: [
         ...helpers.map((id) => this.makeNotification(id, "thanked", pet.id)),
@@ -511,6 +514,36 @@ export class MockBackend {
         ...this.state.notifications,
       ],
     });
+  }
+
+  /** Agrega una actualización a la historia del caso (solo la familia, con el caso activo). */
+  async addStory(petId: string, input: { text: string; photo?: string }): Promise<StoryItem> {
+    const user = this.requireVerified();
+    const pet = this.requirePet(petId);
+    if (pet.ownerId !== user.id || pet.state !== "active") throw new BackendError("not_allowed");
+    const text = input.text.trim().slice(0, 140);
+    if (!text && !input.photo) throw new BackendError("unknown");
+    if (this.state.stories.filter((s) => s.petId === petId).length >= 20) throw new BackendError("story_full");
+    const item: StoryItem = {
+      id: this.id("sto"),
+      petId,
+      authorId: user.id,
+      text,
+      createdAt: this.iso(),
+      ...(input.photo ? { photo: input.photo } : {}),
+    };
+    this.commit({ stories: [...this.state.stories, item] });
+    return item;
+  }
+
+  /** Quita una actualización de la historia (su autor o la familia). */
+  async removeStory(storyId: string): Promise<void> {
+    const user = this.requireUser();
+    const item = this.state.stories.find((s) => s.id === storyId);
+    if (!item) return;
+    const pet = this.getPet(item.petId);
+    if (item.authorId !== user.id && pet?.ownerId !== user.id) throw new BackendError("not_allowed");
+    this.commit({ stories: this.state.stories.filter((s) => s.id !== storyId) });
   }
 
   async sharePet(petId: string): Promise<void> {

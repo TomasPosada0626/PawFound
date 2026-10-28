@@ -421,6 +421,33 @@ func (s *Server) reportUser(w http.ResponseWriter, r *http.Request) {
 	respond(w, 0, nil, s.App.ReportUser(r.Context(), actor(r), chi.URLParam(r, "id"), in))
 }
 
+// --- Historias -------------------------------------------------------------------
+
+func (s *Server) stories(w http.ResponseWriter, r *http.Request) {
+	lat, ok1 := floatParam(r, "lat")
+	lng, ok2 := floatParam(r, "lng")
+	if !ok1 || !ok2 {
+		writeError(w, &app.Error{Code: "invalid_input", Status: http.StatusBadRequest, Params: map[string]any{"field": "center"}})
+		return
+	}
+	radius, _ := strconv.Atoi(r.URL.Query().Get("radius"))
+	list, err := s.App.StoryFeed(r.Context(), viewerID(r), geo.Point{Lat: lat, Lng: lng}, radius)
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) addStory(w http.ResponseWriter, r *http.Request) {
+	var in app.StoryInput
+	if !decode(w, r, &in) {
+		return
+	}
+	item, err := s.App.AddStory(r.Context(), actor(r), chi.URLParam(r, "id"), in)
+	respond(w, http.StatusCreated, item, err)
+}
+
+func (s *Server) removeStory(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.RemoveStory(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
+
 // --- Fotos ------------------------------------------------------------------------
 
 // upload recibe multipart/form-data con "file" y "purpose" (pet, owned, chat).

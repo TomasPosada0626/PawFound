@@ -659,6 +659,23 @@ export function createSeed(now: Date = new Date()): SeedResult {
         u_laura: ["u_sofia"],
       },
       shareLog: { u_valentina: ["max", "collie"] },
+      // La familia de Max fue contando novedades en su historia.
+      stories: [
+        {
+          id: "sto_max_1",
+          petId: "max",
+          authorId: "u_maria",
+          text: "¡Gracias por compartir! Seguimos buscando por Laureles.",
+          createdAt: ago(20 * H),
+        },
+        {
+          id: "sto_max_2",
+          petId: "max",
+          authorId: "u_maria",
+          text: "Una vecina lo vio anoche cerca del parque. Si lo ves, avísanos con «La vi».",
+          createdAt: ago(3 * H),
+        },
+      ],
       ownedPets,
     },
     credentials: { [DEMO_EMAIL]: DEMO_PASSWORD },

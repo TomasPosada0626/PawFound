@@ -19,6 +19,8 @@ export const STORAGE_KEYS = {
   badgesSeen: "pawfound.badgesSeen",
   /** Ids de notificaciones ya mostradas en el sistema, para no repetirlas. */
   pushShown: "pawfound.pushShown",
+  /** Partes de historias ya vistas en este dispositivo. */
+  storiesSeen: "pawfound.storiesSeen",
 } as const;
 
 export async function readJSON<T>(key: string): Promise<T | null> {

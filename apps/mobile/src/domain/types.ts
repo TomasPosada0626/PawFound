@@ -143,6 +143,19 @@ export type User = {
   lang: Lang;
 };
 
+/**
+ * Actualización en la historia de un caso (foto, texto o ambos). Las historias no vencen: se
+ * quitan cuando la familia las borra o cuando el caso se cierra.
+ */
+export type StoryItem = {
+  id: string;
+  petId: string;
+  authorId: string;
+  photo?: string;
+  text: string;
+  createdAt: string;
+};
+
 export type MessageKind = "text" | "system" | "sighting";
 
 /** Foto adjunta a un mensaje (grupos y DM). Se envía sin ubicación ni datos del celular. */

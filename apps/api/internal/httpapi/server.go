@@ -92,6 +92,7 @@ func (s *Server) routes(r chi.Router) {
 		r.Get("/pets/{id}", s.getPet)
 		r.Post("/pets/{id}/share", s.share)
 		r.Get("/users/{id}", s.profile)
+		r.Get("/stories", s.stories)
 		r.Get("/media/{id}", s.media)
 	})
 
@@ -147,6 +148,8 @@ func (s *Server) routes(r chi.Router) {
 		r.Post("/users/{id}/like", s.like)
 		r.Post("/users/{id}/report", s.reportUser)
 		r.Post("/media", s.upload)
+		r.Post("/pets/{id}/stories", s.addStory)
+		r.Delete("/stories/{id}", s.removeStory)
 	})
 }
 

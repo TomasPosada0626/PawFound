@@ -10,6 +10,7 @@ import type {
   NotificationPrefs,
   OwnedPet,
   PetCase,
+  StoryItem,
   PetSize,
   PrivacyPrefs,
   Sex,
@@ -34,6 +35,7 @@ export type ErrorCode =
   | "invalid_username"
   | "username_taken"
   | "muted"
+  | "story_full"
   | "network"
   | "unknown";
 
@@ -79,6 +81,8 @@ export type BackendState = {
   userReports: UserReport[];
   /** "Me gusta" de perfil: cuenta → quienes le dieron me gusta (uno por persona). */
   profileLikes: Record<string, string[]>;
+  /** Actualizaciones de las historias de casos (no vencen; se quitan al cerrar el caso). */
+  stories: StoryItem[];
 };
 
 export type OwnedPetInput = Omit<OwnedPet, "id" | "ownerId" | "createdAt" | "lastCaseId">;
