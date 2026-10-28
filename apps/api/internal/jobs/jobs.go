@@ -52,7 +52,7 @@ func Tick(ctx context.Context, a *app.App) error {
 	return Cleanup(ctx, a)
 }
 
-// Cleanup borra lo que ya no sirve: sesiones y enlaces vencidos, códigos SMS viejos y fotos
+// Cleanup borra lo que ya no sirve: sesiones y enlaces vencidos, códigos de verificación viejos y fotos
 // subidas que nunca se usaron (24 h de gracia).
 func Cleanup(ctx context.Context, a *app.App) error {
 	now := a.Now()
@@ -63,7 +63,7 @@ func Cleanup(ctx context.Context, a *app.App) error {
 		{`DELETE FROM refresh_tokens WHERE expires_at < $1 OR revoked_at < $1::timestamptz - interval '7 days'`, now},
 		{`DELETE FROM admin_sessions WHERE expires_at < $1`, now},
 		{`DELETE FROM password_resets WHERE expires_at < $1`, now},
-		{`DELETE FROM phone_verifications WHERE sent_at < $1::timestamptz - interval '1 day'`, now},
+		{`DELETE FROM email_verifications WHERE sent_at < $1::timestamptz - interval '1 day'`, now},
 	}
 	for _, s := range stmts {
 		if _, err := a.DB.Exec(ctx, s.sql, s.arg); err != nil {
