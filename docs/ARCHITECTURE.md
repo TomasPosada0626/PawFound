@@ -45,13 +45,15 @@ PawFound tiene dos componentes: una API en Go que expone el dominio (usuarios, m
   y un interruptor para desactivarla. El proveedor (DeepL, Google o un LLM) recibe contenido
   de chat, así que queda sujeto a la misma evaluación de privacidad que los demás proveedores
   antes de activarse; sin proveedor, los mensajes se muestran en su idioma original.
-- **Alerta Ángel**: envío de SMS geolocalizado a usuarios cercanos cuando se publica un reporte de mascota perdida, con enlace profundo (`https://pawfound.app/alerta/angel/<id>`) al detalle en la app.
+- **Alerta Ángel**: notificación push (no SMS) a los celulares cuya zona de alertas aproximada queda dentro del círculo de vida de una mascota perdida: al publicarse (círculo inicial) y luego por un job periódico a medida que el círculo crece. Una alerta por persona y caso, máximo 5 por día, respetando el modo descanso. El push abre `/alerta/angel/<id>` (también enlace universal `https://pawfound.app/alerta/angel/<id>`). Reglas en `apps/mobile/src/domain/alerts.ts`, para portarlas igual a la API.
+- **Antispam y convivencia**: no existen bloqueos entre personas; se reporta (`userReports`) y moderación decide. La API limita mensajes por minuto por cuenta (Upstash Redis) y aplica restricciones temporales para escribir (`mutedUntil`).
+- **Insignias y "me gusta"**: calculadas en el servidor a partir de hechos (reportes, avistamientos, agradecimientos al cerrar un caso, casos compartidos, grupos); la app solo las muestra. Los "me gusta" de perfil son uno por cuenta verificada.
 
 ## App (Expo / Android)
 
-- **Framework**: Expo (React Native) + TypeScript + NativeWind (Tailwind para React Native). Lanzamiento inicial solo para Android; no se asume soporte iOS ni web hasta que se decida explícitamente. Idioma inicial español, inglés soportado desde el día uno (sin strings embebidos en componentes).
+- **Framework**: Expo (React Native) + TypeScript + NativeWind (Tailwind para React Native). Lanzamiento inicial en Android; iOS llega más adelante y debe comportarse igual (ya están `ios.bundleIdentifier` y `associatedDomains` en `app.json`, y la lógica no depende de la plataforma). Web solo para desarrollo de UI. Idioma inicial español, inglés soportado desde el día uno (sin strings embebidos en componentes).
 - **Certificate pinning**: mencionado como buena práctica de seguridad, pero es complejo bajo el flujo administrado de Expo — confirmar el flujo de build nativo elegido (EAS Build / bare workflow) antes de asumirlo como requisito duro.
-- **Notificaciones**: FCM para Android. No se requiere APNs mientras el lanzamiento sea Android-only; si se agrega iOS más adelante, evaluar Expo Notifications para simplificar ambas plataformas.
+- **Notificaciones**: `expo-notifications` en la app (mismo código para Android e iOS), con canales de Android separados ("Alertas Ángel" y "Novedades de casos"). La API envía por FCM (Android) y APNs (iOS, vía FCM o el servicio push de Expo), sujeto a la evaluación del proveedor (issue #39). En modo demostración la app presenta notificaciones locales.
 - **Cliente API**: generado desde el contrato OpenAPI de la API, para evitar desincronización entre app y backend.
 - **Navegación principal**: Inicio, Mapa, Reportar (`+`), Mensajes (DM / Grupos / Notificaciones), Perfil.
 - **Tema**: soporta modo claro y modo oscuro.
