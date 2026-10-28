@@ -13,6 +13,7 @@
   <a class="brand" href="/admin/"><span class="paw" aria-hidden="true">🐾</span> PawFound <span class="brand-tag">Moderación</span></a>
   <nav aria-label="Secciones">
     <a href="/admin/" {{if eq .Section "dashboard"}}aria-current="page"{{end}}>Resumen</a>
+    <a href="/admin/activity" {{if eq .Section "activity"}}aria-current="page"{{end}}>Actividad</a>
     <a href="/admin/reports" {{if eq .Section "reports"}}aria-current="page"{{end}}>Reportes</a>
     <a href="/admin/users" {{if eq .Section "users"}}aria-current="page"{{end}}>Cuentas</a>
     <a href="/admin/log" {{if eq .Section "log"}}aria-current="page"{{end}}>Bitácora</a>

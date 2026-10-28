@@ -161,3 +161,38 @@ blockquote { margin: 0.4rem 0 0; padding: 0.5rem 0.8rem; border-left: 3px solid 
 .timeline { margin: 0; padding-left: 1.1rem; }
 .timeline li + li { margin-top: 0.75rem; }
 .login h1 { font-size: 1.4rem; }
+
+/* Actividad de la app */
+.section-title { margin: 1.5rem 0 0.25rem; }
+.stat-hero { grid-column: 1 / -1; background: var(--primary-soft); border-color: var(--primary); }
+.stat-hero strong { font-size: 2.6rem; color: var(--primary); }
+.legend { display: flex; align-items: center; gap: 0.5rem; color: var(--muted); font-size: 0.9rem; }
+.dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 999px; }
+.dot-reports, .bar-reports { background: var(--lost); }
+.dot-reunions, .bar-reunions { background: var(--primary); }
+.chart { display: grid; grid-template-columns: repeat(14, 1fr); gap: 0.4rem; height: 180px; align-items: end; margin-top: 1rem; }
+.chart-day { display: flex; flex-direction: column; align-items: center; height: 100%; gap: 0.3rem; }
+.bars { flex: 1; width: 100%; display: flex; gap: 2px; align-items: flex-end; justify-content: center; }
+.bar { width: 40%; max-width: 14px; border-radius: 4px 4px 0 0; min-height: 2px; }
+.chart-label { font-size: 0.7rem; color: var(--muted); }
+.h0 { height: 0%; }
+.h5 { height: 5%; }
+.h10 { height: 10%; }
+.h15 { height: 15%; }
+.h20 { height: 20%; }
+.h25 { height: 25%; }
+.h30 { height: 30%; }
+.h35 { height: 35%; }
+.h40 { height: 40%; }
+.h45 { height: 45%; }
+.h50 { height: 50%; }
+.h55 { height: 55%; }
+.h60 { height: 60%; }
+.h65 { height: 65%; }
+.h70 { height: 70%; }
+.h75 { height: 75%; }
+.h80 { height: 80%; }
+.h85 { height: 85%; }
+.h90 { height: 90%; }
+.h95 { height: 95%; }
+.h100 { height: 100%; }

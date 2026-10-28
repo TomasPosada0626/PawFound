@@ -72,6 +72,7 @@ func (p *Panel) Handler() http.Handler {
 		r.Get("/users/{id}", p.user)
 		r.Post("/users/{id}", p.act)
 		r.Get("/log", p.log)
+		r.Get("/activity", p.activity)
 		r.Get("/media/{id}", p.media)
 	})
 	return r
@@ -146,6 +147,21 @@ var funcs = template.FuncMap{
 		return v
 	},
 	"days": func(t time.Time) int { return domain.MemberDays(t, time.Now()) },
+	"deref_float": func(f *float64) float64 {
+		if f == nil {
+			return 0
+		}
+		return *f
+	},
+	// pct da la altura de una barra en pasos de 5 % (la CSP no permite estilos en línea: cada
+	// paso es una clase .h0 … .h100 en admin.css).
+	"pct": func(n, total int) int {
+		if total == 0 || n == 0 {
+			return 0
+		}
+		return max(5, (n*100/total+2)/5*5)
+	},
+	"dayLabel": func(t time.Time) string { return t.Format("02/01") },
 	"active": func(t *time.Time) bool {
 		return t != nil && t.After(time.Now())
 	},
@@ -191,7 +207,7 @@ func ago(d time.Duration) string {
 
 func parsePages() map[string]*template.Template {
 	pages := map[string]*template.Template{}
-	for _, name := range []string{"login", "dashboard", "reports", "report", "users", "user", "log"} {
+	for _, name := range []string{"login", "dashboard", "reports", "report", "users", "user", "log", "activity"} {
 		pages[name] = template.Must(template.New("layout.html").Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/actions.html", "templates/"+name+".html"))
 	}
 	return pages
@@ -393,6 +409,15 @@ func (p *Panel) user(w http.ResponseWriter, r *http.Request) {
 		Title: u.Name, Section: "users", Error: r.URL.Query().Get("error"),
 		Data: map[string]any{"User": u, "History": history, "Decide": decide},
 	})
+}
+
+func (p *Panel) activity(w http.ResponseWriter, r *http.Request) {
+	a, err := p.App.AppActivity(r.Context())
+	if err != nil {
+		p.fail(w, err)
+		return
+	}
+	p.render(w, r, http.StatusOK, "activity", view{Title: "Actividad", Section: "activity", Data: a})
 }
 
 func (p *Panel) log(w http.ResponseWriter, r *http.Request) {

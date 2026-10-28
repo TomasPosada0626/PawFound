@@ -36,7 +36,7 @@ func setup(t *testing.T) *env {
 	tokens, _ := auth.NewTokens(strings.Repeat("k", 32), time.Hour, now)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a := &app.App{
-		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("x"), SMS: providers.LogSMS{Log: log}, Media: media.LocalStore{Dir: t.TempDir()},
+		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("x"), Mailer: providers.LogMailer{Log: log}, Media: media.LocalStore{Dir: t.TempDir()},
 		Log: log, Now: now, APIBaseURL: "http://api.test",
 	}
 	a.Init()
@@ -227,6 +227,9 @@ func TestReviewReportAndApplySanctions(t *testing.T) {
 	}
 	if _, body := e.get("/admin/reports?status=dismissed"); !strings.Contains(body, "Sistema") {
 		t.Fatal("pestaña descartados")
+	}
+	if status, body := e.get("/admin/activity"); status != http.StatusOK || !strings.Contains(body, "Actividad de la app") || !strings.Contains(body, "chart-day") {
+		t.Fatalf("actividad = %d", status)
 	}
 	if status, _ := e.get("/admin/static/admin.css"); status != http.StatusOK {
 		t.Fatal("estilos")
