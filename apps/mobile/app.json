@@ -3,24 +3,75 @@
     "name": "PawFound",
     "slug": "pawfound",
     "version": "0.1.0",
+    "scheme": "pawfound",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F4F9F8",
     "ios": {
       "supportsTablet": true
     },
     "android": {
+      "package": "app.pawfound",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#E3F5F1",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "pawfound.app", "pathPrefix": "/alerta" },
+            { "scheme": "https", "host": "pawfound.app", "pathPrefix": "/mascota" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    }
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PawFound usa tu ubicación para mostrarte mascotas reportadas cerca y ubicar tus reportes. Tu ubicación exacta nunca se muestra a otras personas."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PawFound necesita acceso a tus fotos para que puedas agregar imágenes de la mascota a tu reporte.",
+          "cameraPermission": "PawFound necesita la cámara para que puedas tomar una foto de la mascota.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-image",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#F4F9F8",
+          "dark": {
+            "backgroundColor": "#0B1622"
+          }
+        }
+      ]
+    ]
   }
 }
