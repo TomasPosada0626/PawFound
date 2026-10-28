@@ -114,7 +114,7 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
   const own = valid.filter((p) => p.ownerId === userId);
   const ownGroups = new Set(own.map((p) => p.groupId));
   return {
-    verified: user?.phoneVerified ? 1 : 0,
+    verified: user?.verified ? 1 : 0,
     reporter: own.length,
     rescuer: own.filter((p) => p.kind === "found").length,
     eyes: valid

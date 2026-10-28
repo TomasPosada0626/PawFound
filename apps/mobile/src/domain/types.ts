@@ -123,8 +123,10 @@ export type User = {
   name: string;
   username: string;
   email: string;
+  /** Opcional: nunca se verifica ni se muestra a otras personas. */
   phone?: string;
-  phoneVerified: boolean;
+  /** Correo verificado con el código de 6 dígitos (o por Google/Apple): insignia azul. */
+  verified: boolean;
   avatar: AvatarId;
   title: ProfileTitle;
   bio: string;
@@ -169,7 +171,11 @@ export type Thread = {
   /** Último mensaje leído por usuario (id de usuario → ISO). */
   readAt: Record<string, string>;
   mutedBy: string[];
+  /** Chat cerrado: un mensaje directo que cerró una de las dos personas (los grupos no se cierran). */
   archived: boolean;
+  closedBy?: string;
+  /** Quienes lo archivaron en su propia lista (cada persona decide; nunca se borra solo). */
+  archivedBy: string[];
 };
 
 export type NotificationKind =

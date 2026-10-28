@@ -1,4 +1,4 @@
-// Package providers define los servicios externos de la API (SMS, push, traducción, correo)
+// Package providers define los servicios externos de la API (correo, push, traducción)
 // detrás de interfaces.
 //
 // Ningún proveedor real se activa sin su evaluación de seguridad y privacidad
@@ -15,13 +15,11 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 )
 
-// SMS envía el código de verificación.
-type SMS interface {
-	SendCode(ctx context.Context, phone, code string) error
-}
+
 
 // Push entrega notificaciones a los celulares.
 type Push interface {
@@ -45,39 +43,17 @@ type Translator interface {
 	Translate(ctx context.Context, text, from, to string) (string, error)
 }
 
-// Mailer envía el enlace para restablecer la contraseña.
+// Mailer envía el código de verificación (insignia azul) y el enlace para restablecer la
+// contraseña. Es la única verificación de PawFound: gratis, sin SMS.
 type Mailer interface {
+	SendVerificationCode(ctx context.Context, email, code, lang string) error
 	SendPasswordReset(ctx context.Context, email, link string) error
 }
 
 // ErrDisabled: la función necesita un proveedor que todavía no se activó.
 var ErrDisabled = errors.New("proveedor no configurado")
 
-// LogSMS escribe el código en el log. Solo se permite con APP_ENV=development.
-type LogSMS struct{ Log *slog.Logger }
 
-// SendCode registra el código para poder probar el registro en local.
-func (s LogSMS) SendCode(_ context.Context, phone, code string) error {
-	s.Log.Info("SMS de desarrollo (no se envió)", "phone_suffix", suffix(phone), "code", code)
-	return nil
-}
-
-// DisabledSMS hace que el registro falle con un error claro en vez de quedarse esperando.
-type DisabledSMS struct{}
-
-// SendCode siempre falla con ErrDisabled.
-func (DisabledSMS) SendCode(context.Context, string, string) error { return ErrDisabled }
-
-// LogPush registra las notificaciones sin enviarlas.
-type LogPush struct{ Log *slog.Logger }
-
-// Send registra cuántas notificaciones habría enviado.
-func (p LogPush) Send(_ context.Context, messages []PushMessage) error {
-	for _, m := range messages {
-		p.Log.Info("push de desarrollo (no se envió)", "title", m.Title, "url", m.URL, "channel", m.Channel, "silent", m.Silent)
-	}
-	return nil
-}
 
 // ExpoPush envía por el servicio push de Expo, que entrega por FCM (Android) y APNs (iOS)
 // con el mismo código. Requiere la evaluación del proveedor (issue #39) antes de activarse
@@ -140,8 +116,14 @@ func (p ExpoPush) Send(ctx context.Context, messages []PushMessage) error {
 	return nil
 }
 
-// LogMailer registra el enlace de restablecimiento (solo desarrollo).
+// LogMailer escribe los correos en el log en vez de enviarlos. Solo en development.
 type LogMailer struct{ Log *slog.Logger }
+
+// SendVerificationCode registra el código para poder probar el registro en local.
+func (m LogMailer) SendVerificationCode(_ context.Context, email, code, _ string) error {
+	m.Log.Info("correo de desarrollo (no se envió)", "to_domain", domainOf(email), "code", code)
+	return nil
+}
 
 // SendPasswordReset registra el envío sin el enlace completo en producción.
 func (m LogMailer) SendPasswordReset(_ context.Context, _ string, link string) error {
@@ -149,9 +131,9 @@ func (m LogMailer) SendPasswordReset(_ context.Context, _ string, link string) e
 	return nil
 }
 
-func suffix(phone string) string {
-	if len(phone) < 2 {
-		return "**"
+func domainOf(email string) string {
+	if i := strings.LastIndex(email, "@"); i >= 0 {
+		return email[i+1:]
 	}
-	return "…" + phone[len(phone)-2:]
+	return "?"
 }

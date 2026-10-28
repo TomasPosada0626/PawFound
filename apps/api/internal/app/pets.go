@@ -530,7 +530,9 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 				return err
 			}
 		}
-		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID); err != nil {
+		// Los chats del caso no se cierran solos: cada persona decide si archivarlos o eliminarlos.
+		// Las historias del caso sí se quitan: ya no hay a quién buscar.
+		if _, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, now); err != nil {
 			return err
 		}
 		if err := insertSystemMessage(ctx, tx, row.GroupID, ac, "system", "reunited", now); err != nil {
@@ -585,7 +587,7 @@ func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 		if _, err := tx.Exec(ctx, `UPDATE pets SET state = 'archived' WHERE id = $1`, petID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID)
+		_, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, a.now())
 		return err
 	})
 }
@@ -658,10 +660,10 @@ func (a *App) summaries(ctx context.Context, ids []string) (map[string]UserSumma
 	if len(ids) == 0 {
 		return out, nil
 	}
-	rows, _ := a.DB.Query(ctx, `SELECT id, name, avatar, phone_verified, created_at, lang FROM users WHERE id = ANY($1)`, ids)
+	rows, _ := a.DB.Query(ctx, `SELECT id, name, avatar, email_verified, created_at, lang FROM users WHERE id = ANY($1)`, ids)
 	var s UserSummary
 	var name string
-	_, err := pgx.ForEachRow(rows, []any{&s.ID, &name, &s.Avatar, &s.PhoneVerified, &s.CreatedAt, &s.Lang}, func() error {
+	_, err := pgx.ForEachRow(rows, []any{&s.ID, &name, &s.Avatar, &s.Verified, &s.CreatedAt, &s.Lang}, func() error {
 		s.ShortName = shortName(name)
 		out[s.ID] = s
 		return nil

@@ -1,7 +1,7 @@
 import { distanceMeters } from "@/domain/geo";
 
 import { BackendError, type NewReportInput } from "../backendTypes";
-import { DEMO_SMS_CODE, MockBackend, RESEND_COOLDOWN_S } from "../mockBackend";
+import { DEMO_CODE, MockBackend, RESEND_COOLDOWN_S } from "../mockBackend";
 import { createSeed, DEMO_EMAIL, DEMO_PASSWORD } from "../seed";
 import {
   counterpart,
@@ -66,11 +66,11 @@ describe("autenticación", () => {
     const backend = makeBackend();
     await backend.register({ name: "Ana Gómez", email: "ana@x.co", phone: "310 555 0000", password: "Clave1234" });
     const user = backend.currentUser;
-    expect(user?.phoneVerified).toBe(false);
+    expect(user?.verified).toBe(false);
     expect(user?.phone).toBe("+573105550000");
     expect(backend.getSnapshot().verification?.phone).toBe("+573105550000");
-    await backend.verifyCode(DEMO_SMS_CODE);
-    expect(backend.currentUser?.phoneVerified).toBe(true);
+    await backend.verifyCode(DEMO_CODE);
+    expect(backend.currentUser?.verified).toBe(true);
     expect(userBadgeProgress(backend.getSnapshot(), user!.id).find((b) => b.id === "verified")?.tier).toBe(1);
   });
 
@@ -97,13 +97,13 @@ describe("autenticación", () => {
       });
     }
     await expectCode(backend.verifyCode("000000"), "locked");
-    await expectCode(backend.verifyCode(DEMO_SMS_CODE), "locked");
+    await expectCode(backend.verifyCode(DEMO_CODE), "locked");
     advance(6);
-    await expect(backend.verifyCode(DEMO_SMS_CODE)).resolves.toBeUndefined();
+    await expect(backend.verifyCode(DEMO_CODE)).resolves.toBeUndefined();
 
     await backend.startPhoneVerification("3115550000");
     advance(11);
-    await expectCode(backend.verifyCode(DEMO_SMS_CODE), "expired");
+    await expectCode(backend.verifyCode(DEMO_CODE), "expired");
   });
 
   it("respeta la espera para reenviar el código", async () => {

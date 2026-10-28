@@ -91,15 +91,19 @@ func PasswordIssue(password string) string {
 	if len(password) > 256 {
 		return "too_long"
 	}
-	hasLetter, hasDigit := false, false
+	// Contraseña segura: mayúscula, minúscula y número (igual que validation.ts en la app).
+	hasUpper, hasLower, hasDigit := false, false, false
 	for _, r := range password {
-		hasLetter = hasLetter || unicode.IsLetter(r)
+		hasUpper = hasUpper || unicode.IsUpper(r)
+		hasLower = hasLower || unicode.IsLower(r)
 		hasDigit = hasDigit || unicode.IsDigit(r)
 	}
-	if !hasLetter {
-		return "needs_letter"
-	}
-	if !hasDigit {
+	switch {
+	case !hasUpper:
+		return "needs_upper"
+	case !hasLower:
+		return "needs_lower"
+	case !hasDigit:
 		return "needs_number"
 	}
 	return ""
@@ -112,6 +116,17 @@ func NormalizeUsername(raw string) string {
 		return ""
 	}
 	return u
+}
+
+// HasSurname exige nombre y al menos un apellido (dos palabras de 2 letras o más).
+func HasSurname(name string) bool {
+	words := 0
+	for _, w := range strings.Fields(name) {
+		if utf8.RuneCountInString(w) >= 2 {
+			words++
+		}
+	}
+	return words >= 2
 }
 
 // UsernameBase deriva la base de un usuario a partir del correo, como la app.

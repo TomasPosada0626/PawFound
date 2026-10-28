@@ -31,7 +31,6 @@ type App struct {
 	Codes      auth.CodeHasher
 	Google     *auth.OIDCProvider
 	Apple      *auth.OIDCProvider
-	SMS        providers.SMS
 	Push       providers.Push
 	Translator providers.Translator
 	Mailer     providers.Mailer
@@ -46,10 +45,10 @@ type App struct {
 	WebBaseURL string
 	// RefreshTTL es la vida de un refresh token sin usar.
 	RefreshTTL time.Duration
-	// FixedSMSCode solo en desarrollo: permite probar la app contra la API local.
-	FixedSMSCode string
+	// FixedCode solo en desarrollo: código de verificación fijo para probar la app en local.
+	FixedCode string
 
-	smsLimiter    *ratelimit.Limiter
+	codeLimiter   *ratelimit.Limiter
 	uploadLimiter *ratelimit.Limiter
 }
 
@@ -70,8 +69,8 @@ func (a *App) Init() {
 	if a.Push == nil {
 		a.Push = providers.LogPush{Log: a.Log}
 	}
-	// Antifraude de SMS ("SMS pumping"): máximo 5 envíos por número por hora.
-	a.smsLimiter = ratelimit.New(5, time.Hour, a.Now)
+	// Antiabuso: máximo 5 códigos de verificación por correo por hora.
+	a.codeLimiter = ratelimit.New(5, time.Hour, a.Now)
 	a.uploadLimiter = ratelimit.New(40, time.Hour, a.Now)
 }
 
@@ -140,7 +139,7 @@ func notFoundIfNoRows(err error) error {
 type Actor struct {
 	ID            string     `db:"id"`
 	Name          string     `db:"name"`
-	PhoneVerified bool       `db:"phone_verified"`
+	Verified bool       `db:"email_verified"`
 	Role          string     `db:"role"`
 	Lang          string     `db:"lang"`
 	MutedUntil    *time.Time `db:"muted_until"`
@@ -155,7 +154,7 @@ func (ac Actor) IsModerator() bool { return ac.Role == "moderator" || ac.Role ==
 
 // LoadActor trae la cuenta y rechaza las suspendidas.
 func (a *App) LoadActor(ctx context.Context, userID string) (Actor, error) {
-	rows, _ := a.DB.Query(ctx, `SELECT id, name, phone_verified, role, lang, muted_until, suspended_at FROM users WHERE id = $1`, userID)
+	rows, _ := a.DB.Query(ctx, `SELECT id, name, email_verified, role, lang, muted_until, suspended_at FROM users WHERE id = $1`, userID)
 	actor, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[Actor])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Actor{}, ErrUnauthorized
@@ -180,7 +179,7 @@ func (a *App) Authenticate(ctx context.Context, token string) (Actor, error) {
 
 // Las acciones de escritura comunitaria exigen celular verificado (insignia azul).
 func requireVerified(ac Actor) error {
-	if !ac.PhoneVerified {
+	if !ac.Verified {
 		return ErrNotAllowed
 	}
 	return nil

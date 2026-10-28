@@ -30,7 +30,7 @@ func TestRegisterVerifyAndLogin(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
 	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("Valen@PawFound.app", "300 123 4567"), &session)
-	if !session.NeedsVerification || session.Me.User.PhoneVerified || session.Me.User.Email != "valen@pawfound.app" {
+	if !session.NeedsVerification || session.Me.User.Verified || session.Me.User.Email != "valen@pawfound.app" {
 		t.Fatalf("registro: %+v", session)
 	}
 	if *session.Me.User.Phone != "+573001234567" || session.Me.User.Username != "valen" {
@@ -58,7 +58,7 @@ func TestRegisterVerifyAndLogin(t *testing.T) {
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/phone/resend", tok, nil, nil)
 	var me app.Me
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"}, &me)
-	if !me.User.PhoneVerified {
+	if !me.User.Verified {
 		t.Fatal("la verificación debe otorgar la insignia azul")
 	}
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"})
@@ -98,7 +98,7 @@ func TestVerificationLocksAfterFiveAttempts(t *testing.T) {
 	h.must(http.StatusNoContent, http.MethodPost, "/v1/auth/phone", tok, map[string]string{"phone": "3207654321"}, nil)
 	var me app.Me
 	h.must(http.StatusOK, http.MethodGet, "/v1/me", tok, nil, &me)
-	if me.User.PhoneVerified || *me.User.Phone != "+573207654321" {
+	if me.User.Verified || *me.User.Phone != "+573207654321" {
 		t.Fatalf("cambio de número: %+v", me.User)
 	}
 	h.expectError(http.StatusUnprocessableEntity, "invalid_phone", http.MethodPost, "/v1/auth/phone", tok, map[string]string{"phone": "123"})

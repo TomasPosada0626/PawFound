@@ -22,16 +22,27 @@ type Config struct {
 	APIBaseURL     string
 	WebBaseURL     string
 	MediaDir       string
-	SMSProvider    string
+	SMTP           SMTP
 	PushProvider   string
 	ExpoToken      string
 	GoogleClients  []string
 	AppleClients   []string
 	ClientIPHeader string
-	FixedSMSCode   string
+	FixedCode      string
 	MigrateOnStart bool
 	JobsEnabled    bool
 	JobsInterval   time.Duration
+}
+
+// SMTP es el proveedor de correo (códigos de verificación y restablecimiento). Sin SMTP_HOST,
+// en development los correos se escriben en el log y fuera de development el registro responde
+// provider_unavailable.
+type SMTP struct {
+	Host     string
+	Port     string
+	Username string
+	Password string
+	From     string
 }
 
 // Development indica el entorno local.
@@ -53,13 +64,14 @@ func Load(getenv func(string) string) (Config, error) {
 		APIBaseURL:     get("PUBLIC_API_URL", "http://localhost:8080"),
 		WebBaseURL:     get("PUBLIC_WEB_URL", "https://pawfound.app"),
 		MediaDir:       get("MEDIA_DIR", "./data/media"),
-		SMSProvider:    get("SMS_PROVIDER", ""),
+		SMTP: SMTP{Host: get("SMTP_HOST", ""), Port: get("SMTP_PORT", "587"), Username: get("SMTP_USERNAME", ""),
+			Password: get("SMTP_PASSWORD", ""), From: get("SMTP_FROM", "")},
 		PushProvider:   get("PUSH_PROVIDER", ""),
 		ExpoToken:      get("EXPO_ACCESS_TOKEN", ""),
 		GoogleClients:  list(get("GOOGLE_CLIENT_IDS", "")),
 		AppleClients:   list(get("APPLE_CLIENT_IDS", "")),
 		ClientIPHeader: get("CLIENT_IP_HEADER", ""),
-		FixedSMSCode:   get("DEV_FIXED_SMS_CODE", ""),
+		FixedCode:      get("DEV_FIXED_CODE", ""),
 	}
 	var errs []error
 	if c.Env != "development" && c.Env != "staging" && c.Env != "production" {
@@ -89,31 +101,22 @@ func Load(getenv func(string) string) (Config, error) {
 	if err != nil {
 		errs = append(errs, errors.New("JOBS_ENABLED debe ser true o false"))
 	}
-	if c.SMSProvider == "" {
-		c.SMSProvider = map[bool]string{true: "log", false: "none"}[c.Development()]
-	}
 	if c.PushProvider == "" {
 		c.PushProvider = map[bool]string{true: "log", false: "none"}[c.Development()]
 	}
-	switch c.SMSProvider {
-	case "log":
-		if !c.Development() {
-			errs = append(errs, errors.New("SMS_PROVIDER=log solo se permite en development: escribe los códigos en el log"))
-		}
-	case "none":
-	default:
-		errs = append(errs, fmt.Errorf("SMS_PROVIDER=%q no existe todavía: el proveedor se activa tras su evaluación de privacidad", c.SMSProvider))
+	if c.SMTP.Host != "" && c.SMTP.From == "" {
+		errs = append(errs, errors.New("SMTP_FROM es obligatorio si se define SMTP_HOST"))
 	}
 	switch c.PushProvider {
 	case "log", "none", "expo":
 	default:
 		errs = append(errs, fmt.Errorf("PUSH_PROVIDER=%q: usa log, none o expo", c.PushProvider))
 	}
-	if c.FixedSMSCode != "" && !c.Development() {
-		errs = append(errs, errors.New("DEV_FIXED_SMS_CODE solo se permite en development"))
+	if c.FixedCode != "" && !c.Development() {
+		errs = append(errs, errors.New("DEV_FIXED_CODE solo se permite en development"))
 	}
-	if c.FixedSMSCode != "" && (len(c.FixedSMSCode) != 6 || strings.Trim(c.FixedSMSCode, "0123456789") != "") {
-		errs = append(errs, errors.New("DEV_FIXED_SMS_CODE debe tener 6 dígitos"))
+	if c.FixedCode != "" && (len(c.FixedCode) != 6 || strings.Trim(c.FixedCode, "0123456789") != "") {
+		errs = append(errs, errors.New("DEV_FIXED_CODE debe tener 6 dígitos"))
 	}
 	if !c.Development() && !strings.HasPrefix(c.APIBaseURL, "https://") {
 		errs = append(errs, errors.New("PUBLIC_API_URL debe usar https fuera de development"))

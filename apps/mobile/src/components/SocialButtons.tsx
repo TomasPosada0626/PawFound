@@ -37,9 +37,8 @@ export function SocialButtons({ next }: { next: string }) {
   const signIn = async (provider: SocialProvider) => {
     setBusy(provider);
     try {
-      const { needsPhone } = await backend.loginWithProvider(provider);
-      if (needsPhone && next !== "/") router.replace({ pathname: "/auth/phone", params: { next } });
-      else router.replace(next as never);
+      await backend.loginWithProvider(provider);
+      router.replace(next as never);
     } catch {
       toast(t("errors.network"), "error");
     } finally {

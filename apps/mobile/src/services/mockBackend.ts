@@ -20,7 +20,7 @@ import type {
   UserReportReason,
 } from "@/domain/types";
 import { shortName } from "@/domain/privacy";
-import { normalizeColombianMobile } from "@/domain/validation";
+import { normalizeColombianMobile, normalizeUsername } from "@/domain/validation";
 
 import { reunionHelperCandidates } from "./selectors";
 
@@ -45,7 +45,8 @@ import {
  * dispositivo; la API real usa Argon2id (docs/ARCHITECTURE.md).
  */
 
-export const DEMO_SMS_CODE = "123456";
+/** Código de verificación en modo demostración (la API real lo envía al correo). */
+export const DEMO_CODE = "123456";
 export const RESEND_COOLDOWN_S = 45;
 export const CODE_TTL_MIN = 10;
 export const MAX_CODE_ATTEMPTS = 5;
@@ -150,55 +151,64 @@ export class MockBackend {
   /** Acciones de escritura comunitaria exigen teléfono verificado (insignia azul). */
   private requireVerified(): User {
     const user = this.requireUser();
-    if (!user.phoneVerified) throw new BackendError("not_allowed");
+    if (!user.verified) throw new BackendError("not_allowed");
     return user;
   }
 
-  async login(email: string, password: string): Promise<{ needsVerification: boolean }> {
-    const entry = this.credentials.get(email.trim().toLowerCase());
+  /** Entra con el correo o con el nombre de usuario. */
+  async login(identifier: string, password: string): Promise<{ needsVerification: boolean }> {
+    const id = identifier.trim().toLowerCase();
+    const username = id.includes("@") && !id.startsWith("@") ? null : normalizeUsername(id);
+    const email = username
+      ? Object.values(this.state.users)
+          .find((u) => u.username === username)
+          ?.email.toLowerCase()
+      : id;
+    const entry = email ? this.credentials.get(email) : undefined;
     // Mismo error para correo inexistente y contraseña incorrecta: no revela si la cuenta existe.
     if (!entry || entry.password !== password) throw new BackendError("invalid_credentials");
     const user = this.state.users[entry.userId];
     if (!user) throw new BackendError("invalid_credentials");
     this.commit({ sessionUserId: user.id });
-    if (!user.phoneVerified && user.phone) {
-      this.issueCode(user.id, user.phone);
+    if (!user.verified) {
+      this.issueCode(user.id, user.email);
       return { needsVerification: true };
     }
     return { needsVerification: false };
   }
 
-  async loginWithProvider(provider: SocialProvider): Promise<{ needsPhone: boolean }> {
+  /** Google o Apple ya confirmaron el correo: la cuenta queda verificada sin código. */
+  async loginWithProvider(provider: SocialProvider): Promise<void> {
     const email = `demo.${provider}@pawfound.app`;
     let user = Object.values(this.state.users).find((u) => u.email === email);
     if (!user) {
-      user = this.makeUser({ name: `Persona ${provider[0]?.toUpperCase()}${provider.slice(1)}`, email });
+      user = { ...this.makeUser({ name: `Persona ${provider[0]?.toUpperCase()}${provider.slice(1)}`, email }), verified: true };
       this.commit({ users: { ...this.state.users, [user.id]: user } });
     }
     this.commit({ sessionUserId: user.id });
-    return { needsPhone: !user.phoneVerified };
   }
 
-  async register(input: { name: string; email: string; phone: string; password: string }): Promise<void> {
+  /** Registro con correo, nombre y apellidos, usuario y contraseña. Envía el código al correo. */
+  async register(input: { name: string; email: string; username: string; password: string }): Promise<void> {
     const email = input.email.trim().toLowerCase();
     if (this.credentials.has(email)) throw new BackendError("email_taken");
-    const phone = normalizeColombianMobile(input.phone);
-    if (!phone) throw new BackendError("invalid_phone");
-    if (this.phoneTaken(phone)) throw new BackendError("phone_taken");
-    const user = this.makeUser({ name: input.name.trim(), email, phone });
+    const username = normalizeUsername(input.username);
+    if (!username) throw new BackendError("invalid_username");
+    if (Object.values(this.state.users).some((u) => u.username === username)) throw new BackendError("username_taken");
+    const user = this.makeUser({ name: input.name.trim(), email, username });
     this.credentials.set(email, { userId: user.id, password: input.password });
     this.commit({ users: { ...this.state.users, [user.id]: user }, sessionUserId: user.id });
-    this.issueCode(user.id, phone);
+    this.issueCode(user.id, email);
   }
 
-  private makeUser({ name, email, phone }: { name: string; email: string; phone?: string }): User {
+  private makeUser({ name, email, username: chosen }: { name: string; email: string; username?: string }): User {
     const base =
       email
         .split("@")[0]
         ?.replace(/[^a-z0-9_]/gi, "")
         .toLowerCase() || "pawfriend";
-    let username = base.slice(0, 16);
-    while (Object.values(this.state.users).some((u) => u.username === username)) {
+    let username = chosen ?? base.slice(0, 16);
+    while (!chosen && Object.values(this.state.users).some((u) => u.username === username)) {
       username = `${base.slice(0, 14)}${Math.floor(Math.random() * 90 + 10)}`;
     }
     return {
@@ -206,8 +216,7 @@ export class MockBackend {
       name,
       username,
       email,
-      phone,
-      phoneVerified: false,
+      verified: false,
       avatar: "dog",
       title: "animal_lover",
       bio: "",
@@ -219,24 +228,17 @@ export class MockBackend {
     };
   }
 
-  private phoneTaken(phone: string, exceptUserId?: string) {
-    return Object.values(this.state.users).some((u) => u.phone === phone && u.phoneVerified && u.id !== exceptUserId);
-  }
-
-  private issueCode(userId: string, phone: string) {
+  /** En demostración el código siempre es DEMO_CODE; la API real lo envía al correo. */
+  private issueCode(userId: string, email: string) {
     this.commit({
-      verification: { userId, phone, code: DEMO_SMS_CODE, sentAt: this.iso(), attempts: 0 },
+      verification: { userId, email, code: DEMO_CODE, sentAt: this.iso(), attempts: 0 },
     });
   }
 
-  /** Paso "agrega y verifica tu número" (login social o cuenta sin teléfono). */
-  async startPhoneVerification(rawPhone: string): Promise<void> {
+  /** Envía un código al correo de la cuenta actual (si todavía no está verificada). */
+  async sendVerificationCode(): Promise<void> {
     const user = this.requireUser();
-    const phone = normalizeColombianMobile(rawPhone);
-    if (!phone) throw new BackendError("invalid_phone");
-    if (this.phoneTaken(phone, user.id)) throw new BackendError("phone_taken");
-    this.commit({ users: { ...this.state.users, [user.id]: { ...user, phone, phoneVerified: false } } });
-    this.issueCode(user.id, phone);
+    if (!user.verified) this.issueCode(user.id, user.email);
   }
 
   secondsUntilResend(): number {
@@ -251,7 +253,7 @@ export class MockBackend {
     if (!v) throw new BackendError("not_allowed");
     if (this.secondsUntilResend() > 0) throw new BackendError("not_allowed");
     // Se conserva el contador de intentos: reenviar no reinicia el bloqueo.
-    this.commit({ verification: { ...v, sentAt: this.iso(), code: DEMO_SMS_CODE } });
+    this.commit({ verification: { ...v, sentAt: this.iso(), code: DEMO_CODE } });
   }
 
   async verifyCode(code: string): Promise<void> {
@@ -275,9 +277,9 @@ export class MockBackend {
     }
     const user = this.state.users[v.userId];
     if (!user) throw new BackendError("not_found");
-    // Al verificar se otorga la insignia azul automáticamente (PRODUCT.md).
+    // Al verificar el correo se otorga la insignia azul ("Protector verificado").
     this.commit({
-      users: { ...this.state.users, [user.id]: { ...user, phone: v.phone, phoneVerified: true } },
+      users: { ...this.state.users, [user.id]: { ...user, verified: true } },
       verification: null,
     });
   }
@@ -350,6 +352,7 @@ export class MockBackend {
       readAt: { [user.id]: now },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     };
     const matches = findPossibleMatches(pet, this.state.pets, this.now());
     const matchNotifications = matches.map((m) => this.makeNotification(m.pet.ownerId, "possible_match", petId));
@@ -500,7 +503,6 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
       messages: [...this.state.messages, this.makeMessage(pet.groupId, "system", user, "reunited")],
       notifications: [
         ...helpers.map((id) => this.makeNotification(id, "thanked", pet.id)),
@@ -613,11 +615,12 @@ export class MockBackend {
     const other = this.state.users[otherId];
     if (!other) throw new BackendError("not_found");
     const prefs = this.state.privacyPrefs[otherId] ?? DEFAULT_PRIVACY_PREFS;
-    if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.phoneVerified)) {
+    if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.verified)) {
       throw new BackendError("cannot_message");
     }
+    // Un mensaje directo cerrado no se reabre: se abre uno nuevo.
     const existing = this.state.threads.find(
-      (t) => t.kind === "dm" && t.memberIds.includes(user.id) && t.memberIds.includes(otherId),
+      (t) => t.kind === "dm" && !t.archived && t.memberIds.includes(user.id) && t.memberIds.includes(otherId),
     );
     if (existing) return existing.id;
     const thread: Thread = {
@@ -628,9 +631,54 @@ export class MockBackend {
       readAt: { [user.id]: this.iso() },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     };
     this.commit({ threads: [thread, ...this.state.threads] });
     return thread.id;
+  }
+
+  /** Cierra un mensaje directo para las dos personas. Los grupos no se cierran. */
+  async closeDirect(threadId: string): Promise<void> {
+    const user = this.requireUser();
+    const thread = this.state.threads.find((t) => t.id === threadId);
+    if (!thread || thread.kind !== "dm" || !thread.memberIds.includes(user.id)) throw new BackendError("not_allowed");
+    if (thread.archived) return;
+    this.commit({
+      threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, archived: true, closedBy: user.id } : t)),
+      messages: [...this.state.messages, this.makeMessage(threadId, "system", user, "closed")],
+    });
+  }
+
+  /** Archiva o desarchiva un chat solo en la lista de quien lo pide. */
+  async toggleArchive(threadId: string): Promise<boolean> {
+    const user = this.requireUser();
+    const thread = this.state.threads.find((t) => t.id === threadId);
+    if (!thread || !thread.memberIds.includes(user.id)) throw new BackendError("not_allowed");
+    const archived = !thread.archivedBy.includes(user.id);
+    this.commit({
+      threads: this.state.threads.map((t) =>
+        t.id === threadId
+          ? { ...t, archivedBy: archived ? [...t.archivedBy, user.id] : t.archivedBy.filter((id) => id !== user.id) }
+          : t,
+      ),
+    });
+    return archived;
+  }
+
+  /** Quita el chat de la lista de quien lo pide; para las demás personas sigue igual. */
+  async leaveThread(threadId: string): Promise<void> {
+    const user = this.requireUser();
+    this.commit({
+      threads: this.state.threads.map((t) =>
+        t.id === threadId
+          ? {
+              ...t,
+              memberIds: t.memberIds.filter((id) => id !== user.id),
+              archivedBy: t.archivedBy.filter((id) => id !== user.id),
+            }
+          : t,
+      ),
+    });
   }
 
   async sendMessage(threadId: string, text: string, lang: Lang = "es", photo?: MessagePhoto): Promise<void> {
@@ -732,6 +780,12 @@ export class MockBackend {
       patch = { ...patch, username };
     }
     if (patch.bio !== undefined) patch = { ...patch, bio: patch.bio.slice(0, 150) };
+    if (patch.phone !== undefined) {
+      // Opcional y sin verificar: solo se valida el formato.
+      const phone = patch.phone.trim() ? normalizeColombianMobile(patch.phone) : "";
+      if (phone === null) throw new BackendError("invalid_phone");
+      patch = { ...patch, phone: phone || undefined };
+    }
     this.commit({ users: { ...this.state.users, [user.id]: { ...user, ...patch } } });
   }
 

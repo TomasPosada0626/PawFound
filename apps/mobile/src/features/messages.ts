@@ -25,6 +25,7 @@ export function messageText(message: Message, pet: PetCase | undefined, t: T): s
     if (message.text === "created") return t("chat.created");
     if (message.text === "joined") return t("chat.joined", { name: message.authorShortName || t("common.deletedUser") });
     if (message.text === "reunited") return t("chat.reunitedMsg", { name: petName(pet, t) });
+    if (message.text === "closed") return t("chat.closedMsg", { name: message.authorShortName || t("common.deletedUser") });
     return message.text;
   }
   if (message.kind === "sighting") return t("chat.sightingMsg", { name: message.authorShortName, zone: message.text });

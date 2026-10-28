@@ -97,7 +97,7 @@ export default function ReportScreen() {
   const center = draft.point ?? location;
   const region = useMemo(() => regionForRadius(center, Math.max(previewRadius, 400)), [center, previewRadius]);
 
-  if (!user || !user.phoneVerified) return <Redirect href={{ pathname: "/auth/login", params: { next: "/report" } }} />;
+  if (!user || !user.verified) return <Redirect href={{ pathname: "/auth/login", params: { next: "/report" } }} />;
 
   const err = (key: keyof DraftErrors) => {
     const code = errors[key];

@@ -37,7 +37,7 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	if err != nil {
 		return PublicProfile{}, err
 	}
-	facts, err := a.badgeFacts(ctx, userID, u.PhoneVerified)
+	facts, err := a.badgeFacts(ctx, userID, u.Verified)
 	if err != nil {
 		return PublicProfile{}, err
 	}

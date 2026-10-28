@@ -130,7 +130,7 @@ func (h *harness) user(name string, verified bool) user {
 	h.t.Helper()
 	id := domain.NewID("u")
 	username := "t" + id[len(id)-12:]
-	_, err := h.app.DB.Exec(context.Background(), `INSERT INTO users (id, name, username, email, phone, phone_verified, created_at)
+	_, err := h.app.DB.Exec(context.Background(), `INSERT INTO users (id, name, username, email, phone, email_verified, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`, id, name, username, id+"@pawfound.test", "+5730"+id[len(id)-8:], verified, h.clock.Now().Add(-40*24*time.Hour))
 	if err != nil {
 		h.t.Fatal(err)

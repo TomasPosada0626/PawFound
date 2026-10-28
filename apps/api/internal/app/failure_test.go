@@ -35,7 +35,7 @@ func TestEveryOperationFailsCleanlyWithoutDatabase(t *testing.T) {
 		Media: media.LocalStore{Dir: t.TempDir()}, Log: log, Now: now,
 	}
 	a.Init()
-	ac := app.Actor{ID: "u_1", Name: "Ana Gómez", PhoneVerified: true, Role: "moderator", Lang: "es"}
+	ac := app.Actor{ID: "u_1", Name: "Ana Gómez", Verified: true, Role: "moderator", Lang: "es"}
 	point := geo.Point{Lat: 6.2447, Lng: -75.5916}
 	token, _ := tokens.IssueAccess("u_1")
 

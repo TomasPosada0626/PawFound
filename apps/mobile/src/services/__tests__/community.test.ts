@@ -2,7 +2,7 @@ import { approximateLocation } from "@/domain/geo";
 import { MAX_ALERTS_PER_DAY } from "@/domain/alerts";
 
 import { BackendError, type NewReportInput } from "../backendTypes";
-import { DEMO_SMS_CODE, MAX_HELPERS, MESSAGES_PER_MINUTE, MockBackend } from "../mockBackend";
+import { DEMO_CODE, MAX_HELPERS, MESSAGES_PER_MINUTE, MockBackend } from "../mockBackend";
 import { createSeed, DEMO_EMAIL, DEMO_PASSWORD } from "../seed";
 import { reunionHelperCandidates, userBadgeProgress } from "../selectors";
 
@@ -44,7 +44,7 @@ const lostReport = (extra: Partial<NewReportInput> = {}): NewReportInput => ({
 async function asNewVerifiedUser(backend: MockBackend, email = "kira@x.co", phone = "3105550000") {
   await backend.logout();
   await backend.register({ name: "Camila Torres", email, phone, password: "Clave1234" });
-  await backend.verifyCode(DEMO_SMS_CODE);
+  await backend.verifyCode(DEMO_CODE);
   return backend.currentUser!;
 }
 

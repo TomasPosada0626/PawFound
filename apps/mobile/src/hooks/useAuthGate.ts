@@ -26,8 +26,8 @@ export function useAuthGate() {
         router.push({ pathname: "/auth/login", params: { next } });
         return false;
       }
-      if (!user.phoneVerified) {
-        router.push({ pathname: user.phone ? "/auth/verify" : "/auth/phone", params: { next } });
+      if (!user.verified) {
+        router.push({ pathname: "/auth/verify", params: { next } });
         return false;
       }
       return true;

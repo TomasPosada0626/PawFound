@@ -43,7 +43,7 @@
   <p class="muted">@{{.Username}} · {{.Email}}</p>
   <dl>
     <div><dt>En PawFound</dt><dd>{{days .CreatedAt}} días</dd></div>
-    <div><dt>Celular</dt><dd>{{if .PhoneVerified}}verificado{{else}}sin verificar{{end}}</dd></div>
+    <div><dt>Correo</dt><dd>{{if .Verified}}verificado{{else}}sin verificar{{end}}</dd></div>
     <div><dt>Avisos</dt><dd>{{.Warnings}}</dd></div>
     <div><dt>Estado</dt><dd>{{if .SuspendedAt}}<span class="chip chip-scam">Suspendida</span>{{else if active .MutedUntil}}<span class="chip chip-rude">Restringida hasta {{date (deref_time .MutedUntil)}}</span>{{else}}Activa{{end}}</dd></div>
   </dl>

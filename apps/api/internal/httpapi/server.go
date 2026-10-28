@@ -97,9 +97,8 @@ func (s *Server) routes(r chi.Router) {
 
 	r.Group(func(r chi.Router) {
 		r.Use(s.requireAuth)
-		r.Post("/auth/phone", s.limited("verify", s.startPhone))
-		r.Post("/auth/phone/resend", s.limited("verify", s.resendCode))
-		r.Post("/auth/phone/verify", s.limited("verify", s.verifyCode))
+		r.Post("/auth/email/resend", s.limited("verify", s.resendCode))
+		r.Post("/auth/email/verify", s.limited("verify", s.verifyCode))
 
 		r.Get("/me", s.me)
 		r.Patch("/me", s.updateProfile)
@@ -138,6 +137,9 @@ func (s *Server) routes(r chi.Router) {
 		r.Post("/threads/{id}/messages", s.sendMessage)
 		r.Post("/threads/{id}/read", s.readThread)
 		r.Post("/threads/{id}/mute", s.muteThread)
+		r.Post("/threads/{id}/archive", s.archiveThread)
+		r.Post("/threads/{id}/close", s.closeThread)
+		r.Delete("/threads/{id}", s.leaveThread)
 
 		r.Post("/users/{id}/like", s.like)
 		r.Post("/users/{id}/report", s.reportUser)

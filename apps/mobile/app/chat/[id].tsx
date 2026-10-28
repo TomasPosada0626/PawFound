@@ -44,6 +44,7 @@ export default function ChatScreen() {
   const [photo, setPhoto] = useState<MessagePhoto | null>(null);
   const [photoSheet, setPhotoSheet] = useState(false);
   const [viewer, setViewer] = useState<{ photo: MessagePhoto; label: string } | null>(null);
+  const [confirm, setConfirm] = useState<"close" | "leave" | null>(null);
   const { autoTranslate, setAutoTranslate } = useDevicePrefs();
   const scroll = useRef<ScrollView>(null);
 
@@ -295,7 +296,14 @@ export default function ChatScreen() {
 
         {thread.archived ? (
           <View className="p-4">
-            <Banner icon="archive-outline" body={t("chat.archived")} />
+            <Banner
+              icon="lock-closed-outline"
+              body={
+                thread.closedBy === user.id
+                  ? t("chat.closedByMe")
+                  : t("chat.closedByOther", { name: other ? shortName(other.name) : t("common.deletedUser") })
+              }
+            />
           </View>
         ) : (
           <View className="border-t border-border bg-surface px-3 py-2">
@@ -375,6 +383,42 @@ export default function ChatScreen() {
           testID="toggle-auto-translate"
         />
         <ListRow
+          icon={thread.archivedBy.includes(user.id) ? "file-tray-outline" : "archive-outline"}
+          tone="neutral"
+          title={thread.archivedBy.includes(user.id) ? t("chat.unarchive") : t("chat.archive")}
+          onPress={() => {
+            setMenuOpen(false);
+            void backend
+              .toggleArchive(thread.id)
+              .then((archived) => toast(archived ? t("chat.archivedToast") : t("chat.unarchivedToast")));
+          }}
+          testID="chat-archive"
+        />
+        {!isGroup && !thread.archived ? (
+          <ListRow
+            icon="lock-closed-outline"
+            tone="neutral"
+            title={t("chat.closeDm")}
+            description={t("chat.closeDmHint")}
+            onPress={() => {
+              setMenuOpen(false);
+              setConfirm("close");
+            }}
+            testID="chat-close"
+          />
+        ) : null}
+        <ListRow
+          icon="trash-outline"
+          danger
+          title={t("chat.leave")}
+          description={isGroup ? t("chat.leaveGroupHint") : t("chat.leaveHint")}
+          onPress={() => {
+            setMenuOpen(false);
+            setConfirm("leave");
+          }}
+          testID="chat-leave"
+        />
+        <ListRow
           icon={muted ? "notifications-outline" : "notifications-off-outline"}
           tone="neutral"
           title={muted ? t("chat.unmute") : t("chat.mute")}
@@ -452,6 +496,34 @@ export default function ChatScreen() {
           ) : null}
         </View>
       </Modal>
+
+      <Sheet
+        visible={confirm !== null}
+        onClose={() => setConfirm(null)}
+        title={confirm === "close" ? t("chat.closeDm") : t("chat.leave")}
+        testID="chat-confirm"
+      >
+        <Text variant="body" className="mb-5">
+          {confirm === "close" ? t("chat.closeDmHint") : isGroup ? t("chat.leaveGroupHint") : t("chat.leaveHint")}
+        </Text>
+        <View className="gap-3 pb-2">
+          <Button
+            label={confirm === "close" ? t("chat.closeConfirm") : t("chat.leaveConfirm")}
+            variant="danger"
+            onPress={() => {
+              const action = confirm;
+              setConfirm(null);
+              if (action === "close") void backend.closeDirect(thread.id);
+              if (action === "leave") {
+                void backend.leaveThread(thread.id);
+                router.replace("/messages");
+              }
+            }}
+            testID="chat-confirm-yes"
+          />
+          <Button label={t("common.cancel")} variant="ghost" onPress={() => setConfirm(null)} />
+        </View>
+      </Sheet>
 
       <ReportUserSheet
         target={reportTarget?.user ?? null}

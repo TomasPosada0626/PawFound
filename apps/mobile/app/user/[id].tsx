@@ -80,7 +80,7 @@ export default function PublicProfileScreen() {
           <Text variant="title" accessibilityRole="header">
             {name}
           </Text>
-          {person.phoneVerified ? (
+          {person.verified ? (
             <View accessible accessibilityLabel={t("common.verified")}>
               <Icon name="checkmark-circle" size={22} color={colors.verified} />
             </View>

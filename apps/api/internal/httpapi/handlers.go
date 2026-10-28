@@ -29,25 +29,27 @@ func (s *Server) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	session, err := s.App.Register(r.Context(), in)
-	if err == nil {
-		session.NeedsVerification = true
-	}
 	respond(w, http.StatusCreated, session, err)
 }
 
+// login acepta correo o nombre de usuario en "identifier" ("email" por compatibilidad).
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Email, Password string }
+	var in struct{ Identifier, Email, Password string }
 	if !decode(w, r, &in) {
 		return
 	}
-	email := strings.ToLower(strings.TrimSpace(in.Email))
-	if ok, _ := s.limits["email"].Allow(email); !ok {
+	id := in.Identifier
+	if id == "" {
+		id = in.Email
+	}
+	key := strings.ToLower(strings.TrimSpace(id))
+	if ok, _ := s.limits["email"].Allow(key); !ok {
 		writeError(w, &app.Error{Code: "rate_limited", Status: http.StatusTooManyRequests})
 		return
 	}
-	session, err := s.App.Login(r.Context(), email, in.Password)
+	session, err := s.App.Login(r.Context(), id, in.Password)
 	if err == nil {
-		s.limits["email"].Reset(email)
+		s.limits["email"].Reset(key)
 	}
 	respond(w, http.StatusOK, session, err)
 }
@@ -96,14 +98,6 @@ func (s *Server) passwordResetConfirm(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	respond(w, 0, nil, s.App.ResetPassword(r.Context(), in.Token, in.Password))
-}
-
-func (s *Server) startPhone(w http.ResponseWriter, r *http.Request) {
-	var in struct{ Phone string }
-	if !decode(w, r, &in) {
-		return
-	}
-	respond(w, 0, nil, s.App.StartPhoneVerification(r.Context(), actor(r), in.Phone))
 }
 
 func (s *Server) resendCode(w http.ResponseWriter, r *http.Request) {
@@ -392,6 +386,19 @@ func (s *Server) readThread(w http.ResponseWriter, r *http.Request) {
 func (s *Server) muteThread(w http.ResponseWriter, r *http.Request) {
 	muted, err := s.App.ToggleMute(r.Context(), actor(r), chi.URLParam(r, "id"))
 	respond(w, http.StatusOK, map[string]bool{"muted": muted}, err)
+}
+
+func (s *Server) archiveThread(w http.ResponseWriter, r *http.Request) {
+	archived, err := s.App.ToggleArchive(r.Context(), actor(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, map[string]bool{"archived": archived}, err)
+}
+
+func (s *Server) closeThread(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.CloseDirect(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
+
+func (s *Server) leaveThread(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.LeaveThread(r.Context(), actor(r), chi.URLParam(r, "id")))
 }
 
 // --- Comunidad --------------------------------------------------------------------

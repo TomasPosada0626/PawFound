@@ -50,7 +50,7 @@ export class BackendError extends Error {
 
 export type Verification = {
   userId: string;
-  phone: string;
+  email: string;
   code: string;
   sentAt: string;
   attempts: number;
@@ -119,4 +119,6 @@ export type NewSightingInput = {
 
 export type SocialProvider = "google" | "facebook" | "apple";
 
-export type ProfilePatch = Partial<Pick<User, "name" | "username" | "avatar" | "title" | "bio" | "city" | "neighborhood">>;
+export type ProfilePatch = Partial<
+  Pick<User, "name" | "username" | "avatar" | "title" | "bio" | "city" | "neighborhood" | "phone">
+>;

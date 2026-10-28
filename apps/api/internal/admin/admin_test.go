@@ -52,7 +52,7 @@ func setup(t *testing.T) *env {
 func (e *env) account(id, name, role string) {
 	e.t.Helper()
 	hash, _ := auth.HashPassword("Moderar2026")
-	if _, err := e.app.DB.Exec(context.Background(), `INSERT INTO users (id, name, username, email, password_hash, phone, phone_verified, role, created_at)
+	if _, err := e.app.DB.Exec(context.Background(), `INSERT INTO users (id, name, username, email, password_hash, phone, email_verified, role, created_at)
 		VALUES ($1, $2, $1, $1 || '@pawfound.test', $3, '+57' || $1, true, $4, now() - interval '12 days')`, id, name, hash, role); err != nil {
 		e.t.Fatal(err)
 	}

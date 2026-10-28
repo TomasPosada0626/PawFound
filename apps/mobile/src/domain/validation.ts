@@ -27,34 +27,46 @@ export function formatColombianMobile(e164: string): string {
   return `+57 ${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
 }
 
-export type PasswordIssue = "too_short" | "needs_letter" | "needs_number";
+export type PasswordIssue = "too_short" | "needs_upper" | "needs_lower" | "needs_number";
 
 export const PASSWORD_MIN_LENGTH = 8;
 
 export function passwordIssues(password: string): PasswordIssue[] {
   const issues: PasswordIssue[] = [];
+  // Contraseña segura: 8+ caracteres con mayúscula, minúscula y número (igual en la API).
   if (password.length < PASSWORD_MIN_LENGTH) issues.push("too_short");
-  if (!/[A-Za-zÀ-ÿ]/.test(password)) issues.push("needs_letter");
+  if (!/[A-ZÁÉÍÓÚÑ]/.test(password)) issues.push("needs_upper");
+  if (!/[a-záéíóúñü]/.test(password)) issues.push("needs_lower");
   if (!/\d/.test(password)) issues.push("needs_number");
   return issues;
 }
 
 export type FieldErrors<K extends string> = Partial<Record<K, string>>;
 
-export type LoginForm = { email: string; password: string };
+/** Nombre de usuario: 3 a 20 letras minúsculas, números o _ (se acepta con @ adelante). */
+export function normalizeUsername(raw: string): string | null {
+  const username = raw.trim().replace(/^@/, "").toLowerCase();
+  return /^[a-z0-9_]{3,20}$/.test(username) ? username : null;
+}
+
+/** Se entra con el correo o con el nombre de usuario. */
+export type LoginForm = { identifier: string; password: string };
 
 export function validateLogin(form: LoginForm): FieldErrors<keyof LoginForm> {
   const errors: FieldErrors<keyof LoginForm> = {};
-  if (!form.email.trim()) errors.email = "required";
-  else if (!isValidEmail(form.email)) errors.email = "invalid_email";
+  const id = form.identifier.trim();
+  if (!id) errors.identifier = "required";
+  else if (id.includes("@") && !id.startsWith("@") && !isValidEmail(id)) errors.identifier = "invalid_email";
+  else if ((!id.includes("@") || id.startsWith("@")) && !normalizeUsername(id)) errors.identifier = "invalid_username";
   if (!form.password) errors.password = "required";
   return errors;
 }
 
 export type RegisterForm = {
+  /** Nombre y apellidos. */
   name: string;
   email: string;
-  phone: string;
+  username: string;
   password: string;
   confirm: string;
   acceptTerms: boolean;
@@ -63,11 +75,16 @@ export type RegisterForm = {
 
 export function validateRegister(form: RegisterForm): FieldErrors<keyof RegisterForm> {
   const errors: FieldErrors<keyof RegisterForm> = {};
-  if (form.name.trim().length < 2) errors.name = "required";
+  const words = form.name
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length >= 2);
+  if (!form.name.trim()) errors.name = "required";
+  else if (words.length < 2) errors.name = "needs_surname";
   if (!form.email.trim()) errors.email = "required";
   else if (!isValidEmail(form.email)) errors.email = "invalid_email";
-  if (!form.phone.trim()) errors.phone = "required";
-  else if (!normalizeColombianMobile(form.phone)) errors.phone = "invalid_phone";
+  if (!form.username.trim()) errors.username = "required";
+  else if (!normalizeUsername(form.username)) errors.username = "invalid_username";
   const issues = passwordIssues(form.password);
   if (issues.length > 0) errors.password = issues[0];
   if (!form.confirm) errors.confirm = "required";

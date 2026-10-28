@@ -93,13 +93,13 @@ func run(args []string, logger *slog.Logger) error {
 		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher(cfg.JWTSecret), Log: logger,
 		Google: auth.GoogleProvider(cfg.GoogleClients), Apple: auth.AppleProvider(cfg.AppleClients),
 		Media: media.LocalStore{Dir: cfg.MediaDir}, APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL,
-		FixedSMSCode: cfg.FixedSMSCode,
+		FixedCode: cfg.FixedCode,
 	}
-	switch cfg.SMSProvider {
-	case "log":
-		a.SMS = providers.LogSMS{Log: logger}
-	default:
-		a.SMS = providers.DisabledSMS{}
+	switch {
+	case cfg.SMTP.Host != "":
+		a.Mailer = providers.SMTPMailer{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
+	case cfg.Development():
+		a.Mailer = providers.LogMailer{Log: logger}
 	}
 	switch cfg.PushProvider {
 	case "expo":
@@ -108,9 +108,6 @@ func run(args []string, logger *slog.Logger) error {
 		a.Push = providers.LogPush{Log: logger}
 	default:
 		a.Push = noPush{}
-	}
-	if cfg.Development() {
-		a.Mailer = providers.LogMailer{Log: logger}
 	}
 	a.Init()
 
@@ -131,7 +128,7 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
-	logger.Info("pawfound-api escuchando", "addr", srv.Addr, "env", cfg.Env, "sms", cfg.SMSProvider, "push", cfg.PushProvider)
+	logger.Info("pawfound-api escuchando", "addr", srv.Addr, "env", cfg.Env, "mail", cfg.SMTP.Host != "" || cfg.Development(), "push", cfg.PushProvider)
 	select {
 	case err := <-errCh:
 		return err

@@ -18,7 +18,7 @@ type User struct {
 	Username      string     `json:"username" db:"username"`
 	Email         string     `json:"email" db:"email"`
 	Phone         *string    `json:"phone,omitempty" db:"phone"`
-	PhoneVerified bool       `json:"phoneVerified" db:"phone_verified"`
+	Verified bool       `json:"verified" db:"email_verified"`
 	Avatar        string     `json:"avatar" db:"avatar"`
 	Title         string     `json:"title" db:"title"`
 	Bio           string     `json:"bio" db:"bio"`
@@ -32,7 +32,7 @@ type User struct {
 	RatingCount   int        `json:"ratingCount" db:"-"`
 }
 
-const userCols = `id, name, username, email, phone, phone_verified, avatar, title, bio, city, neighborhood, created_at, muted_until, lang, role`
+const userCols = `id, name, username, email, phone, email_verified, avatar, title, bio, city, neighborhood, created_at, muted_until, lang, role`
 
 // PublicUser es lo que ven las demás personas: nombre corto, nunca correo ni celular.
 type PublicUser struct {
@@ -44,7 +44,7 @@ type PublicUser struct {
 	Bio           string    `json:"bio"`
 	City          string    `json:"city"`
 	Neighborhood  *string   `json:"neighborhood,omitempty"`
-	PhoneVerified bool      `json:"phoneVerified"`
+	Verified bool      `json:"verified"`
 	CreatedAt     time.Time `json:"createdAt"`
 	Lang          string    `json:"lang"`
 }
@@ -52,7 +52,7 @@ type PublicUser struct {
 func publicOf(u User) PublicUser {
 	return PublicUser{
 		ID: u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, Title: u.Title, Bio: u.Bio,
-		City: u.City, Neighborhood: u.Neighborhood, PhoneVerified: u.PhoneVerified, CreatedAt: u.CreatedAt, Lang: u.Lang,
+		City: u.City, Neighborhood: u.Neighborhood, Verified: u.Verified, CreatedAt: u.CreatedAt, Lang: u.Lang,
 	}
 }
 
@@ -89,7 +89,6 @@ type Session struct {
 	ExpiresIn         int    `json:"expiresIn"`
 	Me                Me     `json:"me"`
 	NeedsVerification bool   `json:"needsVerification"`
-	NeedsPhone        bool   `json:"needsPhone"`
 }
 
 // Sighting: la ubicación siempre aproximada. authorId solo lo recibe la familia (para agradecer).
@@ -108,7 +107,7 @@ type UserSummary struct {
 	ID            string    `json:"id"`
 	ShortName     string    `json:"shortName"`
 	Avatar        string    `json:"avatar"`
-	PhoneVerified bool      `json:"phoneVerified"`
+	Verified bool      `json:"verified"`
 	CreatedAt     time.Time `json:"createdAt"`
 	Lang          string    `json:"lang"`
 }
@@ -247,16 +246,20 @@ type Message struct {
 
 // Thread es un chat con lo necesario para la bandeja.
 type Thread struct {
-	ID          string            `json:"id"`
-	Kind        string            `json:"kind"`
-	PetID       *string           `json:"petId,omitempty"`
-	MemberIDs   []string          `json:"memberIds"`
-	Members     []UserSummary     `json:"members"`
-	ReadAt      map[string]string `json:"readAt"`
-	MutedBy     []string          `json:"mutedBy"`
-	Archived    bool              `json:"archived"`
-	LastMessage *Message          `json:"lastMessage,omitempty"`
-	Unread      int               `json:"unread"`
+	ID        string            `json:"id"`
+	Kind      string            `json:"kind"`
+	PetID     *string           `json:"petId,omitempty"`
+	MemberIDs []string          `json:"memberIds"`
+	Members   []UserSummary     `json:"members"`
+	ReadAt    map[string]string `json:"readAt"`
+	MutedBy   []string          `json:"mutedBy"`
+	// Archived: chat cerrado (un mensaje directo que cerró una de las dos personas).
+	Archived bool    `json:"archived"`
+	ClosedBy *string `json:"closedBy,omitempty"`
+	// ArchivedBy: quien lo archivó en su propia lista (cada persona decide).
+	ArchivedBy  []string `json:"archivedBy"`
+	LastMessage *Message `json:"lastMessage,omitempty"`
+	Unread      int      `json:"unread"`
 }
 
 // Notification de la bandeja.

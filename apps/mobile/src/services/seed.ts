@@ -56,7 +56,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
     // Nombre de usuario válido según la regla de la API: [a-z0-9_], sin tildes.
     username: foldText(name.split(" ")[0] ?? id),
     email: `${id}@demo.pawfound.app`,
-    phoneVerified: true,
+    verified: true,
     avatar: "dog",
     title: "animal_lover",
     bio: "",
@@ -431,14 +431,16 @@ export function createSeed(now: Date = new Date()): SeedResult {
     }),
   ];
 
-  const group = (petId: string, memberIds: string[], archived = false): Thread => ({
+  // Los grupos no se cierran al terminar el caso: siguen ahí y cada persona decide si archivarlos.
+  const group = (petId: string, memberIds: string[]): Thread => ({
     id: `grp_${petId}`,
     kind: "group",
     petId,
     memberIds,
     readAt: Object.fromEntries(memberIds.map((id) => [id, ago(3 * D)])),
     mutedBy: [],
-    archived,
+    archived: false,
+    archivedBy: [],
   });
 
   const threads: Thread[] = [
@@ -452,9 +454,9 @@ export function createSeed(now: Date = new Date()): SeedResult {
     group("beagle", ["u_daniel"]),
     group("negrita", ["u_daniel", "u_laura"]),
     group("michi", ["u_sofia"]),
-    group("canela", ["u_maria", "u_valentina"], true),
-    group("mishu", ["u_valentina"], true),
-    group("terry", ["u_carlos"], true),
+    group("canela", ["u_maria", "u_valentina"]),
+    group("mishu", ["u_valentina"]),
+    group("terry", ["u_carlos"]),
     {
       id: "dm_maria",
       kind: "dm",
@@ -463,6 +465,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       readAt: { u_valentina: ago(2 * H), u_maria: ago(5) },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     },
     {
       id: "dm_ana",
@@ -472,6 +475,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       readAt: { u_valentina: ago(2 * D), u_ana: ago(1 * D) },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     },
     {
       id: "dm_sebastian",
@@ -481,6 +485,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       readAt: { u_valentina: ago(1 * H), u_sebastian: ago(1 * H) },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     },
   ];
 

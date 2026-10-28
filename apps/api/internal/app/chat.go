@@ -15,18 +15,20 @@ import (
 )
 
 type threadRow struct {
-	ID       string    `db:"id"`
-	Kind     string    `db:"kind"`
-	PetID    *string   `db:"pet_id"`
-	Archived bool      `db:"archived"`
-	ReadAt   time.Time `db:"read_at"`
-	Muted    bool      `db:"muted"`
-	Unread   int       `db:"unread"`
+	ID             string    `db:"id"`
+	Kind           string    `db:"kind"`
+	PetID          *string   `db:"pet_id"`
+	Archived       bool      `db:"archived"`
+	ClosedBy       *string   `db:"closed_by"`
+	ReadAt         time.Time `db:"read_at"`
+	Muted          bool      `db:"muted"`
+	MemberArchived bool      `db:"member_archived"`
+	Unread         int       `db:"unread"`
 }
 
 // Threads lista los chats de la cuenta con miembros, último mensaje y no leídos.
 func (a *App) Threads(ctx context.Context, ac Actor) ([]Thread, error) {
-	rows, _ := a.DB.Query(ctx, `SELECT t.id, t.kind, t.pet_id, t.archived, tm.read_at, tm.muted,
+	rows, _ := a.DB.Query(ctx, `SELECT t.id, t.kind, t.pet_id, t.archived, t.closed_by, tm.read_at, tm.muted, tm.archived AS member_archived,
 			(SELECT count(*) FROM messages m WHERE m.thread_id = t.id AND m.removed_at IS NULL
 				AND m.author_id IS DISTINCT FROM $1 AND m.at > tm.read_at)::int AS unread
 		FROM thread_members tm JOIN threads t ON t.id = tm.thread_id WHERE tm.user_id = $1`, ac.ID)
@@ -71,7 +73,11 @@ func (a *App) toThreads(ctx context.Context, viewerID string, list []threadRow) 
 	for _, t := range list {
 		th := Thread{
 			ID: t.ID, Kind: t.Kind, PetID: t.PetID, MemberIDs: members[t.ID], Archived: t.Archived, Unread: t.Unread,
-			ReadAt: map[string]string{viewerID: t.ReadAt.UTC().Format(time.RFC3339Nano)}, MutedBy: []string{},
+			ReadAt: map[string]string{viewerID: t.ReadAt.UTC().Format(time.RFC3339Nano)}, MutedBy: []string{}, ArchivedBy: []string{},
+			ClosedBy: t.ClosedBy,
+		}
+		if t.MemberArchived {
+			th.ArchivedBy = []string{viewerID}
 		}
 		if t.Muted {
 			th.MutedBy = []string{viewerID}
@@ -91,7 +97,7 @@ func (a *App) toThreads(ctx context.Context, viewerID string, list []threadRow) 
 
 // Thread devuelve un chat si la cuenta es miembro.
 func (a *App) Thread(ctx context.Context, ac Actor, threadID string) (Thread, error) {
-	rows, _ := a.DB.Query(ctx, `SELECT t.id, t.kind, t.pet_id, t.archived, tm.read_at, tm.muted, 0 AS unread
+	rows, _ := a.DB.Query(ctx, `SELECT t.id, t.kind, t.pet_id, t.archived, t.closed_by, tm.read_at, tm.muted, tm.archived AS member_archived, 0 AS unread
 		FROM thread_members tm JOIN threads t ON t.id = tm.thread_id WHERE tm.user_id = $1 AND t.id = $2`, ac.ID, threadID)
 	row, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[threadRow])
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -159,14 +165,14 @@ func (a *App) OpenDirect(ctx context.Context, ac Actor, petID string) (string, e
 	if err != nil {
 		return "", err
 	}
-	if who == "nobody" || (who == "verified" && !ac.PhoneVerified) {
+	if who == "nobody" || (who == "verified" && !ac.Verified) {
 		return "", newErr(http.StatusForbidden, "cannot_message", nil)
 	}
 	var existing string
 	err = a.DB.QueryRow(ctx, `SELECT t.id FROM threads t
 		JOIN thread_members a ON a.thread_id = t.id AND a.user_id = $1
 		JOIN thread_members b ON b.thread_id = t.id AND b.user_id = $2
-		WHERE t.kind = 'dm' LIMIT 1`, ac.ID, other).Scan(&existing)
+		WHERE t.kind = 'dm' AND NOT t.archived LIMIT 1`, ac.ID, other).Scan(&existing)
 	if err == nil {
 		return existing, nil
 	}
@@ -426,4 +432,61 @@ func (a *App) ToggleMute(ctx context.Context, ac Actor, threadID string) (bool, 
 		return false, ErrNotAllowed
 	}
 	return muted, err
+}
+
+// CloseDirect cierra un mensaje directo para las dos personas: ya nadie escribe ahí (si
+// quieren volver a hablar, abren otro desde el caso). Los grupos no se cierran.
+func (a *App) CloseDirect(ctx context.Context, ac Actor, threadID string) error {
+	var kind string
+	var archived bool
+	err := a.DB.QueryRow(ctx, `SELECT t.kind, t.archived FROM threads t JOIN thread_members tm ON tm.thread_id = t.id AND tm.user_id = $2
+		WHERE t.id = $1`, threadID, ac.ID).Scan(&kind, &archived)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && kind != "dm") {
+		return ErrNotAllowed
+	}
+	if err != nil || archived {
+		return err
+	}
+	now := a.now()
+	err = a.withTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true, closed_by = $2 WHERE id = $1`, threadID, ac.ID); err != nil {
+			return err
+		}
+		return insertSystemMessage(ctx, tx, threadID, ac, "system", "closed", now)
+	})
+	if err == nil {
+		if m, err := a.lastMessage(ctx, threadID); err == nil {
+			a.publishMessage(ctx, m)
+		}
+	}
+	return err
+}
+
+func (a *App) lastMessage(ctx context.Context, threadID string) (Message, error) {
+	var id string
+	if err := a.DB.QueryRow(ctx, `SELECT id FROM messages WHERE thread_id = $1 ORDER BY at DESC LIMIT 1`, threadID).Scan(&id); err != nil {
+		return Message{}, notFoundIfNoRows(err)
+	}
+	return a.message(ctx, id)
+}
+
+// ToggleArchive archiva o desarchiva un chat solo en la lista de quien lo pide.
+func (a *App) ToggleArchive(ctx context.Context, ac Actor, threadID string) (bool, error) {
+	var archived bool
+	err := a.DB.QueryRow(ctx, `UPDATE thread_members SET archived = NOT archived WHERE thread_id = $1 AND user_id = $2 RETURNING archived`,
+		threadID, ac.ID).Scan(&archived)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, ErrNotAllowed
+	}
+	return archived, err
+}
+
+// LeaveThread elimina el chat de la lista de quien lo pide. Los mensajes siguen ahí para las
+// demás personas; de un grupo se puede volver a entrar desde el caso.
+func (a *App) LeaveThread(ctx context.Context, ac Actor, threadID string) error {
+	tag, err := a.DB.Exec(ctx, `DELETE FROM thread_members WHERE thread_id = $1 AND user_id = $2`, threadID, ac.ID)
+	if err == nil && tag.RowsAffected() == 0 {
+		return ErrNotAllowed
+	}
+	return err
 }

@@ -22,14 +22,14 @@ type UserBrief struct {
 	Username      string     `db:"username"`
 	Email         string     `db:"email"`
 	Role          string     `db:"role"`
-	PhoneVerified bool       `db:"phone_verified"`
+	Verified bool       `db:"email_verified"`
 	CreatedAt     time.Time  `db:"created_at"`
 	MutedUntil    *time.Time `db:"muted_until"`
 	SuspendedAt   *time.Time `db:"suspended_at"`
 	Warnings      int        `db:"warnings"`
 }
 
-const briefCols = `id, name, username, email, role, phone_verified, created_at, muted_until, suspended_at, warnings`
+const briefCols = `id, name, username, email, role, email_verified, created_at, muted_until, suspended_at, warnings`
 
 // QueueItem es un reporte de la cola.
 type QueueItem struct {

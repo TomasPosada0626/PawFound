@@ -25,7 +25,7 @@ export default function LoginScreen() {
   const backend = useBackend();
   const toast = useToast();
 
-  const [form, setForm] = useState<LoginForm>({ email: "", password: "" });
+  const [form, setForm] = useState<LoginForm>({ identifier: "", password: "" });
   const [remember, setRemember] = useState(true);
   const [touched, setTouched] = useState<Partial<Record<keyof LoginForm, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -42,7 +42,7 @@ export default function LoginScreen() {
     if (Object.keys(errors).length > 0) return;
     setLoading(true);
     try {
-      const { needsVerification } = await backend.login(form.email, form.password);
+      const { needsVerification } = await backend.login(form.identifier, form.password);
       await writeJSON(STORAGE_KEYS.session, remember ? backend.getSnapshot().sessionUserId : null);
       if (needsVerification) router.replace({ pathname: "/auth/verify", params: { next } });
       else router.replace(next as never);
@@ -67,16 +67,16 @@ export default function LoginScreen() {
       ) : null}
       <View className="gap-3">
         <TextField
-          label={t("auth.email")}
-          icon="mail"
-          value={form.email}
-          onChangeText={(email) => setForm((f) => ({ ...f, email }))}
-          onBlur={() => setTouched((x) => ({ ...x, email: true }))}
-          error={fieldError("email")}
+          label={t("auth.identifier")}
+          icon="person"
+          value={form.identifier}
+          onChangeText={(identifier) => setForm((f) => ({ ...f, identifier }))}
+          onBlur={() => setTouched((x) => ({ ...x, identifier: true }))}
+          error={fieldError("identifier")}
           keyboardType="email-address"
           autoCapitalize="none"
-          autoComplete="email"
-          textContentType="emailAddress"
+          autoComplete="username"
+          textContentType="username"
           testID="login-email"
         />
         <TextField
@@ -102,11 +102,11 @@ export default function LoginScreen() {
         <Pressable
           accessibilityRole="link"
           onPress={async () => {
-            if (!form.email.trim()) {
+            if (!form.identifier.trim()) {
               toast(t("auth.forgotNeedsEmail"), "info");
               return;
             }
-            await backend.requestPasswordReset(form.email);
+            await backend.requestPasswordReset(form.identifier);
             toast(t("auth.forgotSent"), "info");
           }}
           className="min-h-[48px] justify-center"
@@ -144,12 +144,12 @@ export default function LoginScreen() {
 
       <Pressable
         accessibilityRole="button"
-        onPress={() => setForm({ email: DEMO_EMAIL, password: DEMO_PASSWORD })}
+        onPress={() => setForm({ identifier: DEMO_EMAIL, password: DEMO_PASSWORD })}
         className="mt-2 rounded-2xl bg-surface-alt p-3 active:opacity-80"
         testID="fill-demo"
       >
         <Text variant="caption" className="text-center">
-          {t("auth.demoAccount", { email: DEMO_EMAIL, password: DEMO_PASSWORD })}
+          {t("auth.demoAccount", { identifier: DEMO_EMAIL, password: DEMO_PASSWORD })}
         </Text>
       </Pressable>
     </AuthLayout>

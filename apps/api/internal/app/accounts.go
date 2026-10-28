@@ -17,7 +17,7 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/providers"
 )
 
-// Reglas de la verificación por SMS (mockBackend.ts).
+// Reglas de la verificación por correo (mockBackend.ts).
 const (
 	ResendCooldown  = 45 * time.Second
 	CodeTTL         = 10 * time.Minute
@@ -26,29 +26,30 @@ const (
 	resetTTL        = 30 * time.Minute
 )
 
-// RegisterInput es el formulario de registro.
+// RegisterInput es el formulario de registro: correo, nombre y apellidos, usuario y contraseña.
+// No se pide celular (se puede agregar después en el perfil, sin verificar).
 type RegisterInput struct {
 	Name        string `json:"name"`
 	Email       string `json:"email"`
-	Phone       string `json:"phone"`
+	Username    string `json:"username"`
 	Password    string `json:"password"`
 	Lang        string `json:"lang"`
 	AcceptTerms bool   `json:"acceptTerms"`
 	ConfirmAge  bool   `json:"confirmAge"`
 }
 
-// Register crea la cuenta, envía el código SMS y abre la sesión (sin insignia azul todavía).
+// Register crea la cuenta, envía el código al correo y abre la sesión (sin insignia azul todavía).
 func (a *App) Register(ctx context.Context, in RegisterInput) (Session, error) {
 	name := domain.Clean(in.Name, 80)
 	email := strings.ToLower(strings.TrimSpace(in.Email))
-	phone := domain.NormalizeColombianMobile(in.Phone)
+	username := domain.NormalizeUsername(in.Username)
 	switch {
-	case len([]rune(name)) < 2:
-		return Session{}, invalid("name")
+	case !domain.HasSurname(name):
+		return Session{}, newErr(http.StatusUnprocessableEntity, "invalid_input", map[string]any{"field": "name", "issue": "needs_surname"})
 	case !domain.ValidEmail(email):
 		return Session{}, invalid("email")
-	case phone == "":
-		return Session{}, newErr(http.StatusUnprocessableEntity, "invalid_phone", nil)
+	case username == "":
+		return Session{}, newErr(http.StatusUnprocessableEntity, "invalid_username", nil)
 	case domain.PasswordIssue(in.Password) != "":
 		return Session{}, newErr(http.StatusUnprocessableEntity, "invalid_input", map[string]any{"field": "password", "issue": domain.PasswordIssue(in.Password)})
 	case !in.AcceptTerms || !in.ConfirmAge:
@@ -58,21 +59,21 @@ func (a *App) Register(ctx context.Context, in RegisterInput) (Session, error) {
 	if !domain.Langs[lang] {
 		lang = "es"
 	}
-	if a.phoneTaken(ctx, phone, "") {
-		return Session{}, newErr(http.StatusConflict, "phone_taken", nil)
-	}
 	hash, err := auth.HashPassword(in.Password)
 	if err != nil {
 		return Session{}, err
 	}
 	userID := domain.NewID("u")
 	err = a.withTx(ctx, func(tx pgx.Tx) error {
-		username, err := a.uniqueUsername(ctx, tx, email)
-		if err != nil {
+		var taken bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE username = $1)`, username).Scan(&taken); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO users (id, name, username, email, password_hash, phone, lang, created_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, userID, name, username, email, hash, phone, lang, a.now()); err != nil {
+		if taken {
+			return newErr(http.StatusConflict, "username_taken", nil)
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO users (id, name, username, email, password_hash, lang, created_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)`, userID, name, username, email, hash, lang, a.now()); err != nil {
 			if isUniqueViolation(err) {
 				return newErr(http.StatusConflict, "email_taken", nil)
 			}
@@ -84,13 +85,15 @@ func (a *App) Register(ctx context.Context, in RegisterInput) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	if err := a.issueCode(ctx, userID, phone); err != nil {
+	if err := a.issueCode(ctx, userID, email, lang); err != nil {
 		// Sin código enviado no hay forma de verificar: se deshace la cuenta para que la
 		// persona pueda volver a intentarlo con el mismo correo.
 		_, _ = a.DB.Exec(context.WithoutCancel(ctx), `DELETE FROM users WHERE id = $1`, userID)
 		return Session{}, err
 	}
-	return a.newSession(ctx, userID)
+	session, err := a.newSession(ctx, userID)
+	session.NeedsVerification = err == nil
+	return session, err
 }
 
 func (a *App) uniqueUsername(ctx context.Context, tx pgx.Tx, email string) (string, error) {
@@ -109,19 +112,18 @@ func (a *App) uniqueUsername(ctx context.Context, tx pgx.Tx, email string) (stri
 	return domain.NewID("pf")[:19], nil
 }
 
-func (a *App) phoneTaken(ctx context.Context, phone, exceptUserID string) bool {
-	var taken bool
-	_ = a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM users WHERE phone = $1 AND phone_verified AND id <> $2)`, phone, exceptUserID).Scan(&taken)
-	return taken
-}
-
-// Login con correo y contraseña. El mismo error para correo inexistente y contraseña
-// incorrecta, y el mismo tiempo de respuesta: no revela si la cuenta existe.
-func (a *App) Login(ctx context.Context, email, password string) (Session, error) {
+// Login con correo o nombre de usuario y contraseña. El mismo error para cuenta inexistente
+// y contraseña incorrecta, y el mismo tiempo de respuesta: no revela si la cuenta existe.
+func (a *App) Login(ctx context.Context, identifier, password string) (Session, error) {
 	var userID, hash string
 	var suspended *time.Time
-	err := a.DB.QueryRow(ctx, `SELECT id, coalesce(password_hash, ''), suspended_at FROM users WHERE lower(email) = lower($1)`,
-		strings.TrimSpace(email)).Scan(&userID, &hash, &suspended)
+	id := strings.TrimSpace(identifier)
+	query := `SELECT id, coalesce(password_hash, ''), suspended_at FROM users WHERE lower(email) = lower($1)`
+	if !strings.Contains(id, "@") {
+		id = strings.ToLower(strings.TrimPrefix(id, "@"))
+		query = `SELECT id, coalesce(password_hash, ''), suspended_at FROM users WHERE username = $1`
+	}
+	err := a.DB.QueryRow(ctx, query, id).Scan(&userID, &hash, &suspended)
 	if errors.Is(err, pgx.ErrNoRows) {
 		auth.CheckPassword("", password)
 		return Session{}, ErrInvalidCredentials
@@ -139,17 +141,20 @@ func (a *App) Login(ctx context.Context, email, password string) (Session, error
 	if err != nil {
 		return Session{}, err
 	}
-	if !session.Me.User.PhoneVerified && session.Me.User.Phone != nil {
-		if err := a.issueCode(ctx, userID, *session.Me.User.Phone); err != nil {
-			return Session{}, err
+	if !session.Me.User.Verified {
+		// Si el último código sigue vigente no se envía otro (evita llenar el correo).
+		if v, err := a.verification(ctx, userID); err != nil || a.now().Sub(v.SentAt) > ResendCooldown {
+			if err := a.issueCode(ctx, userID, session.Me.User.Email, session.Me.User.Lang); err != nil {
+				return Session{}, err
+			}
 		}
 		session.NeedsVerification = true
 	}
 	return session, nil
 }
 
-// LoginWithProvider verifica el ID token de Google o Apple. Facebook necesita su propia
-// verificación de servidor y queda pendiente de configurar.
+// LoginWithProvider verifica el ID token de Google o Apple. El proveedor ya confirmó el correo:
+// la cuenta queda verificada (insignia azul) sin enviar ningún código. Facebook queda pendiente.
 func (a *App) LoginWithProvider(ctx context.Context, provider, idToken, lang string) (Session, error) {
 	var p *auth.OIDCProvider
 	switch provider {
@@ -173,12 +178,7 @@ func (a *App) LoginWithProvider(ctx context.Context, provider, idToken, lang str
 	if err != nil {
 		return Session{}, err
 	}
-	session, err := a.newSession(ctx, userID)
-	if err != nil {
-		return Session{}, err
-	}
-	session.NeedsPhone = !session.Me.User.PhoneVerified
-	return session, nil
+	return a.newSession(ctx, userID)
 }
 
 func (a *App) userForIdentity(ctx context.Context, id auth.Identity, lang string) (string, error) {
@@ -211,14 +211,18 @@ func (a *App) userForIdentity(ctx context.Context, id auth.Identity, lang string
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO users (id, name, username, email, lang, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+			if _, err := tx.Exec(ctx, `INSERT INTO users (id, name, username, email, email_verified, lang, created_at) VALUES ($1, $2, $3, $4, true, $5, $6)`,
 				userID, name, username, email, lang, a.now()); err != nil {
 				return err
 			}
 		} else if err != nil {
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO oauth_identities (provider, subject, user_id) VALUES ($1, $2, $3)`, id.Provider, id.Subject, userID)
+		if _, err := tx.Exec(ctx, `INSERT INTO oauth_identities (provider, subject, user_id) VALUES ($1, $2, $3)`, id.Provider, id.Subject, userID); err != nil {
+			return err
+		}
+		// El proveedor confirmó este correo: cuenta verificada.
+		_, err = tx.Exec(ctx, `UPDATE users SET email_verified = true WHERE id = $1`, userID)
 		return err
 	})
 	if err != nil {
@@ -306,49 +310,38 @@ func (a *App) Logout(ctx context.Context, token string) error {
 	return err
 }
 
-// --- Verificación del celular ---------------------------------------------
+// --- Verificación del correo ----------------------------------------------
 
-func (a *App) issueCode(ctx context.Context, userID, phone string) error {
-	if ok, _ := a.smsLimiter.Allow(phone); !ok {
+func (a *App) issueCode(ctx context.Context, userID, email, lang string) error {
+	if a.Mailer == nil {
+		return providerUnavailable("email")
+	}
+	// Antiabuso: máximo 5 códigos por correo por hora.
+	if ok, _ := a.codeLimiter.Allow(strings.ToLower(email)); !ok {
 		return rateLimited(time.Time{})
 	}
 	code := auth.SMSCode()
-	if a.FixedSMSCode != "" {
-		code = a.FixedSMSCode
+	if a.FixedCode != "" {
+		code = a.FixedCode
 	}
 	// Se conserva el contador de intentos y el bloqueo: reenviar no reinicia el castigo.
-	if _, err := a.DB.Exec(ctx, `INSERT INTO phone_verifications (user_id, phone, code_hash, sent_at) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (user_id) DO UPDATE SET phone = EXCLUDED.phone, code_hash = EXCLUDED.code_hash, sent_at = EXCLUDED.sent_at,
-		attempts = CASE WHEN phone_verifications.phone = EXCLUDED.phone THEN phone_verifications.attempts ELSE 0 END`,
-		userID, phone, a.Codes.Hash(phone, code), a.now()); err != nil {
+	if _, err := a.DB.Exec(ctx, `INSERT INTO email_verifications (user_id, email, code_hash, sent_at) VALUES ($1, $2, $3, $4)
+		ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, code_hash = EXCLUDED.code_hash, sent_at = EXCLUDED.sent_at,
+		attempts = CASE WHEN email_verifications.email = EXCLUDED.email THEN email_verifications.attempts ELSE 0 END`,
+		userID, email, a.Codes.Hash(email, code), a.now()); err != nil {
 		return err
 	}
-	if err := a.SMS.SendCode(ctx, phone, code); err != nil {
+	if err := a.Mailer.SendVerificationCode(ctx, email, code, lang); err != nil {
 		if errors.Is(err, providers.ErrDisabled) {
-			return providerUnavailable("sms")
+			return providerUnavailable("email")
 		}
 		return err
 	}
 	return nil
 }
 
-// StartPhoneVerification es el paso "agrega y verifica tu número" (login social o cambio de número).
-func (a *App) StartPhoneVerification(ctx context.Context, ac Actor, raw string) error {
-	phone := domain.NormalizeColombianMobile(raw)
-	if phone == "" {
-		return newErr(http.StatusUnprocessableEntity, "invalid_phone", nil)
-	}
-	if a.phoneTaken(ctx, phone, ac.ID) {
-		return newErr(http.StatusConflict, "phone_taken", nil)
-	}
-	if _, err := a.DB.Exec(ctx, `UPDATE users SET phone = $2, phone_verified = false WHERE id = $1`, ac.ID, phone); err != nil {
-		return err
-	}
-	return a.issueCode(ctx, ac.ID, phone)
-}
-
 type verification struct {
-	Phone       string     `db:"phone"`
+	Email       string     `db:"email"`
 	CodeHash    []byte     `db:"code_hash"`
 	SentAt      time.Time  `db:"sent_at"`
 	Attempts    int        `db:"attempts"`
@@ -356,7 +349,7 @@ type verification struct {
 }
 
 func (a *App) verification(ctx context.Context, userID string) (verification, error) {
-	rows, _ := a.DB.Query(ctx, `SELECT phone, code_hash, sent_at, attempts, locked_until FROM phone_verifications WHERE user_id = $1`, userID)
+	rows, _ := a.DB.Query(ctx, `SELECT email, code_hash, sent_at, attempts, locked_until FROM email_verifications WHERE user_id = $1`, userID)
 	v, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[verification])
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, ErrNotAllowed
@@ -364,19 +357,25 @@ func (a *App) verification(ctx context.Context, userID string) (verification, er
 	return v, err
 }
 
-// ResendCode respeta la espera de 45 s entre envíos.
+// ResendCode envía otro código al correo, con una espera de 45 s entre envíos.
 func (a *App) ResendCode(ctx context.Context, ac Actor) (int, error) {
-	v, err := a.verification(ctx, ac.ID)
-	if err != nil {
-		return 0, err
+	if ac.Verified {
+		return 0, ErrNotAllowed
 	}
-	if wait := ResendCooldown - a.now().Sub(v.SentAt); wait > 0 {
-		return int(wait.Seconds() + 0.999), newErr(http.StatusTooManyRequests, "rate_limited", map[string]any{"seconds": int(wait.Seconds() + 0.999)})
+	var email string
+	if err := a.DB.QueryRow(ctx, `SELECT email FROM users WHERE id = $1`, ac.ID).Scan(&email); err != nil {
+		return 0, notFoundIfNoRows(err)
 	}
-	return int(ResendCooldown.Seconds()), a.issueCode(ctx, ac.ID, v.Phone)
+	if v, err := a.verification(ctx, ac.ID); err == nil {
+		if wait := ResendCooldown - a.now().Sub(v.SentAt); wait > 0 {
+			seconds := int(wait.Seconds() + 0.999)
+			return seconds, newErr(http.StatusTooManyRequests, "rate_limited", map[string]any{"seconds": seconds})
+		}
+	}
+	return int(ResendCooldown.Seconds()), a.issueCode(ctx, ac.ID, email, ac.Lang)
 }
 
-// VerifyCode confirma el celular y otorga la insignia azul. 5 intentos fallidos bloquean 5 minutos.
+// VerifyCode confirma el correo y otorga la insignia azul. 5 intentos fallidos bloquean 5 minutos.
 func (a *App) VerifyCode(ctx context.Context, ac Actor, code string) error {
 	v, err := a.verification(ctx, ac.ID)
 	if err != nil {
@@ -390,28 +389,24 @@ func (a *App) VerifyCode(ctx context.Context, ac Actor, code string) error {
 	if now.Sub(v.SentAt) > CodeTTL {
 		return newErr(http.StatusGone, "expired", nil)
 	}
-	if !a.Codes.Equal(v.CodeHash, v.Phone, strings.TrimSpace(code)) {
+	if !a.Codes.Equal(v.CodeHash, v.Email, strings.TrimSpace(code)) {
 		attempts := v.Attempts + 1
 		if attempts >= MaxCodeAttempts {
-			_, err := a.DB.Exec(ctx, `UPDATE phone_verifications SET attempts = 0, locked_until = $2 WHERE user_id = $1`, ac.ID, now.Add(LockDuration))
-			if err != nil {
+			if _, err := a.DB.Exec(ctx, `UPDATE email_verifications SET attempts = 0, locked_until = $2 WHERE user_id = $1`, ac.ID, now.Add(LockDuration)); err != nil {
 				return err
 			}
 			return newErr(http.StatusTooManyRequests, "locked", map[string]any{"minutes": int(LockDuration.Minutes())})
 		}
-		if _, err := a.DB.Exec(ctx, `UPDATE phone_verifications SET attempts = $2 WHERE user_id = $1`, ac.ID, attempts); err != nil {
+		if _, err := a.DB.Exec(ctx, `UPDATE email_verifications SET attempts = $2 WHERE user_id = $1`, ac.ID, attempts); err != nil {
 			return err
 		}
 		return newErr(http.StatusUnprocessableEntity, "wrong_code", map[string]any{"count": MaxCodeAttempts - attempts})
 	}
 	return a.withTx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE users SET phone = $2, phone_verified = true WHERE id = $1`, ac.ID, v.Phone); err != nil {
-			if isUniqueViolation(err) {
-				return newErr(http.StatusConflict, "phone_taken", nil)
-			}
+		if _, err := tx.Exec(ctx, `UPDATE users SET email_verified = true WHERE id = $1 AND lower(email) = lower($2)`, ac.ID, v.Email); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `DELETE FROM phone_verifications WHERE user_id = $1`, ac.ID)
+		_, err := tx.Exec(ctx, `DELETE FROM email_verifications WHERE user_id = $1`, ac.ID)
 		return err
 	})
 }
@@ -530,6 +525,8 @@ type ProfilePatch struct {
 	Bio          *string `json:"bio"`
 	City         *string `json:"city"`
 	Neighborhood *string `json:"neighborhood"`
+	// Phone es opcional y nunca se muestra a otras personas. "" lo borra.
+	Phone *string `json:"phone"`
 }
 
 // UpdateProfile valida y guarda los cambios del perfil.
@@ -578,6 +575,13 @@ func (a *App) UpdateProfile(ctx context.Context, ac Actor, p ProfilePatch) (Me, 
 	}
 	if p.Neighborhood != nil {
 		add("neighborhood", optional(domain.Clean(*p.Neighborhood, 60)))
+	}
+	if p.Phone != nil {
+		phone := domain.NormalizeColombianMobile(*p.Phone)
+		if strings.TrimSpace(*p.Phone) != "" && phone == "" {
+			return Me{}, newErr(http.StatusUnprocessableEntity, "invalid_phone", nil)
+		}
+		add("phone", optional(phone))
 	}
 	if len(sets) > 0 {
 		if _, err := a.DB.Exec(ctx, `UPDATE users SET `+strings.Join(sets, ", ")+` WHERE id = $1`, args...); err != nil {
