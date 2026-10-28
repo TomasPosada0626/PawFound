@@ -1,0 +1,43 @@
+{{define "content"}}
+{{$d := .Data}}{{$i := $d.Item}}
+<p><a href="/admin/reports" class="back">← Reportes</a></p>
+<h1><span class="chip chip-{{$i.Reason}}">{{reason $i.Reason}}</span> {{target $i.TargetKind}} reportado</h1>
+<p class="muted">Recibido el {{date $i.CreatedAt}} ({{ago $i.CreatedAt}}) · {{if $i.Automatic}}abierto por el sistema{{else}}por {{deref $i.ReporterName}}{{end}}{{if gt $i.ReportsAgainst 1}} · <strong>{{$i.ReportsAgainst}} reportes abiertos contra esta persona</strong>{{end}}{{if ne $i.Status "open"}} · <strong>Resuelto</strong>{{end}}</p>
+<div class="grid-2 wide-left">
+  <div class="stack">
+    {{if $i.Note}}<section class="card"><h2>Lo que dice el reporte</h2><blockquote>{{deref $i.Note}}</blockquote></section>{{end}}
+    {{if $d.Message}}
+    <section class="card">
+      <h2>Conversación</h2>
+      <ol class="thread">
+        {{range $d.Context}}
+        <li class="{{if eq .ID $d.Message.ID}}reported{{end}}{{if ne .Kind "text"}} system{{end}}">
+          <span class="who">{{if .AuthorShortName}}{{.AuthorShortName}}{{else}}cuenta eliminada{{end}}</span>
+          <span class="when">{{date .At}}</span>
+          {{if eq .Kind "text"}}{{if .Text}}<p>{{.Text}}</p>{{end}}{{else if eq .Kind "sighting"}}<p>📍 Avistamiento en {{.Text}}</p>{{else}}<p class="muted">Evento del grupo</p>{{end}}
+          {{if .Photo}}<img src="{{mediaPath .Photo.URL}}" alt="Foto enviada en el chat" width="{{.Photo.Width}}" height="{{.Photo.Height}}">{{end}}
+        </li>
+        {{end}}
+      </ol>
+    </section>
+    {{end}}
+    {{if $d.Pet}}{{$p := $d.Pet}}
+    <section class="card">
+      <h2>Publicación{{if $p.ModerationRemoved}} <span class="chip chip-scam">Retirada</span>{{end}}</h2>
+      <p><strong>{{if $p.Name}}{{deref $p.Name}}{{else}}Sin nombre{{end}}</strong> · {{if eq $p.Kind "lost"}}Perdida{{else}}Encontrada{{end}} en {{$p.Zone}} · {{date $p.CreatedAt}}</p>
+      {{if $p.Description}}<p>{{$p.Description}}</p>{{end}}
+      <div class="photos">{{range $p.Photos}}<img src="{{mediaPath .}}" alt="Foto de la publicación">{{end}}</div>
+    </section>
+    {{end}}
+    {{template "history" $d.History}}
+  </div>
+  <div class="stack">
+    {{if $d.Reported}}{{template "person" $d.Reported}}{{end}}
+    {{if eq $i.Status "open"}}
+      {{template "actions" (decide $d .CSRF)}}
+    {{else}}
+      <section class="card"><h2>Resuelto</h2><p>Este reporte ya tiene una decisión. Para una sanción nueva, abre la cuenta.</p>{{if $d.Reported}}<a class="button" href="/admin/users/{{$d.Reported.ID}}">Ver la cuenta</a>{{end}}</section>
+    {{end}}
+  </div>
+</div>
+{{end}}

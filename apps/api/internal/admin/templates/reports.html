@@ -1,0 +1,28 @@
+{{define "content"}}
+<h1>Reportes</h1>
+<nav class="tabs" aria-label="Estado">
+  <a href="/admin/reports" {{if eq .Data.Status "open"}}aria-current="page"{{end}}>Abiertos</a>
+  <a href="/admin/reports?status=actioned" {{if eq .Data.Status "actioned"}}aria-current="page"{{end}}>Con sanción</a>
+  <a href="/admin/reports?status=dismissed" {{if eq .Data.Status "dismissed"}}aria-current="page"{{end}}>Descartados</a>
+</nav>
+{{if .Data.Queue}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Recibido</th><th>Motivo</th><th>Qué</th><th>Persona reportada</th><th>Reportó</th><th>Abiertos contra ella</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Queue}}
+  <tr>
+    <td>{{date .CreatedAt}}<br><span class="muted">{{ago .CreatedAt}}</span></td>
+    <td><span class="chip chip-{{.Reason}}">{{reason .Reason}}</span></td>
+    <td>{{target .TargetKind}}</td>
+    <td>{{if .ReportedName}}<a href="/admin/users/{{deref .ReportedID}}">{{deref .ReportedName}}</a>{{else}}<span class="muted">eliminada</span>{{end}}</td>
+    <td>{{if .Automatic}}<span class="chip chip-system">Sistema</span>{{else}}{{deref .ReporterName}}{{end}}</td>
+    <td>{{.ReportsAgainst}}</td>
+    <td><a class="button small" href="/admin/reports/{{.ID}}">Revisar</a></td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}<p class="empty card">No hay reportes en esta lista.</p>{{end}}
+{{end}}
