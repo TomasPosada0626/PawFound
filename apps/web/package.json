@@ -8,8 +8,8 @@
     "preview": "astro preview",
     "check": "astro check"
   },
-  "dependencies": {
+  "devDependencies": {
     "@fontsource-variable/nunito": "^5.3.0",
-    "astro": "^5.18.2"
+    "astro": "^7.4.3"
   }
 }

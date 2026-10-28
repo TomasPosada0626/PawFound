@@ -79,7 +79,8 @@ jobs:
           cache-dependency-path: apps/web/package-lock.json
       - run: npm ci
       - run: npm run build
-      - run: npm audit --omit=dev --audit-level=high
+      # El sitio publicado es HTML estático: se audita la cadena de build completa.
+      - run: npm audit --audit-level=high
 
   mobile:
     name: Mobile (Expo)
