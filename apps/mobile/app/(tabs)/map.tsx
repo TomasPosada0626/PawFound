@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,7 +19,7 @@ import type { PetCase, Place } from "@/domain/types";
 import { useNow } from "@/hooks/useNow";
 import { useI18n } from "@/i18n/I18nProvider";
 import { DEFAULT_FILTERS, filterPets, type KindFilter, type PetFilters } from "@/services/selectors";
-import { useBackendState } from "@/store/backend";
+import { useBackend, useBackendState } from "@/store/backend";
 import { useDevicePrefs } from "@/store/devicePrefs";
 import { useUserLocation } from "@/store/location";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -47,6 +47,13 @@ export default function MapScreen() {
   const [place, setPlace] = useState<Place | null>(null);
 
   const results = useMemo(() => filterPets(state.pets, location, now, filters), [state.pets, location, now, filters]);
+  const backend = useBackend();
+  useEffect(() => {
+    void backend.loadNearby(location).catch(() => {});
+  }, [backend, location]);
+  useEffect(() => {
+    if (showPlaces) void backend.loadPlaces(location).catch(() => {});
+  }, [backend, location, showPlaces]);
   const nearbyPlaces = useMemo(
     () => state.places.filter((p) => distanceMeters(location, p.location) <= 15_000),
     [state.places, location],

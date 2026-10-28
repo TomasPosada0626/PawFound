@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -37,6 +37,10 @@ export default function PetDetailScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const backend = useBackend();
+  // Con la API trae lo más reciente de este caso (en la demostración no hace nada).
+  useEffect(() => {
+    if (id) void backend.loadPet(id).catch(() => {});
+  }, [backend, id]);
   const state = useBackendState();
   const user = useCurrentUser();
   const now = useNow(30_000);

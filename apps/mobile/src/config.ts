@@ -2,6 +2,12 @@
 export const PUBLIC_BASE_URL = "https://pawfound.app";
 export const SHARE_BASE_URL = `${PUBLIC_BASE_URL}/mascota/`;
 
+/**
+ * URL de la API real (por ejemplo https://api.pawfound.app). Vacía = modo demostración, con
+ * todos los datos en el celular.
+ */
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
+
 /** Documentos legales (fuente: docs/legal/ del repositorio público). */
 const LEGAL_BASE = "https://github.com/TomasPosada0626/PawFound/blob/main/docs/legal";
 export const LEGAL_URLS = {

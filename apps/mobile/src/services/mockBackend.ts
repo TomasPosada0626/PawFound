@@ -931,6 +931,22 @@ export class MockBackend {
     this.commit({ users: { ...this.state.users, [userId]: { ...user, mutedUntil } } });
   }
 
+  // --- Cargadores ------------------------------------------------------------------
+  // Con la API (ApiBackend) completan la copia local cuando una pantalla los necesita; en la
+  // demostración todo el estado ya está en memoria, así que no hacen nada.
+
+  async loadNearby(_center: LatLng): Promise<void> {}
+
+  async loadPet(_petId: string): Promise<void> {}
+
+  async loadThread(_threadId: string): Promise<void> {}
+
+  async loadProfile(_userId: string): Promise<void> {}
+
+  async loadStories(_center: LatLng): Promise<void> {}
+
+  async loadPlaces(_center: LatLng): Promise<void> {}
+
   /** Portabilidad (Ley 1581): todo lo que la cuenta generó, en JSON. */
   async exportData(): Promise<string> {
     const user = this.requireUser();

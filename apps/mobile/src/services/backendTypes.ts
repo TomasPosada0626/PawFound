@@ -1,3 +1,4 @@
+import type { BadgeProgress } from "@/domain/badges";
 import type {
   AgeRange,
   AlertZone,
@@ -37,6 +38,10 @@ export type ErrorCode =
   | "username_taken"
   | "muted"
   | "story_full"
+  | "provider_unavailable"
+  | "invalid_input"
+  | "suspended"
+  | "unauthorized"
   | "network"
   | "unknown";
 
@@ -89,6 +94,8 @@ export type BackendState = {
    * el servidor se cargan de OpenStreetMap (api import-places).
    */
   places: Place[];
+  /** Insignias de otras cuentas calculadas por la API (en demostración se calculan aquí). */
+  remoteBadges: Record<string, BadgeProgress[]>;
 };
 
 export type OwnedPetInput = Omit<OwnedPet, "id" | "ownerId" | "createdAt" | "lastCaseId">;

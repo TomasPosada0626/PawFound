@@ -129,6 +129,8 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
 
 /** Progreso de todas las insignias; en producción lo calcula y devuelve la API. */
 export function userBadgeProgress(state: BackendState, userId: string): BadgeProgress[] {
+  const remote = state.remoteBadges[userId];
+  if (remote) return remote;
   if (!state.users[userId]) return [];
   return badgeProgress(badgeFacts(state, userId));
 }

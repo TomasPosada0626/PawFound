@@ -33,6 +33,10 @@ export default function ChatScreen() {
   const { t, locale } = useI18n();
   const { colors } = useTheme();
   const backend = useBackend();
+  // Con la API trae lo más reciente de este chat (en la demostración no hace nada).
+  useEffect(() => {
+    if (id) void backend.loadThread(id).catch(() => {});
+  }, [backend, id]);
   const state = useBackendState();
   const user = useCurrentUser();
   const toast = useToast();

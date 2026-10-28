@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { FlatList, Pressable, View } from "react-native";
 
 import { StoriesBar } from "@/components/StoriesBar";
@@ -20,7 +20,7 @@ import { useAuthGate } from "@/hooks/useAuthGate";
 import { useNow } from "@/hooks/useNow";
 import { useI18n } from "@/i18n/I18nProvider";
 import { DEFAULT_FILTERS, filterPets, ownedPetsOf, userNotifications } from "@/services/selectors";
-import { useBackendState, useCurrentUser } from "@/store/backend";
+import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useUserLocation } from "@/store/location";
 import { useTheme } from "@/theme/ThemeProvider";
 import { primaryGradient } from "@/theme/tokens";
@@ -29,8 +29,13 @@ export default function HomeScreen() {
   const { t } = useI18n();
   const { colors } = useTheme();
   const state = useBackendState();
+  const backend = useBackend();
   const user = useCurrentUser();
   const now = useNow();
+  const { location: here } = useUserLocation();
+  useEffect(() => {
+    void backend.loadNearby(here).catch(() => {});
+  }, [backend, here]);
   const { location } = useUserLocation();
   const requireAccount = useAuthGate();
   const [menuOpen, setMenuOpen] = useState(false);

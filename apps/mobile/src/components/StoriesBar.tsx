@@ -1,13 +1,13 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { useSeenStories } from "@/hooks/useSeenStories";
 import { useI18n } from "@/i18n/I18nProvider";
 import { storyFeed, storySlideIds } from "@/services/selectors";
-import { useBackendState } from "@/store/backend";
+import { useBackend, useBackendState } from "@/store/backend";
 import { useUserLocation } from "@/store/location";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -24,7 +24,11 @@ export function StoriesBar({ now }: { now: Date }) {
   const { t } = useI18n();
   const { colors } = useTheme();
   const state = useBackendState();
+  const backend = useBackend();
   const { location } = useUserLocation();
+  useEffect(() => {
+    void backend.loadStories(location).catch(() => {});
+  }, [backend, location]);
   const { seen } = useSeenStories();
   const feed = useMemo(() => storyFeed(state, location, now), [state, location, now]);
   if (!feed.length) return null;

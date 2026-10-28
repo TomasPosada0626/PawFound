@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { BadgeTile } from "@/components/badges";
@@ -30,6 +30,10 @@ export default function PublicProfileScreen() {
   const { t, locale } = useI18n();
   const { colors } = useTheme();
   const backend = useBackend();
+  // Con la API trae lo más reciente de este perfil (en la demostración no hace nada).
+  useEffect(() => {
+    if (id) void backend.loadProfile(id).catch(() => {});
+  }, [backend, id]);
   const state = useBackendState();
   const toast = useToast();
   const requireAccount = useAuthGate();

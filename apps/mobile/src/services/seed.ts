@@ -660,6 +660,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       },
       shareLog: { u_valentina: ["max", "collie"] },
       places: [],
+      remoteBadges: {},
       // La familia de Max fue contando novedades en su historia.
       stories: [
         {
