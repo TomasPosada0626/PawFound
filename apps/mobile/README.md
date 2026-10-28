@@ -102,3 +102,15 @@ la versión corregida de Expo.
 - Avatares ilustrados definitivos (hoy son avatares de animales con emoji, issue #61).
 - Proveedor de traducción, SMS y almacenamiento de fotos, cada uno tras su evaluación en
   `docs/legal/incidentes-y-proveedores.md`.
+
+## Conectar con la API real
+
+Sin configuración la app corre en **modo demostración** (todo en memoria). Para usar la API:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start   # la IP de tu computador en la red local
+```
+
+`src/services/apiBackend.ts` implementa la misma interfaz que el backend de demostración, así
+que las pantallas no cambian. La ubicación en segundo plano para las Alertas Ángel necesita
+un build propio (EAS o `expo run:android`): en Expo Go solo se actualiza con la app abierta.

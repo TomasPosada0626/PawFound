@@ -48,7 +48,7 @@ paths:
       operationId: register
       tags: [auth]
       security: []
-      summary: Crea la cuenta y envía el código SMS (límite por IP)
+      summary: Crea la cuenta y envía el código de verificación al correo (límite por IP)
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RegisterInput" } } } }
       responses:
         "201": { $ref: "#/components/responses/Session" }
@@ -59,7 +59,7 @@ paths:
       operationId: login
       tags: [auth]
       security: []
-      summary: Correo y contraseña. Mismo error para correo inexistente y clave incorrecta.
+      summary: Correo o nombre de usuario y contraseña. Mismo error para cuenta inexistente y clave incorrecta.
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/LoginInput" } } } }
       responses:
         "200": { $ref: "#/components/responses/Session" }
@@ -70,7 +70,7 @@ paths:
       operationId: loginWithProvider
       tags: [auth]
       security: []
-      summary: ID token de Google o Apple (OIDC). Facebook responde provider_unavailable.
+      summary: ID token de Google o Apple (OIDC); la cuenta queda verificada. Facebook responde provider_unavailable.
       requestBody:
         required: true
         content:
@@ -122,28 +122,19 @@ paths:
       responses:
         "204": { description: Contraseña cambiada; se cierran todas las sesiones }
         "410": { $ref: "#/components/responses/Error" }
-  /v1/auth/phone:
-    post:
-      operationId: startPhoneVerification
-      tags: [auth]
-      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [phone], properties: { phone: { type: string } } } } } }
-      responses:
-        "204": { description: Código enviado }
-        "409": { $ref: "#/components/responses/Error" }
-        "422": { $ref: "#/components/responses/Error" }
-  /v1/auth/phone/resend:
+  /v1/auth/email/resend:
     post:
       operationId: resendCode
       tags: [auth]
-      summary: Reenvía el código (espera de 45 s)
+      summary: Reenvía el código de 6 dígitos al correo (espera de 45 s, máximo 5 por hora)
       responses:
         "200": { description: Reenviado, content: { application/json: { schema: { type: object, properties: { resendInSeconds: { type: integer } } } } } }
         "429": { $ref: "#/components/responses/Error" }
-  /v1/auth/phone/verify:
+  /v1/auth/email/verify:
     post:
       operationId: verifyCode
       tags: [auth]
-      summary: Verifica el celular y otorga la insignia azul (5 intentos, luego 5 min de bloqueo)
+      summary: Verifica el correo y otorga la insignia azul (5 intentos, luego 5 min de bloqueo)
       requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } } } } }
       responses:
         "200": { description: Verificado, content: { application/json: { schema: { $ref: "#/components/schemas/Me" } } } }
@@ -212,6 +203,20 @@ paths:
       operationId: deleteAlertZone
       tags: [me]
       summary: Revoca el consentimiento y borra la zona
+      responses:
+        "204": { description: Borrada }
+  /v1/me/location:
+    put:
+      operationId: setAlertLocation
+      tags: [me]
+      summary: Última ubicación para las Alertas Ángel (la API la aproxima a 250 m y no guarda historial)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AlertZone" } } } }
+      responses:
+        "200": { description: Punto aproximado guardado, content: { application/json: { schema: { $ref: "#/components/schemas/AlertZone" } } } }
+    delete:
+      operationId: deleteAlertLocation
+      tags: [me]
+      summary: Desactiva "Alertas donde estés" y borra el punto
       responses:
         "204": { description: Borrada }
   /v1/me/devices:
@@ -447,6 +452,87 @@ paths:
       tags: [chats]
       responses:
         "200": { description: Estado, content: { application/json: { schema: { type: object, properties: { muted: { type: boolean } } } } } }
+  /v1/threads/{id}/archive:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: toggleArchive
+      tags: [chats]
+      summary: Archiva o desarchiva el chat solo en la lista propia
+      responses:
+        "200": { description: Estado, content: { application/json: { schema: { type: object, properties: { archived: { type: boolean } } } } } }
+  /v1/threads/{id}/close:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: closeDirect
+      tags: [chats]
+      summary: Cierra un mensaje directo para las dos personas (los grupos no se cierran)
+      responses:
+        "204": { description: Cerrado }
+  /v1/threads/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: leaveThread
+      tags: [chats]
+      summary: Elimina el chat de la lista propia; para las demás personas sigue igual
+      responses:
+        "204": { description: Eliminado de la lista }
+  /v1/stories:
+    get:
+      operationId: storyFeed
+      tags: [pets]
+      security: [{}, { bearer: [] }]
+      summary: Historias de los casos activos cerca (no vencen; se quitan al cerrar el caso)
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radius, in: query, schema: { type: integer, maximum: 30000, default: 10000 } }
+      responses:
+        "200": { description: Historias, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Story" } } } } }
+  /v1/pets/{id}/stories:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: addStory
+      tags: [pets]
+      summary: La familia agrega una actualización (foto subida con purpose=story y/o texto de 140 caracteres; máx. 20)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { text: { type: string, maxLength: 140 }, photoId: { type: string } } } } } }
+      responses:
+        "201": { description: Agregada, content: { application/json: { schema: { $ref: "#/components/schemas/StoryItem" } } } }
+  /v1/stories/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: removeStory
+      tags: [pets]
+      responses:
+        "204": { description: Quitada }
+  /v1/places:
+    get:
+      operationId: places
+      tags: [community]
+      security: []
+      summary: Veterinarias y refugios cerca (OpenStreetMap, ODbL)
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radius, in: query, schema: { type: integer, maximum: 30000 } }
+        - { name: kind, in: query, schema: { type: string, enum: [vet, shelter] } }
+      responses:
+        "200":
+          description: Lugares
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  places: { type: array, items: { $ref: "#/components/schemas/Place" } }
+                  attribution: { type: string }
+  /v1/places/{id}/report:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: reportPlace
+      tags: [community]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [note], properties: { note: { type: string, maxLength: 300 } } } } } }
+      responses:
+        "204": { description: Recibido }
   /v1/ws:
     get:
       operationId: realtime
@@ -499,7 +585,7 @@ paths:
               required: [file, purpose]
               properties:
                 file: { type: string, format: binary }
-                purpose: { type: string, enum: [pet, owned, chat] }
+                purpose: { type: string, enum: [pet, owned, chat, story] }
       responses:
         "201": { description: Subida, content: { application/json: { schema: { $ref: "#/components/schemas/UploadedMedia" } } } }
         "422": { $ref: "#/components/responses/Error" }
@@ -544,9 +630,9 @@ components:
           properties:
             code:
               type: string
-              enum: [unauthorized, invalid_credentials, email_taken, phone_taken, invalid_phone, wrong_code, locked, expired,
+              enum: [unauthorized, invalid_credentials, email_taken, invalid_phone, wrong_code, locked, expired,
                 rate_limited, not_allowed, not_found, cannot_message, invalid_username, username_taken, muted, suspended,
-                invalid_input, invalid_image, provider_unavailable, unknown]
+                invalid_input, invalid_image, provider_unavailable, story_full, unknown]
             params: { type: object, additionalProperties: true }
     Lang: { type: string, enum: [es, en] }
     Species: { type: string, enum: [dog, cat, other] }
@@ -562,20 +648,20 @@ components:
         longitude: { type: number }
     RegisterInput:
       type: object
-      required: [name, email, phone, password, acceptTerms, confirmAge]
+      required: [name, email, username, password, acceptTerms, confirmAge]
       properties:
-        name: { type: string, minLength: 2, maxLength: 80 }
+        name: { type: string, description: Nombre y al menos un apellido }
         email: { type: string, format: email }
-        phone: { type: string, description: Celular colombiano (se normaliza a E.164) }
-        password: { type: string, minLength: 8 }
+        username: { type: string, pattern: "^@?[a-z0-9_]{3,20}$" }
+        password: { type: string, minLength: 8, description: Con mayúscula, minúscula y número }
         lang: { $ref: "#/components/schemas/Lang" }
         acceptTerms: { type: boolean }
         confirmAge: { type: boolean }
     LoginInput:
       type: object
-      required: [email, password]
+      required: [identifier, password]
       properties:
-        email: { type: string }
+        identifier: { type: string, description: Correo o nombre de usuario }
         password: { type: string }
     RefreshInput:
       type: object
@@ -590,7 +676,6 @@ components:
         expiresIn: { type: integer, description: Segundos de vida del accessToken }
         me: { $ref: "#/components/schemas/Me" }
         needsVerification: { type: boolean }
-        needsPhone: { type: boolean }
     User:
       type: object
       properties:
@@ -599,7 +684,7 @@ components:
         username: { type: string }
         email: { type: string }
         phone: { type: string }
-        phoneVerified: { type: boolean }
+        verified: { type: boolean, description: Correo verificado (insignia azul) }
         avatar: { type: string, enum: [dog, cat, fox, panda, bunny, bear] }
         title: { type: string, enum: [animal_lover, rescuer, neighbor, volunteer, foster] }
         bio: { type: string, maxLength: 150 }
@@ -621,7 +706,7 @@ components:
         bio: { type: string }
         city: { type: string }
         neighborhood: { type: string }
-        phoneVerified: { type: boolean }
+        verified: { type: boolean, description: Correo verificado (insignia azul) }
         createdAt: { type: string, format: date-time }
         lang: { $ref: "#/components/schemas/Lang" }
     UserSummary:
@@ -630,7 +715,7 @@ components:
         id: { type: string }
         shortName: { type: string }
         avatar: { type: string }
-        phoneVerified: { type: boolean }
+        verified: { type: boolean, description: Correo verificado (insignia azul) }
         createdAt: { type: string, format: date-time }
         lang: { $ref: "#/components/schemas/Lang" }
     ProfilePatch:
@@ -834,7 +919,9 @@ components:
         members: { type: array, items: { $ref: "#/components/schemas/UserSummary" } }
         readAt: { type: object, additionalProperties: { type: string, format: date-time } }
         mutedBy: { type: array, items: { type: string } }
-        archived: { type: boolean }
+        archived: { type: boolean, description: Cerrado (mensaje directo cerrado por una de las dos personas) }
+        closedBy: { type: string }
+        archivedBy: { type: array, items: { type: string }, description: Quien lo archivó en su propia lista }
         lastMessage: { $ref: "#/components/schemas/Message" }
         unread: { type: integer }
     Notification:
@@ -890,3 +977,31 @@ components:
         url: { type: string, format: uri }
         width: { type: integer }
         height: { type: integer }
+    StoryItem:
+      type: object
+      properties:
+        id: { type: string }
+        petId: { type: string }
+        authorId: { type: string }
+        photo: { type: string, format: uri }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+    Story:
+      type: object
+      properties:
+        pet: { $ref: "#/components/schemas/Pet" }
+        items: { type: array, items: { $ref: "#/components/schemas/StoryItem" } }
+        updatedAt: { type: string, format: date-time }
+    Place:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [vet, shelter] }
+        name: { type: string }
+        location: { $ref: "#/components/schemas/LatLng" }
+        address: { type: string }
+        phone: { type: string }
+        website: { type: string }
+        openingHours: { type: string }
+        emergency: { type: boolean }
+        source: { type: string }

@@ -17,13 +17,13 @@ docker compose -f infra/docker-compose.yml up -d     # desde la raíz del repo
 cd apps/api
 export DATABASE_URL="postgres://pawfound:pawfound@localhost:5432/pawfound?sslmode=disable"
 export JWT_SECRET="$(openssl rand -base64 48)"
-export DEV_FIXED_SMS_CODE=123456                     # opcional: código SMS fijo para probar la app
+export DEV_FIXED_CODE=123456                         # opcional: código de verificación fijo para probar la app
 go run ./cmd/api                                     # API en :8080, panel en /admin
 ```
 
-En `development` las migraciones se aplican solas al arrancar, los códigos SMS y los push
-se escriben en el log (no salen a internet) y la cookie del panel funciona sobre
-`http://localhost`.
+En `development` las migraciones se aplican solas al arrancar, los códigos de verificación
+(correo) y los push se escriben en el log (no salen a internet) y la cookie del panel funciona
+sobre `http://localhost`.
 
 ## Comandos
 
@@ -31,6 +31,7 @@ se escriben en el log (no salen a internet) y la cookie del panel funciona sobre
 go run ./cmd/api                                  # sirve API, panel y tareas periódicas
 go run ./cmd/api migrate                          # aplica migraciones y termina
 go run ./cmd/api grant-role ana@correo.co moderator  # acceso al panel (user|moderator|admin)
+go run ./cmd/api import-places                    # veterinarias y refugios del Valle de Aburrá (OpenStreetMap)
 go test ./...                                     # unitarias (las de integración se saltan)
 TEST_DATABASE_URL=postgres://… go test ./...      # + integración y E2E contra PostGIS real
 golangci-lint run                                 # lint + gosec (config en .golangci.yml)
@@ -56,12 +57,12 @@ internal/domain       reglas puras, gemelas de apps/mobile/src/domain (límite d
                       modo descanso, coincidencias)
 internal/lifecircle   círculo de vida (vectores compartidos con la app)
 internal/geo          ubicación aproximada a 250 m y distancias
-internal/auth         Argon2id, JWT, refresh tokens rotativos, códigos SMS (HMAC), OIDC Google/Apple
+internal/auth         Argon2id, JWT, refresh tokens rotativos, códigos de verificación (HMAC), OIDC Google/Apple
 internal/app          casos de uso sobre PostgreSQL (la versión de servidor de mockBackend.ts)
 internal/httpapi      API REST v1 y middleware (auth, límites, cabeceras de seguridad, logs)
 internal/realtime     WebSocket: mensajes y notificaciones en vivo
 internal/media        fotos: re-codificación sin EXIF/GPS, orientación, hash perceptual
-internal/providers    SMS, push (Expo → FCM/APNs), traducción y correo detrás de interfaces
+internal/providers    correo (SMTP), push (Expo → FCM/APNs) y traducción detrás de interfaces
 internal/jobs         Alerta Ángel que crece con el círculo y limpieza de datos vencidos
 internal/admin        panel web de moderación (/admin), sin JavaScript
 internal/testdb       base PostGIS aislada para las pruebas de integración
@@ -75,9 +76,10 @@ internal/testdb       base PostGIS aislada para las pruebas de integración
   de guardarla. Así se garantiza que nunca se guarde el GPS del celular aunque la app falle
   en quitarlo. El almacenamiento es local (`MEDIA_DIR`) hasta activar Cloudflare R2 detrás
   de la interfaz `media.Store`.
-- **Proveedores apagados por defecto**: en producción, sin `SMS_PROVIDER` el registro
-  responde `provider_unavailable`, y sin `PUSH_PROVIDER` las notificaciones quedan solo en la
-  bandeja. Cada proveedor se activa tras su evaluación de privacidad.
+- **Verificación gratis por correo**: sin SMS. En producción, sin `SMTP_HOST` el registro
+  responde `provider_unavailable`; cualquier proveedor SMTP sirve (varios tienen capa
+  gratuita). Sin `PUSH_PROVIDER` las notificaciones quedan solo en la bandeja. Cada proveedor
+  se activa tras su evaluación de privacidad.
 - **Una sola instancia** para los límites en memoria (login, verificación, subidas). Los
   límites de negocio (2 reportes por día, 12 mensajes por minuto, 5 alertas por día) se
   cuentan en la base y valen con varias instancias.
@@ -85,6 +87,6 @@ internal/testdb       base PostGIS aislada para las pruebas de integración
 ## Estado
 
 Implementado: issues #32 a #37 y #42, y la parte de servidor de #38, #39, #40, #43 y #45.
-Pendiente de proveedor (cada uno con su evaluación de privacidad): envío real de SMS, push por
-Expo/FCM/APNs, Cloudflare R2, traducción automática de chats, correo transaccional, Sentry
-(#41) y Upstash Redis (#40). Facebook Login todavía no está implementado.
+Pendiente de proveedor (cada uno con su evaluación de privacidad): correo SMTP, push por
+Expo/FCM/APNs, Cloudflare R2, traducción automática de chats, Sentry (#41) y Upstash Redis
+(#40). Facebook Login todavía no está implementado.
