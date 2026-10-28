@@ -83,12 +83,14 @@ const AlertLocationTTL = 24 * time.Hour
 const (
 	MessageMax        = 1000
 	MessagesPerMinute = 12
-	MaxHelpers        = 5
-	MaxOwnedPets      = 10
-	MaxPhotos         = 5
-	DescriptionMax    = 500
-	BioMax            = 150
-	ReportNoteMax     = 300
+	// LocationLabelMax: nombre de un punto de encuentro ("Parque de Laureles").
+	LocationLabelMax = 60
+	MaxHelpers       = 5
+	MaxOwnedPets     = 10
+	MaxPhotos        = 5
+	DescriptionMax   = 500
+	BioMax           = 150
+	ReportNoteMax    = 300
 )
 
 // BadgeRule y la tabla de insignias (badges.ts, issue #61).

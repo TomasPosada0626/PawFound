@@ -31,7 +31,7 @@ sobre `http://localhost`.
 go run ./cmd/api                                  # sirve API, panel y tareas periódicas
 go run ./cmd/api migrate                          # aplica migraciones y termina
 go run ./cmd/api grant-role ana@correo.co moderator  # acceso al panel (user|moderator|admin)
-go run ./cmd/api import-places                    # veterinarias y refugios del Valle de Aburrá (OpenStreetMap)
+go run ./cmd/api import-places                    # veterinarias del Valle de Aburrá (OpenStreetMap)
 go test ./...                                     # unitarias (las de integración se saltan)
 TEST_DATABASE_URL=postgres://… go test ./...      # + integración y E2E contra PostGIS real
 golangci-lint run                                 # lint + gosec (config en .golangci.yml)

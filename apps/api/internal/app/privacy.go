@@ -108,7 +108,7 @@ func (a *App) ExportData(ctx context.Context, ac Actor) (Export, error) {
 	if err != nil {
 		return Export{}, err
 	}
-	rows, _ := a.DB.Query(ctx, `SELECT `+messageCols+` FROM messages m LEFT JOIN media p ON p.id = m.photo_id WHERE m.author_id = $1 AND m.kind = 'text' ORDER BY m.at`, ac.ID)
+	rows, _ := a.DB.Query(ctx, `SELECT `+messageCols+` FROM messages m LEFT JOIN media p ON p.id = m.photo_id WHERE m.author_id = $1 AND m.kind IN ('text', 'location') ORDER BY m.at`, ac.ID)
 	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[messageRow])
 	if err != nil {
 		return Export{}, err
@@ -134,7 +134,7 @@ func (a *App) DeleteAccount(ctx context.Context, ac Actor) error {
 		stmts := []string{
 			`UPDATE pets SET state = 'archived' WHERE owner_id = $1 AND state = 'active'`,
 			`UPDATE threads SET archived = true WHERE id IN (SELECT group_id FROM pets WHERE owner_id = $1)`,
-			`DELETE FROM messages WHERE author_id = $1 AND kind = 'text'`,
+			`DELETE FROM messages WHERE author_id = $1 AND kind IN ('text', 'location')`,
 			`UPDATE messages SET author_id = NULL, author_short_name = '' WHERE author_id = $1`,
 			`DELETE FROM threads WHERE kind = 'dm' AND id IN (SELECT thread_id FROM thread_members WHERE user_id = $1)`,
 		}

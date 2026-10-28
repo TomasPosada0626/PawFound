@@ -127,7 +127,7 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	partialR2 := c.R2.AccountID != "" || c.R2.Bucket != "" || c.R2.AccessKey != "" || c.R2.SecretKey != ""
 	if partialR2 && !c.R2.Enabled() {
-		errs = append(errs, errors.New("Cloudflare R2 a medias: define CLOUDFLARE_R2_ACCOUNT_ID, _BUCKET, _ACCESS_KEY_ID y _SECRET_ACCESS_KEY"))
+		errs = append(errs, errors.New("faltan datos de Cloudflare R2: define CLOUDFLARE_R2_ACCOUNT_ID, _BUCKET, _ACCESS_KEY_ID y _SECRET_ACCESS_KEY"))
 	}
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
 		errs = append(errs, errors.New("SMTP_FROM es obligatorio si se define SMTP_HOST"))

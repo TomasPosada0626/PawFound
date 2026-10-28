@@ -379,6 +379,12 @@ func (s *Server) sendMessage(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusCreated, m, err)
 }
 
+// stopSharingLocation: quien compartió una ubicación la deja de mostrar (se borran las coordenadas).
+func (s *Server) stopSharingLocation(w http.ResponseWriter, r *http.Request) {
+	m, err := s.App.StopSharingLocation(r.Context(), actor(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, m, err)
+}
+
 func (s *Server) readThread(w http.ResponseWriter, r *http.Request) {
 	respond(w, 0, nil, s.App.MarkThreadRead(r.Context(), actor(r), chi.URLParam(r, "id")))
 }
@@ -448,7 +454,7 @@ func (s *Server) removeStory(w http.ResponseWriter, r *http.Request) {
 	respond(w, 0, nil, s.App.RemoveStory(r.Context(), actor(r), chi.URLParam(r, "id")))
 }
 
-// --- Veterinarias y refugios -------------------------------------------------------
+// --- Veterinarias ------------------------------------------------------------------
 
 func (s *Server) places(w http.ResponseWriter, r *http.Request) {
 	lat, ok1 := floatParam(r, "lat")

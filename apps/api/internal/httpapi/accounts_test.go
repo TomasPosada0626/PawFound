@@ -215,7 +215,7 @@ func TestOAuthLogin(t *testing.T) {
 	// Correo sin verificar por el proveedor: no se crea ni se enlaza.
 	h.expectError(http.StatusUnauthorized, "invalid_credentials", http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "google", "idToken": sign("g-2", "otro@gmail.com", false)})
 	h.expectError(http.StatusUnauthorized, "invalid_credentials", http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "google", "idToken": "basura"})
-	h.expectError(http.StatusServiceUnavailable, "provider_unavailable", http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "facebook", "idToken": "x"})
+	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "facebook", "idToken": "x"})
 	h.expectError(http.StatusServiceUnavailable, "provider_unavailable", http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "apple", "idToken": "x"})
 	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "myspace", "idToken": "x"})
 }

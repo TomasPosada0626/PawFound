@@ -154,7 +154,7 @@ func (a *App) Login(ctx context.Context, identifier, password string) (Session, 
 }
 
 // LoginWithProvider verifica el ID token de Google o Apple. El proveedor ya confirmó el correo:
-// la cuenta queda verificada (insignia azul) sin enviar ningún código. Facebook queda pendiente.
+// la cuenta queda verificada (insignia azul) sin enviar ningún código.
 func (a *App) LoginWithProvider(ctx context.Context, provider, idToken, lang string) (Session, error) {
 	var p *auth.OIDCProvider
 	switch provider {
@@ -162,8 +162,6 @@ func (a *App) LoginWithProvider(ctx context.Context, provider, idToken, lang str
 		p = a.Google
 	case "apple":
 		p = a.Apple
-	case "facebook":
-		return Session{}, providerUnavailable("facebook")
 	default:
 		return Session{}, invalid("provider")
 	}

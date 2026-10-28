@@ -145,6 +145,7 @@ func (s *Server) routes(r chi.Router) {
 		r.Post("/threads/{id}/archive", s.archiveThread)
 		r.Post("/threads/{id}/close", s.closeThread)
 		r.Delete("/threads/{id}", s.leaveThread)
+		r.Delete("/messages/{id}/location", s.stopSharingLocation)
 
 		r.Post("/users/{id}/like", s.like)
 		r.Post("/users/{id}/report", s.reportUser)

@@ -242,6 +242,19 @@ type Message struct {
 	Lang            *string           `json:"lang,omitempty"`
 	Translations    map[string]string `json:"translations,omitempty"`
 	Photo           *Photo            `json:"photo,omitempty"`
+	Location        *MessageLocation  `json:"location,omitempty"`
+}
+
+// MessageLocation es la ubicación de un mensaje "location": la actual de quien la envió o un
+// punto de encuentro (solo en mensajes directos) o una veterinaria. Location queda en nil
+// cuando ya no es visible: el servidor borró las coordenadas.
+type MessageLocation struct {
+	Kind     string     `json:"kind"`
+	Location *geo.Point `json:"location,omitempty"`
+	Label    string     `json:"label,omitempty"`
+	Address  string     `json:"address,omitempty"`
+	PlaceID  string     `json:"placeId,omitempty"`
+	Hidden   bool       `json:"hidden,omitempty"`
 }
 
 // Thread es un chat con lo necesario para la bandeja.

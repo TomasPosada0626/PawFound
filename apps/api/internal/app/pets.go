@@ -140,7 +140,7 @@ func (a *App) CreateReport(ctx context.Context, ac Actor, in ReportInput) (Pet, 
 		if _, err := tx.Exec(ctx, `INSERT INTO thread_members (thread_id, user_id, read_at, joined_at) VALUES ($1, $2, $3, $3)`, groupID, ac.ID, now); err != nil {
 			return err
 		}
-		return insertSystemMessage(ctx, tx, groupID, ac, "system", "created", now)
+		return insertSystemMessage(ctx, tx, groupID, ac, "created", now)
 	})
 	if err != nil {
 		return Pet{}, err
@@ -520,7 +520,7 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 		}
 	}
 	now := a.now()
-	var closedFor []string
+	var closedFor, hidden []string
 	err = a.withTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE pets SET state = 'reunited', reunited_at = $2 WHERE id = $1`, petID, now); err != nil {
 			return err
@@ -535,7 +535,10 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 		if _, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, now); err != nil {
 			return err
 		}
-		if err := insertSystemMessage(ctx, tx, row.GroupID, ac, "system", "reunited", now); err != nil {
+		if hidden, err = hideCaseLocations(ctx, tx, petID, now); err != nil {
+			return err
+		}
+		if err := insertSystemMessage(ctx, tx, row.GroupID, ac, "reunited", now); err != nil {
 			return err
 		}
 		recipients, _ := tx.Query(ctx, `SELECT user_id FROM thread_members WHERE thread_id = $1
@@ -551,6 +554,7 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 	if err != nil {
 		return Pet{}, err
 	}
+	a.publishMessages(ctx, hidden)
 	a.notify(ctx, helpers, "thanked", petID, nil)
 	a.notify(ctx, closedFor, "case_closed", petID, nil)
 	return a.GetPet(ctx, ac.ID, petID)
@@ -583,13 +587,22 @@ func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 	if row.State != "active" {
 		return nil
 	}
-	return a.withTx(ctx, func(tx pgx.Tx) error {
+	now := a.now()
+	var hidden []string
+	err = a.withTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE pets SET state = 'archived' WHERE id = $1`, petID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, a.now())
+		if _, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, now); err != nil {
+			return err
+		}
+		hidden, err = hideCaseLocations(ctx, tx, petID, now)
 		return err
 	})
+	if err == nil {
+		a.publishMessages(ctx, hidden)
+	}
+	return err
 }
 
 // PossibleMatches para la familia de un caso (lost ↔ found).
@@ -648,9 +661,9 @@ func (a *App) notifyPossibleMatches(ctx context.Context, row petRow) error {
 	return nil
 }
 
-func insertSystemMessage(ctx context.Context, tx pgx.Tx, threadID string, ac Actor, kind, body string, at time.Time) error {
-	_, err := tx.Exec(ctx, `INSERT INTO messages (id, thread_id, author_id, author_short_name, kind, body, at) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		domain.NewID("m"), threadID, ac.ID, ac.ShortName(), kind, body, at)
+func insertSystemMessage(ctx context.Context, tx pgx.Tx, threadID string, ac Actor, body string, at time.Time) error {
+	_, err := tx.Exec(ctx, `INSERT INTO messages (id, thread_id, author_id, author_short_name, kind, body, at) VALUES ($1, $2, $3, $4, 'system', $5, $6)`,
+		domain.NewID("m"), threadID, ac.ID, ac.ShortName(), body, at)
 	return err
 }
 

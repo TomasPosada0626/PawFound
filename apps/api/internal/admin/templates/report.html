@@ -14,7 +14,7 @@
         <li class="{{if eq .ID $d.Message.ID}}reported{{end}}{{if ne .Kind "text"}} system{{end}}">
           <span class="who">{{if .AuthorShortName}}{{.AuthorShortName}}{{else}}cuenta eliminada{{end}}</span>
           <span class="when">{{date .At}}</span>
-          {{if eq .Kind "text"}}{{if .Text}}<p>{{.Text}}</p>{{end}}{{else if eq .Kind "sighting"}}<p>📍 Avistamiento en {{.Text}}</p>{{else}}<p class="muted">Evento del grupo</p>{{end}}
+          {{if eq .Kind "text"}}{{if .Text}}<p>{{.Text}}</p>{{end}}{{else if eq .Kind "sighting"}}<p>📍 Avistamiento en {{.Text}}</p>{{else if eq .Kind "location"}}<p>📍 {{if eq .Location.Kind "place"}}Veterinaria: {{.Location.Label}}{{else if eq .Location.Kind "meeting"}}Punto de encuentro compartido{{else}}Ubicación actual compartida{{end}} <span class="muted">(el panel no muestra coordenadas)</span></p>{{if .Text}}<p>{{.Text}}</p>{{end}}{{else}}<p class="muted">Evento del grupo</p>{{end}}
           {{if .Photo}}<img src="{{mediaPath .Photo.URL}}" alt="Foto enviada en el chat" width="{{.Photo.Width}}" height="{{.Photo.Height}}">{{end}}
         </li>
         {{end}}

@@ -3,7 +3,7 @@
 //	api                          sirve la API, el panel de moderación y las tareas periódicas
 //	api migrate                  aplica las migraciones pendientes y termina
 //	api grant-role <correo> <rol> da el rol user, moderator o admin (acceso al panel)
-//	api import-places            importa veterinarias y refugios del Valle de Aburrá (OpenStreetMap)
+//	api import-places            importa las veterinarias del Valle de Aburrá (OpenStreetMap)
 package main
 
 import (

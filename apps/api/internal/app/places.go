@@ -15,14 +15,16 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/geo"
 )
 
-// Veterinarias y refugios (capa del mapa). La fuente es OpenStreetMap, datos abiertos con
-// licencia ODbL: la app siempre muestra "© colaboradores de OpenStreetMap". Pueden estar
-// incompletos o desactualizados, por eso cada lugar se puede reportar.
+// Veterinarias: la capa del mapa y "Está herida: busquemos una veterinaria" al reportar una
+// mascota encontrada. La fuente es OpenStreetMap, datos abiertos con licencia ODbL: la app
+// siempre muestra "© colaboradores de OpenStreetMap". Pueden estar incompletos o
+// desactualizados, por eso cada lugar se puede reportar. Los refugios no se incluyen: en
+// Medellín no reciben mascotas encontradas.
 
 // PlacesAttribution acompaña cada respuesta (obligatoria por la licencia ODbL).
 const PlacesAttribution = "© colaboradores de OpenStreetMap"
 
-// Place es una veterinaria o un refugio.
+// Place es una veterinaria.
 type Place struct {
 	ID           string    `json:"id" db:"id"`
 	Kind         string    `json:"kind" db:"kind"`
@@ -46,7 +48,7 @@ func (a *App) Places(ctx context.Context, center geo.Point, radius int, kind str
 	if radius <= 0 || radius > 30_000 {
 		radius = 10_000
 	}
-	if kind != "" && kind != "vet" && kind != "shelter" {
+	if kind != "" && kind != "vet" {
 		return nil, invalid("kind")
 	}
 	rows, _ := a.DB.Query(ctx, `SELECT id, kind, name, lat, lng, address, phone, website, opening_hours, emergency, source FROM places
@@ -87,8 +89,7 @@ type overpassResponse struct {
 	} `json:"elements"`
 }
 
-// ImportPlaces descarga de la API Overpass de OpenStreetMap las veterinarias y refugios dentro
-// de la caja y los guarda (actualiza los existentes, sin duplicar). Lo corre a mano el equipo
+// ImportPlaces descarga de la API Overpass de OpenStreetMap las veterinarias dentro de la caja y los guarda (actualiza los existentes, sin duplicar). Lo corre a mano el equipo
 // con `api import-places`; devuelve cuántos lugares importó.
 func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64, client *http.Client) (int, error) {
 	if endpoint == "" {
@@ -100,7 +101,6 @@ func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64
 	box := fmt.Sprintf("%f,%f,%f,%f", bbox[0], bbox[1], bbox[2], bbox[3])
 	query := `[out:json][timeout:60];(` +
 		`node["amenity"="veterinary"](` + box + `);way["amenity"="veterinary"](` + box + `);` +
-		`node["amenity"="animal_shelter"](` + box + `);way["amenity"="animal_shelter"](` + box + `);` +
 		`);out center tags;`
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(url.Values{"data": {query}}.Encode()))
 	if err != nil {
@@ -126,9 +126,8 @@ func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64
 		if el.Center != nil {
 			lat, lng = el.Center.Lat, el.Center.Lon
 		}
-		kind := "vet"
-		if el.Tags["amenity"] == "animal_shelter" {
-			kind = "shelter"
+		if el.Tags["amenity"] != "veterinary" {
+			continue
 		}
 		name := domain.Clean(el.Tags["name"], 120)
 		if name == "" || !validPoint(geo.Point{Lat: lat, Lng: lng}) {
@@ -147,7 +146,7 @@ func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64
 			ON CONFLICT (source, source_id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name, lat = EXCLUDED.lat, lng = EXCLUDED.lng,
 				address = EXCLUDED.address, phone = EXCLUDED.phone, website = EXCLUDED.website, opening_hours = EXCLUDED.opening_hours,
 				emergency = EXCLUDED.emergency, updated_at = EXCLUDED.updated_at`,
-			domain.NewID("plc"), kind, name, lat, lng, optional(address), optional(phone), optional(website),
+			domain.NewID("plc"), "vet", name, lat, lng, optional(address), optional(phone), optional(website),
 			optional(el.Tags["opening_hours"]), emergency, sourceID, a.now()); err != nil {
 			return imported, err
 		}

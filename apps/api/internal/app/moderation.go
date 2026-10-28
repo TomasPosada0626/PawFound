@@ -339,6 +339,9 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 			if err == nil && tag.RowsAffected() == 0 {
 				err = ErrNotFound
 			}
+			if err == nil && in.Action == "remove_pet" {
+				_, err = hideCaseLocations(ctx, tx, in.PetID, now)
+			}
 		}
 		if err != nil {
 			return err

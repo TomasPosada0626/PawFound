@@ -30,20 +30,22 @@ var Bogota = time.FixedZone("COT", -5*3600)
 
 // Enumeraciones del contrato.
 var (
-	Species     = set("dog", "cat", "other")
-	Sexes       = set("male", "female", "unknown")
-	Ages        = set("puppy", "young", "adult", "senior", "unknown")
-	Sizes       = set("small", "medium", "large")
-	CaseKinds   = set("lost", "found")
-	Conditions  = set("good", "scared", "injured", "needs_vet")
-	Custodies   = set("with_me", "vet", "shelter", "left_there")
-	Langs       = set("es", "en")
-	Avatars     = set("dog", "cat", "fox", "panda", "bunny", "bear")
-	Titles      = set("animal_lover", "rescuer", "neighbor", "volunteer", "foster")
-	WhoMessage  = set("everyone", "verified", "nobody")
-	Reasons     = set("spam", "rude", "scam", "inappropriate", "other")
-	Platforms   = set("android", "ios")
-	FoundRadius = map[int]bool{400: true, 1000: true, 2000: true, 5000: true}
+	Species    = set("dog", "cat", "other")
+	Sexes      = set("male", "female", "unknown")
+	Ages       = set("puppy", "young", "adult", "senior", "unknown")
+	Sizes      = set("small", "medium", "large")
+	CaseKinds  = set("lost", "found")
+	Conditions = set("good", "scared", "injured", "needs_vet")
+	Custodies  = set("with_me", "vet", "shelter", "left_there")
+	// LocationKinds: ubicación actual y punto de encuentro (solo DM) o una veterinaria.
+	LocationKinds = set("current", "meeting", "place")
+	Langs         = set("es", "en")
+	Avatars       = set("dog", "cat", "fox", "panda", "bunny", "bear")
+	Titles        = set("animal_lover", "rescuer", "neighbor", "volunteer", "foster")
+	WhoMessage    = set("everyone", "verified", "nobody")
+	Reasons       = set("spam", "rude", "scam", "inappropriate", "other")
+	Platforms     = set("android", "ios")
+	FoundRadius   = map[int]bool{400: true, 1000: true, 2000: true, 5000: true}
 )
 
 func set(values ...string) map[string]bool {
