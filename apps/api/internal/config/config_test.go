@@ -19,15 +19,16 @@ func TestDevelopmentDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !c.Development() || c.SMSProvider != "log" || c.PushProvider != "log" || !c.MigrateOnStart || !c.JobsEnabled ||
+	if !c.Development() || c.SMTP.Port != "587" || c.PushProvider != "log" || !c.MigrateOnStart || !c.JobsEnabled ||
 		c.AccessTTL != 15*time.Minute || c.JobsInterval != time.Minute || c.Port != "8080" {
 		t.Fatalf("defaults = %+v", c)
 	}
 	v := base()
 	v["GOOGLE_CLIENT_IDS"] = " a.apps.googleusercontent.com, ,b "
-	v["DEV_FIXED_SMS_CODE"] = "123456"
+	v["DEV_FIXED_CODE"] = "123456"
+	v["SMTP_HOST"], v["SMTP_FROM"] = "smtp-relay.brevo.com", "pawfound.app@gmail.com"
 	c, err = Load(env(v))
-	if err != nil || len(c.GoogleClients) != 2 || c.GoogleClients[1] != "b" || c.FixedSMSCode != "123456" {
+	if err != nil || len(c.GoogleClients) != 2 || c.GoogleClients[1] != "b" || c.FixedCode != "123456" || c.SMTP.Host != "smtp-relay.brevo.com" {
 		t.Fatalf("lista = %+v %v", c.GoogleClients, err)
 	}
 }
@@ -40,12 +41,12 @@ func TestProductionRejectsDangerousSettings(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.SMSProvider != "none" || c.PushProvider != "none" || c.MigrateOnStart {
+	if c.SMTP.Host != "" || c.PushProvider != "none" || c.MigrateOnStart {
 		t.Fatalf("producción por defecto = %+v", c)
 	}
 	cases := map[string]map[string]string{
-		"SMS_PROVIDER=log":   {"SMS_PROVIDER": "log"},
-		"DEV_FIXED_SMS_CODE": {"DEV_FIXED_SMS_CODE": "123456"},
+		"SMTP sin remitente": {"SMTP_HOST": "smtp-relay.brevo.com"},
+		"DEV_FIXED_CODE":     {"DEV_FIXED_CODE": "123456"},
 		"https":              {"PUBLIC_API_URL": "http://api.pawfound.app"},
 	}
 	for name, extra := range cases {
@@ -71,9 +72,8 @@ func TestInvalidValues(t *testing.T) {
 		"intervalo":   {"JOBS_INTERVAL": "1s"},
 		"migrar":      {"MIGRATE_ON_START": "quizás"},
 		"jobs":        {"JOBS_ENABLED": "x"},
-		"sms":         {"SMS_PROVIDER": "twilio"},
 		"push":        {"PUSH_PROVIDER": "pigeon"},
-		"código fijo": {"DEV_FIXED_SMS_CODE": "12ab56"},
+		"código fijo": {"DEV_FIXED_CODE": "12ab56"},
 	} {
 		v := base()
 		for k, val := range extra {

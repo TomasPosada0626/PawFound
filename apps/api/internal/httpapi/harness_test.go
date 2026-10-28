@@ -74,7 +74,18 @@ func (p *fakePush) all() []providers.PushMessage {
 	return append([]providers.PushMessage(nil), p.sent...)
 }
 
-type fakeMailer struct{ links []string }
+type fakeMailer struct {
+	links []string
+	codes map[string]string
+}
+
+func (m *fakeMailer) SendVerificationCode(_ context.Context, email, code, _ string) error {
+	if m.codes == nil {
+		m.codes = map[string]string{}
+	}
+	m.codes[email] = code
+	return nil
+}
 
 func (m *fakeMailer) SendPasswordReset(_ context.Context, _ string, link string) error {
 	m.links = append(m.links, link)
@@ -107,9 +118,9 @@ func newHarness(t *testing.T) *harness {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	h := &harness{t: t, clock: c, push: &fakePush{}, mailer: &fakeMailer{}}
 	h.app = &app.App{
-		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("pruebas"), SMS: providers.LogSMS{Log: log},
+		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("pruebas"),
 		Push: h.push, Mailer: h.mailer, Media: media.LocalStore{Dir: t.TempDir()}, Log: log, Now: c.Now,
-		APIBaseURL: "http://api.test", WebBaseURL: "https://pawfound.test", FixedSMSCode: "123456", Translator: upperTranslator{},
+		APIBaseURL: "http://api.test", WebBaseURL: "https://pawfound.test", FixedCode: "123456", Translator: upperTranslator{},
 	}
 	h.app.Init()
 	server := &Server{App: h.app, Log: log}

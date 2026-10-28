@@ -22,6 +22,7 @@ type Config struct {
 	APIBaseURL     string
 	WebBaseURL     string
 	MediaDir       string
+	R2             R2
 	SMTP           SMTP
 	PushProvider   string
 	ExpoToken      string
@@ -45,6 +46,20 @@ type SMTP struct {
 	From     string
 }
 
+// R2 es el almacenamiento de fotos en Cloudflare R2. Sin cuenta configurada se usa el disco
+// local (MEDIA_DIR), que los hostings gratuitos borran en cada reinicio.
+type R2 struct {
+	AccountID string
+	Bucket    string
+	AccessKey string
+	SecretKey string
+}
+
+// Enabled indica si están todos los datos de R2.
+func (r R2) Enabled() bool {
+	return r.AccountID != "" && r.Bucket != "" && r.AccessKey != "" && r.SecretKey != ""
+}
+
 // Development indica el entorno local.
 func (c Config) Development() bool { return c.Env == "development" }
 
@@ -64,6 +79,10 @@ func Load(getenv func(string) string) (Config, error) {
 		APIBaseURL:  get("PUBLIC_API_URL", "http://localhost:8080"),
 		WebBaseURL:  get("PUBLIC_WEB_URL", "https://pawfound.app"),
 		MediaDir:    get("MEDIA_DIR", "./data/media"),
+		R2: R2{
+			AccountID: get("CLOUDFLARE_R2_ACCOUNT_ID", ""), Bucket: get("CLOUDFLARE_R2_BUCKET", ""),
+			AccessKey: get("CLOUDFLARE_R2_ACCESS_KEY_ID", ""), SecretKey: get("CLOUDFLARE_R2_SECRET_ACCESS_KEY", ""),
+		},
 		SMTP: SMTP{
 			Host: get("SMTP_HOST", ""), Port: get("SMTP_PORT", "587"), Username: get("SMTP_USERNAME", ""),
 			Password: get("SMTP_PASSWORD", ""), From: get("SMTP_FROM", ""),
@@ -105,6 +124,10 @@ func Load(getenv func(string) string) (Config, error) {
 	}
 	if c.PushProvider == "" {
 		c.PushProvider = map[bool]string{true: "log", false: "none"}[c.Development()]
+	}
+	partialR2 := c.R2.AccountID != "" || c.R2.Bucket != "" || c.R2.AccessKey != "" || c.R2.SecretKey != ""
+	if partialR2 && !c.R2.Enabled() {
+		errs = append(errs, errors.New("Cloudflare R2 a medias: define CLOUDFLARE_R2_ACCOUNT_ID, _BUCKET, _ACCESS_KEY_ID y _SECRET_ACCESS_KEY"))
 	}
 	if c.SMTP.Host != "" && c.SMTP.From == "" {
 		errs = append(errs, errors.New("SMTP_FROM es obligatorio si se define SMTP_HOST"))

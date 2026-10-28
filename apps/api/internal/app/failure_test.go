@@ -31,7 +31,7 @@ func TestEveryOperationFailsCleanlyWithoutDatabase(t *testing.T) {
 	tokens, _ := auth.NewTokens(strings.Repeat("k", 32), time.Hour, now)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a := &app.App{
-		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("x"), SMS: providers.LogSMS{Log: log},
+		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("x"), Mailer: providers.LogMailer{Log: log},
 		Media: media.LocalStore{Dir: t.TempDir()}, Log: log, Now: now,
 	}
 	a.Init()
@@ -41,14 +41,13 @@ func TestEveryOperationFailsCleanlyWithoutDatabase(t *testing.T) {
 
 	calls := map[string]func() error{
 		"Register": func() error {
-			_, err := a.Register(ctx, app.RegisterInput{Name: "Ana", Email: "a@b.co", Phone: "3001234567", Password: "Patitas2026", AcceptTerms: true, ConfirmAge: true})
+			_, err := a.Register(ctx, app.RegisterInput{Name: "Ana Gómez", Email: "a@b.co", Username: "ana_g", Password: "Patitas2026", AcceptTerms: true, ConfirmAge: true})
 			return err
 		},
 		"Login":        func() error { _, err := a.Login(ctx, "a@b.co", "x"); return err },
 		"Refresh":      func() error { _, err := a.Refresh(ctx, "x"); return err },
 		"Logout":       func() error { return a.Logout(ctx, "x") },
 		"Authenticate": func() error { _, err := a.Authenticate(ctx, token); return err },
-		"StartPhone":   func() error { return a.StartPhoneVerification(ctx, ac, "3001234567") },
 		"Resend":       func() error { _, err := a.ResendCode(ctx, ac); return err },
 		"Verify":       func() error { return a.VerifyCode(ctx, ac, "123456") },
 		"ResetConfirm": func() error { return a.ResetPassword(ctx, "t", "Patitas2026") },
@@ -127,6 +126,15 @@ func TestEveryOperationFailsCleanlyWithoutDatabase(t *testing.T) {
 		"GrantRole":   func() error { return a.GrantRole(ctx, "a@b.co", "admin") },
 		"PwReset":     func() error { return a.RequestPasswordReset(ctx, "a@b.co") },
 		"OAuthGoogle": func() error { _, err := a.LoginWithProvider(ctx, "google", "x", "es"); return err },
+		"Stories":     func() error { _, err := a.StoryFeed(ctx, "", point, 0); return err },
+		"AddStory":    func() error { _, err := a.AddStory(ctx, ac, "p", app.StoryInput{Text: "hola"}); return err },
+		"RemoveStory": func() error { return a.RemoveStory(ctx, ac, "s") },
+		"Places":      func() error { _, err := a.Places(ctx, point, 0, ""); return err },
+		"ReportPlace": func() error { return a.ReportPlace(ctx, ac, "p", "cerró") },
+		"Activity":    func() error { _, err := a.AppActivity(ctx); return err },
+		"CloseDM":     func() error { return a.CloseDirect(ctx, ac, "t") },
+		"Archive":     func() error { _, err := a.ToggleArchive(ctx, ac, "t"); return err },
+		"Leave":       func() error { return a.LeaveThread(ctx, ac, "t") },
 	}
 	for name, call := range calls {
 		err := call()

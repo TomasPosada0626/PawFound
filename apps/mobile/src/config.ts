@@ -1,5 +1,9 @@
 /** Enlaces públicos de la app (deep links verificados en app.json → android.intentFilters). */
-export const PUBLIC_BASE_URL = "https://pawfound.app";
+/**
+ * Dirección del sitio web (enlaces compartidos y QR). Mientras no haya dominio propio se usa la
+ * gratuita de Cloudflare Pages, por ejemplo https://pawfound.pages.dev (EXPO_PUBLIC_WEB_URL).
+ */
+export const PUBLIC_BASE_URL = (process.env.EXPO_PUBLIC_WEB_URL ?? "https://pawfound.app").replace(/\/+$/, "");
 export const SHARE_BASE_URL = `${PUBLIC_BASE_URL}/mascota/`;
 
 /**

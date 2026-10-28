@@ -19,9 +19,9 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/auth"
 )
 
-func registerBody(email, phone string) map[string]any {
+func registerBody(email, username string) map[string]any {
 	return map[string]any{
-		"name": "Valentina Arango", "email": email, "phone": phone, "password": "Patitas2026",
+		"name": "Valentina Arango", "email": email, "username": username, "password": "Patitas2026",
 		"lang": "es", "acceptTerms": true, "confirmAge": true,
 	}
 }
@@ -29,85 +29,114 @@ func registerBody(email, phone string) map[string]any {
 func TestRegisterVerifyAndLogin(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("Valen@PawFound.app", "300 123 4567"), &session)
-	if !session.NeedsVerification || session.Me.User.Verified || session.Me.User.Email != "valen@pawfound.app" {
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("Valen@PawFound.app", "@Valen_A"), &session)
+	if !session.NeedsVerification || session.Me.User.Verified || session.Me.User.Email != "valen@pawfound.app" || session.Me.User.Username != "valen_a" {
 		t.Fatalf("registro: %+v", session)
 	}
-	if *session.Me.User.Phone != "+573001234567" || session.Me.User.Username != "valen" {
-		t.Fatalf("celular/usuario: %+v", session.Me.User)
+	if session.Me.User.Phone != nil {
+		t.Fatal("el registro no pide celular")
 	}
 	tok := session.AccessToken
 
 	// Duplicados y validaciones.
-	h.expectError(http.StatusConflict, "email_taken", http.MethodPost, "/v1/auth/register", "", registerBody("valen@pawfound.app", "3109998877"))
-	h.expectError(http.StatusUnprocessableEntity, "invalid_phone", http.MethodPost, "/v1/auth/register", "", registerBody("otra@pawfound.app", "6011234567"))
-	weak := registerBody("otra@pawfound.app", "3109998877")
-	weak["password"] = "corta"
-	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/auth/register", "", weak)
-	noTerms := registerBody("otra@pawfound.app", "3109998877")
-	noTerms["acceptTerms"] = false
-	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/auth/register", "", noTerms)
+	h.expectError(http.StatusConflict, "email_taken", http.MethodPost, "/v1/auth/register", "", registerBody("valen@pawfound.app", "otra"))
+	h.expectError(http.StatusConflict, "username_taken", http.MethodPost, "/v1/auth/register", "", registerBody("otra@pawfound.app", "valen_a"))
+	h.expectError(http.StatusUnprocessableEntity, "invalid_username", http.MethodPost, "/v1/auth/register", "", registerBody("otra@pawfound.app", "a b"))
+	for _, bad := range []map[string]any{
+		{"password": "corta"},
+		{"password": "sinmayusculas1"},
+		{"password": "SINMINUSCULAS1"},
+		{"password": "SinNumeros"},
+		{"name": "Valentina"},
+		{"acceptTerms": false},
+		{"email": "no-es-correo"},
+	} {
+		body := registerBody("otra@pawfound.app", "otra_cuenta")
+		for k, v := range bad {
+			body[k] = v
+		}
+		h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/auth/register", "", body)
+	}
 
 	// Sin insignia azul no se publica.
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/pets", tok, lostReport("Max", laureles, nil))
 
 	// Código incorrecto descuenta intentos; el reenvío respeta 45 s.
-	h.expectError(http.StatusUnprocessableEntity, "wrong_code", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "000000"})
-	h.expectError(http.StatusTooManyRequests, "rate_limited", http.MethodPost, "/v1/auth/phone/resend", tok, nil)
+	h.expectError(http.StatusUnprocessableEntity, "wrong_code", http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "000000"})
+	h.expectError(http.StatusTooManyRequests, "rate_limited", http.MethodPost, "/v1/auth/email/resend", tok, nil)
 	h.clock.Advance(46 * time.Second)
-	h.must(http.StatusOK, http.MethodPost, "/v1/auth/phone/resend", tok, nil, nil)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/email/resend", tok, nil, nil)
+	if h.mailer.codes["valen@pawfound.app"] != "123456" {
+		t.Fatalf("el código debe llegar al correo: %v", h.mailer.codes)
+	}
 	var me app.Me
-	h.must(http.StatusOK, http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"}, &me)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "123456"}, &me)
 	if !me.User.Verified {
 		t.Fatal("la verificación debe otorgar la insignia azul")
 	}
-	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"})
+	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "123456"})
+	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/auth/email/resend", tok, nil)
 
-	// Login: mismo error para correo inexistente y contraseña incorrecta.
-	h.expectError(http.StatusUnauthorized, "invalid_credentials", http.MethodPost, "/v1/auth/login", "", map[string]string{"email": "valen@pawfound.app", "password": "Otra2026"})
-	h.expectError(http.StatusUnauthorized, "invalid_credentials", http.MethodPost, "/v1/auth/login", "", map[string]string{"email": "nadie@pawfound.app", "password": "Otra2026"})
+	// Login con correo o con usuario; mismo error para cuenta inexistente y contraseña incorrecta.
+	h.expectError(http.StatusUnauthorized, "invalid_credentials", http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "valen@pawfound.app", "password": "Otra2026"})
+	h.expectError(http.StatusUnauthorized, "invalid_credentials", http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "nadie", "password": "Otra2026"})
 	var login app.Session
-	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"email": " VALEN@pawfound.app", "password": "Patitas2026"}, &login)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": " VALEN@pawfound.app", "password": "Patitas2026"}, &login)
 	if login.NeedsVerification || login.ExpiresIn <= 0 {
 		t.Fatalf("login: %+v", login)
 	}
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "@Valen_A", "password": "Patitas2026"}, &login)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"email": "valen@pawfound.app", "password": "Patitas2026"}, nil)
 
-	// Un celular verificado no se puede usar en otra cuenta.
-	h.expectError(http.StatusConflict, "phone_taken", http.MethodPost, "/v1/auth/register", "", registerBody("tercera@pawfound.app", "+573001234567"))
+	// El celular es opcional, se agrega en el perfil y no se verifica.
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", tok, map[string]string{"phone": "300 123 4567"}, &me)
+	if me.User.Phone == nil || *me.User.Phone != "+573001234567" {
+		t.Fatalf("celular: %+v", me.User.Phone)
+	}
+	h.expectError(http.StatusUnprocessableEntity, "invalid_phone", http.MethodPatch, "/v1/me", tok, map[string]string{"phone": "123"})
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", tok, map[string]string{"phone": ""}, &me)
+	if me.User.Phone != nil {
+		t.Fatal("el celular se puede borrar")
+	}
 }
 
 func TestVerificationLocksAfterFiveAttempts(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("lock@pawfound.app", "3001112233"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("lock@pawfound.app", "lock"), &session)
 	tok := session.AccessToken
 	for i := 0; i < 4; i++ {
-		h.expectError(http.StatusUnprocessableEntity, "wrong_code", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "999999"})
+		h.expectError(http.StatusUnprocessableEntity, "wrong_code", http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "999999"})
 	}
-	h.expectError(http.StatusTooManyRequests, "locked", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "999999"})
+	h.expectError(http.StatusTooManyRequests, "locked", http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "999999"})
 	// Bloqueado, ni el código correcto sirve.
-	h.expectError(http.StatusTooManyRequests, "locked", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"})
-	h.clock.Advance(6 * time.Minute)
+	h.expectError(http.StatusTooManyRequests, "locked", http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "123456"})
 	// Pasado el bloqueo, el código ya venció (10 min desde el envío).
-	h.clock.Advance(5 * time.Minute)
-	h.expectError(http.StatusGone, "expired", http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"})
-	h.must(http.StatusOK, http.MethodPost, "/v1/auth/phone/resend", tok, nil, nil)
-	h.must(http.StatusOK, http.MethodPost, "/v1/auth/phone/verify", tok, map[string]string{"code": "123456"}, nil)
+	h.clock.Advance(11 * time.Minute)
+	h.expectError(http.StatusGone, "expired", http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "123456"})
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/email/resend", tok, nil, nil)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/email/verify", tok, map[string]string{"code": "123456"}, nil)
 
-	// Cambiar de número (paso de login social) vuelve a exigir verificación.
-	h.must(http.StatusNoContent, http.MethodPost, "/v1/auth/phone", tok, map[string]string{"phone": "3207654321"}, nil)
-	var me app.Me
-	h.must(http.StatusOK, http.MethodGet, "/v1/me", tok, nil, &me)
-	if me.User.Verified || *me.User.Phone != "+573207654321" {
-		t.Fatalf("cambio de número: %+v", me.User)
+	// Entrar sin verificar envía un código nuevo, salvo que el último siga recién enviado.
+	var other app.Session
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("sin@pawfound.app", "sin_verificar"), &other)
+	delete(h.mailer.codes, "sin@pawfound.app")
+	var login app.Session
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "sin_verificar", "password": "Patitas2026"}, &login)
+	if !login.NeedsVerification || h.mailer.codes["sin@pawfound.app"] != "" {
+		t.Fatalf("no debe reenviar dentro de los 45 s: %+v %v", login.NeedsVerification, h.mailer.codes)
 	}
-	h.expectError(http.StatusUnprocessableEntity, "invalid_phone", http.MethodPost, "/v1/auth/phone", tok, map[string]string{"phone": "123"})
+	h.clock.Advance(46 * time.Second)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "sin_verificar", "password": "Patitas2026"}, &login)
+	if h.mailer.codes["sin@pawfound.app"] != "123456" {
+		t.Fatal("al entrar sin verificar debe llegar un código nuevo")
+	}
 }
 
 func TestRefreshRotationAndReuseDetection(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("rot@pawfound.app", "3005556677"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("rot@pawfound.app", "rot"), &session)
 	var next app.Session
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": session.RefreshToken}, &next)
 	if next.RefreshToken == session.RefreshToken {
@@ -136,7 +165,7 @@ func TestRefreshRotationAndReuseDetection(t *testing.T) {
 func TestPasswordReset(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("reset@pawfound.app", "3001239876"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("reset@pawfound.app", "reset"), &session)
 	// Misma respuesta exista o no la cuenta.
 	h.must(http.StatusAccepted, http.MethodPost, "/v1/auth/password-reset", "", map[string]string{"email": "nadie@pawfound.app"}, nil)
 	h.must(http.StatusAccepted, http.MethodPost, "/v1/auth/password-reset", "", map[string]string{"email": "reset@pawfound.app"}, nil)
@@ -174,7 +203,8 @@ func TestOAuthLogin(t *testing.T) {
 	}
 	var session app.Session
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "google", "idToken": sign("g-1", "daniel@gmail.com", true), "lang": "en"}, &session)
-	if !session.NeedsPhone || session.Me.User.Email != "daniel@gmail.com" || session.Me.User.Lang != "en" {
+	// Google ya confirmó el correo: la cuenta queda verificada, sin código.
+	if session.NeedsVerification || !session.Me.User.Verified || session.Me.User.Email != "daniel@gmail.com" || session.Me.User.Lang != "en" {
 		t.Fatalf("oauth: %+v", session)
 	}
 	var again app.Session

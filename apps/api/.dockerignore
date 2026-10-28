@@ -1,0 +1,4 @@
+data/
+coverage.out
+*.test
+*.exe

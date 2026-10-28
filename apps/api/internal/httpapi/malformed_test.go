@@ -20,8 +20,9 @@ func TestMalformedJSONEverywhere(t *testing.T) {
 		{http.MethodPost, "/v1/auth/logout", ""},
 		{http.MethodPost, "/v1/auth/password-reset", ""},
 		{http.MethodPost, "/v1/auth/password-reset/confirm", ""},
-		{http.MethodPost, "/v1/auth/phone", u.Token},
-		{http.MethodPost, "/v1/auth/phone/verify", u.Token},
+		{http.MethodPost, "/v1/auth/email/verify", u.Token},
+		{http.MethodPost, "/v1/pets/" + pet.ID + "/stories", u.Token},
+		{http.MethodPost, "/v1/places/plc_x/report", u.Token},
 		{http.MethodPatch, "/v1/me", u.Token},
 		{http.MethodPut, "/v1/me/lang", u.Token},
 		{http.MethodPut, "/v1/me/notification-prefs", u.Token},
@@ -71,6 +72,6 @@ func TestReportValidationCoversEveryField(t *testing.T) {
 	// Sin proveedor de correo, el restablecimiento responde igual (y queda en el log).
 	h.app.Mailer = nil
 	var session struct{ AccessToken string }
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("mail@pawfound.app", "3004443322"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("mail@pawfound.app", "mail"), &session)
 	h.must(http.StatusAccepted, http.MethodPost, "/v1/auth/password-reset", "", map[string]string{"email": "mail@pawfound.app"}, nil)
 }

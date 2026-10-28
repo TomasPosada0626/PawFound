@@ -1,30 +1,33 @@
 package providers
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
-func TestLogProvidersNeverLeakFullPhone(t *testing.T) {
+func TestLogProvidersNeverLeakFullEmail(t *testing.T) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	ctx := context.Background()
-	if err := (LogSMS{Log: log}).SendCode(ctx, "+573001234567", "123456"); err != nil {
+	if err := (LogMailer{Log: log}).SendVerificationCode(ctx, "valentina.arango@gmail.com", "123456", "es"); err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(buf.String(), "3001234567") || !strings.Contains(buf.String(), "…67") {
+	if strings.Contains(buf.String(), "valentina.arango") || !strings.Contains(buf.String(), "gmail.com") || !strings.Contains(buf.String(), "123456") {
 		t.Fatalf("log = %s", buf.String())
 	}
-	if suffix("1") != "**" {
-		t.Fatal("suffix corto")
+	if domainOf("sin-arroba") != "?" {
+		t.Fatal("domainOf")
 	}
 	if err := (LogPush{Log: log}).Send(ctx, []PushMessage{{Title: "t", URL: "/pet/1"}}); err != nil {
 		t.Fatal(err)
@@ -32,8 +35,63 @@ func TestLogProvidersNeverLeakFullPhone(t *testing.T) {
 	if err := (LogMailer{Log: log}).SendPasswordReset(ctx, "a@b.co", "https://pawfound.app/reset?t=x"); err != nil {
 		t.Fatal(err)
 	}
-	if err := (DisabledSMS{}).SendCode(ctx, "", ""); !errors.Is(err, ErrDisabled) {
-		t.Fatal("DisabledSMS")
+}
+
+// fakeSMTP responde como un servidor SMTP sin STARTTLS: PawFound debe negarse a enviar en
+// texto plano (el código viajaría sin cifrar).
+func fakeSMTP(t *testing.T) string {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		r := bufio.NewReader(conn)
+		_, _ = conn.Write([]byte("220 fake ESMTP\r\n"))
+		for {
+			line, err := r.ReadString('\n')
+			if err != nil {
+				return
+			}
+			switch {
+			case strings.HasPrefix(strings.ToUpper(line), "EHLO"):
+				_, _ = conn.Write([]byte("250-fake\r\n250 AUTH PLAIN\r\n"))
+			case strings.HasPrefix(strings.ToUpper(line), "QUIT"):
+				_, _ = conn.Write([]byte("221 bye\r\n"))
+				return
+			default:
+				_, _ = conn.Write([]byte("250 ok\r\n"))
+			}
+		}
+	}()
+	return ln.Addr().String()
+}
+
+func TestSMTPMailerSafety(t *testing.T) {
+	ctx := context.Background()
+	if err := (SMTPMailer{}).SendVerificationCode(ctx, "a@b.co", "1", "es"); !errors.Is(err, ErrDisabled) {
+		t.Fatalf("sin host = %v", err)
+	}
+	m := SMTPMailer{Host: "127.0.0.1", Port: "1", From: "pawfound@x.co", Timeout: time.Second}
+	if err := m.SendVerificationCode(ctx, "a@b.co\r\nBcc: todos@x.co", "1", "es"); !errors.Is(err, errHeaderInjection) {
+		t.Fatalf("inyección de cabeceras = %v", err)
+	}
+	if err := m.SendPasswordReset(ctx, "a@b.co", "https://x"); err == nil {
+		t.Fatal("servidor caído")
+	}
+	host, port, _ := net.SplitHostPort(fakeSMTP(t))
+	plain := SMTPMailer{Host: host, Port: port, From: "pawfound@x.co", Timeout: 2 * time.Second}
+	if err := plain.SendVerificationCode(ctx, "a@b.co", "123456", "en"); err == nil || !strings.Contains(err.Error(), "STARTTLS") {
+		t.Fatalf("sin STARTTLS = %v", err)
+	}
+	if err := (SMTPMailer{Host: "127.0.0.1", Port: "465", From: "x@x.co", Timeout: time.Second}).SendVerificationCode(ctx, "a@b.co", "1", "fr"); err == nil {
+		t.Fatal("TLS directo sin servidor")
 	}
 }
 

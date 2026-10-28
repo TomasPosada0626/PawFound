@@ -7,49 +7,43 @@ import (
 	"time"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
-	"github.com/TomasPosada0626/PawFound/apps/api/internal/providers"
 )
 
-func TestSMSProviderAndAntiFraudLimits(t *testing.T) {
+func TestEmailProviderAndAntiAbuseLimits(t *testing.T) {
 	h := newHarness(t)
-	// Sin proveedor de SMS (producción sin evaluar): el registro falla claro y no deja la
+	// Sin proveedor de correo (producción sin configurar): el registro falla claro y no deja la
 	// cuenta a medias, así la persona puede reintentar con el mismo correo.
-	h.app.SMS = providers.DisabledSMS{}
-	h.expectError(http.StatusServiceUnavailable, "provider_unavailable", http.MethodPost, "/v1/auth/register", "", registerBody("sin@pawfound.app", "3001110000"))
+	h.app.Mailer = nil
+	h.expectError(http.StatusServiceUnavailable, "provider_unavailable", http.MethodPost, "/v1/auth/register", "", registerBody("sin@pawfound.app", "sin_correo"))
 	if n := h.count(`SELECT count(*) FROM users WHERE email = 'sin@pawfound.app'`); n != 0 {
 		t.Fatal("quedó una cuenta sin poder verificarse")
 	}
-	h.app.SMS = providers.LogSMS{Log: h.app.Log}
+	h.app.Mailer = h.mailer
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("sin@pawfound.app", "3001110000"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("sin@pawfound.app", "sin_correo"), &session)
 
-	// Antifraude: máximo 5 SMS por número por hora. Ya van 2: el intento sin proveedor también
-	// cuenta (un atacante no debe poder reintentar gratis) y el registro.
-	for i := 0; i < 3; i++ {
-		h.must(http.StatusNoContent, http.MethodPost, "/v1/auth/phone", session.AccessToken, map[string]string{"phone": "3001110000"}, nil)
+	// Antiabuso: máximo 5 códigos por correo por hora (el intento sin proveedor no llegó a contar
+	// porque falla antes; el registro gastó uno).
+	for i := 0; i < 4; i++ {
+		h.clock.Advance(46 * time.Second)
+		h.must(http.StatusOK, http.MethodPost, "/v1/auth/email/resend", session.AccessToken, nil, nil)
 	}
-	h.expectError(http.StatusTooManyRequests, "rate_limited", http.MethodPost, "/v1/auth/phone", session.AccessToken, map[string]string{"phone": "3001110000"})
-
-	// Un número ya verificado por otra cuenta no se puede tomar.
-	taken := h.user("Dueña del número", true)
-	var phone string
-	_ = h.app.DB.QueryRow(t.Context(), `SELECT phone FROM users WHERE id = $1`, taken.ID).Scan(&phone)
-	h.exec(`UPDATE users SET phone = '+573209998877' WHERE id = $1`, taken.ID)
-	h.expectError(http.StatusConflict, "phone_taken", http.MethodPost, "/v1/auth/phone", session.AccessToken, map[string]string{"phone": "3209998877"})
-	// Sin verificación pendiente no hay nada que reenviar ni verificar.
-	fresh := h.user("Sin código", false)
-	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/auth/phone/resend", fresh.Token, nil)
+	h.clock.Advance(46 * time.Second)
+	h.expectError(http.StatusTooManyRequests, "rate_limited", http.MethodPost, "/v1/auth/email/resend", session.AccessToken, nil)
+	// Una cuenta ya verificada no pide códigos.
+	verified := h.user("Verificada", true)
+	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/auth/email/resend", verified.Token, nil)
 }
 
 func TestOAuthLinksVerifiedEmailToExistingAccount(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("ana@gmail.com", "3005550000"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("ana@gmail.com", "ana_g"), &session)
 	idp := newTestIDP(t)
 	h.app.Google = idp.provider("google")
 	var viaGoogle app.Session
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/oauth", "", map[string]string{"provider": "google", "idToken": idp.token("g-9", "ANA@gmail.com", true)}, &viaGoogle)
-	if viaGoogle.Me.User.ID != session.Me.User.ID || !viaGoogle.NeedsPhone {
+	if viaGoogle.Me.User.ID != session.Me.User.ID || !viaGoogle.Me.User.Verified {
 		t.Fatalf("debía entrar a la cuenta existente: %+v", viaGoogle.Me.User)
 	}
 	// Una cuenta suspendida no entra ni por Google.

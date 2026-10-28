@@ -99,8 +99,14 @@ func run(args []string, logger *slog.Logger) error {
 	a := &app.App{
 		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher(cfg.JWTSecret), Log: logger,
 		Google: auth.GoogleProvider(cfg.GoogleClients), Apple: auth.AppleProvider(cfg.AppleClients),
-		Media: media.LocalStore{Dir: cfg.MediaDir}, APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL,
+		APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL,
 		FixedCode: cfg.FixedCode,
+	}
+	// Fotos: Cloudflare R2 si está configurado; si no, el disco local (solo para desarrollo).
+	if cfg.R2.Enabled() {
+		a.Media = media.R2(cfg.R2.AccountID, cfg.R2.Bucket, cfg.R2.AccessKey, cfg.R2.SecretKey)
+	} else {
+		a.Media = media.LocalStore{Dir: cfg.MediaDir}
 	}
 	switch {
 	case cfg.SMTP.Host != "":
