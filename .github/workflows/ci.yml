@@ -54,8 +54,17 @@ jobs:
           cache: npm
           cache-dependency-path: apps/mobile/package-lock.json
       - run: npm ci
+      - name: Versiones alineadas con el SDK de Expo
+        run: npx expo install --check
       - run: npx tsc --noEmit
       - run: npx eslint .
-      - name: Tests
-        run: npm test -- --ci --watchAll=false
-        if: ${{ hashFiles('apps/mobile/**/*.test.ts', 'apps/mobile/**/*.test.tsx') != '' }}
+      - name: Formato (Prettier)
+        run: npx prettier --check "app/**/*.{ts,tsx}" "src/**/*.{ts,tsx}" "__tests__/**/*.tsx"
+      # Unitarias + flujos completos (expo-router/testing-library). El umbral de cobertura
+      # (≥ 80 % líneas/sentencias) está en package.json → jest.coverageThreshold.
+      - name: Tests y cobertura
+        run: npm test -- --ci --watchAll=false --coverage
+      # Bloquea vulnerabilidades críticas en dependencias de runtime. Los "high" restantes
+      # son de la cadena de build de Expo CLI y están documentados en apps/mobile/README.md.
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=critical

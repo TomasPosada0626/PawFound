@@ -79,6 +79,8 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 - Límite de 2 publicaciones por cuenta por día, validado en backend (no solo en el cliente), para prevenir spam.
 - El autor de un reporte se muestra con nombre corto/inicial, nunca el nombre completo, a otras personas usuarias — minimización de datos frente a alguien que ya conoce tu ubicación aproximada por el radio de búsqueda.
 - La persona usuaria puede exportar sus datos y eliminar su cuenta (derecho de portabilidad y al olvido) de forma autoservicio desde Privacidad y seguridad, además del canal de soporte para solicitudes ARCO.
+- Chats traducidos automáticamente al idioma de cada persona (español/inglés), con opción de
+  ver el original; la traducción la hace la API con un proveedor evaluado, nunca el cliente.
 - Bilingüe desde la arquitectura: español como idioma predeterminado, inglés como segundo idioma soportado desde el día uno de la implementación (ningún texto de UI embebido directamente en componentes).
 - Responsive en Android: debe verse correcto en pantallas pequeñas, grandes y plegables, no solo en el tamaño del mockup de referencia.
 

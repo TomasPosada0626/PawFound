@@ -39,6 +39,12 @@ PawFound tiene dos componentes: una API en Go que expone el dominio (usuarios, m
 - **Geoespacial**: cada mascota reportada tiene una ubicación aproximada y un radio de búsqueda que se expande automáticamente con el tiempo transcurrido desde el último avistamiento (regla exacta pendiente de [definir en producto](https://github.com/TomasPosada0626/PawFound/issues) — épica Producto y descubrimiento).
 - **Mensajería**: modelo compartido para DMs y grupos; cada caso (mascota) crea automáticamente su grupo asociado ("Encontremos a [nombre]" / "Encontremos a su familia").
 - **Moderación**: reglas descritas en [docs/legal/moderacion-y-ugc.md](legal/moderacion-y-ugc.md) — revisión proporcional al riesgo, no ocultamiento automático solo por volumen de reportes (3 reportes por sí solos no ocultan nada; se evalúan con señales adicionales, precisamente para evitar sabotaje coordinado).
+- **Traducción de chats**: cada mensaje guarda el idioma de quien lo escribió (`lang`) y la API
+  lo traduce una sola vez hacia cada idioma presente entre los miembros del hilo
+  (`translations`). La app muestra la traducción al idioma de quien lee, con "Ver original"
+  y un interruptor para desactivarla. El proveedor (DeepL, Google o un LLM) recibe contenido
+  de chat, así que queda sujeto a la misma evaluación de privacidad que los demás proveedores
+  antes de activarse; sin proveedor, los mensajes se muestran en su idioma original.
 - **Alerta Ángel**: envío de SMS geolocalizado a usuarios cercanos cuando se publica un reporte de mascota perdida, con enlace profundo (`https://pawfound.app/alerta/angel/<id>`) al detalle en la app.
 
 ## App (Expo / Android)
@@ -113,6 +119,12 @@ PR hacia `develop`; los E2E de flujo completo corren al menos antes de cada fusi
 fusiona — ver `.github/pull_request_template.md`.
 
 ## Decisiones ya resueltas
+
+- Fórmula del círculo de vida compartida entre app y API mediante vectores de prueba en
+  [`packages/contracts/fixtures/life-circle.json`](../packages/contracts/fixtures/life-circle.json):
+  `apps/mobile/src/domain/lifeCircle.ts` y `apps/api/internal/lifecircle` validan contra el
+  mismo archivo. La aproximación de ubicación (celdas fijas de 250 m, deterministas para que
+  no se puedan promediar) está implementada igual en ambos lados.
 
 - Radio del "círculo de vida" **por perfil** (especie + si hubo evento traumático), no una sola fórmula — [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10). Ver la tabla completa en [PRODUCT.md § Capabilities and Constraints](../PRODUCT.md#capabilities-and-constraints). Informado por literatura general de búsqueda de mascotas perdidas, no por consulta directa con un experto certificado.
 - Ubicación en mapa/detalle: siempre aproximada, nunca dirección exacta por defecto; la dirección exacta solo se comparte manualmente por mensaje directo — [issue #46](https://github.com/TomasPosada0626/PawFound/issues/46).
