@@ -10,6 +10,7 @@ import type {
   NotificationPrefs,
   OwnedPet,
   PetCase,
+  Place,
   StoryItem,
   PetSize,
   PrivacyPrefs,
@@ -83,6 +84,11 @@ export type BackendState = {
   profileLikes: Record<string, string[]>;
   /** Actualizaciones de las historias de casos (no vencen; se quitan al cerrar el caso). */
   stories: StoryItem[];
+  /**
+   * Veterinarias y refugios cercanos. En demostración está vacío: no se inventan lugares; con
+   * el servidor se cargan de OpenStreetMap (api import-places).
+   */
+  places: Place[];
 };
 
 export type OwnedPetInput = Omit<OwnedPet, "id" | "ownerId" | "createdAt" | "lastCaseId">;

@@ -5,6 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/layout";
 import { PetMap } from "@/components/map/PetMap";
+import { PlaceSheet } from "@/components/PlaceSheet";
 import { PetCard, petDisplayName } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, Chip, ToggleRow } from "@/components/ui/Controls";
@@ -14,7 +15,7 @@ import { Text } from "@/components/ui/Text";
 import { distanceMeters, formatDistance, regionForRadius, type Region } from "@/domain/geo";
 import { currentRadius } from "@/domain/lifeCircle";
 import { clusterPets, type ClusterItem } from "@/domain/rules";
-import type { PetCase } from "@/domain/types";
+import type { PetCase, Place } from "@/domain/types";
 import { useNow } from "@/hooks/useNow";
 import { useI18n } from "@/i18n/I18nProvider";
 import { DEFAULT_FILTERS, filterPets, type KindFilter, type PetFilters } from "@/services/selectors";
@@ -42,8 +43,14 @@ export default function MapScreen() {
   const [consentOpen, setConsentOpen] = useState(false);
   const [satellite, setSatellite] = useState(false);
   const [showCircles, setShowCircles] = useState(false);
+  const [showPlaces, setShowPlaces] = useState(false);
+  const [place, setPlace] = useState<Place | null>(null);
 
   const results = useMemo(() => filterPets(state.pets, location, now, filters), [state.pets, location, now, filters]);
+  const nearbyPlaces = useMemo(
+    () => state.places.filter((p) => distanceMeters(location, p.location) <= 15_000),
+    [state.places, location],
+  );
   const clusters = useMemo(
     () =>
       clusterPets(
@@ -174,6 +181,8 @@ export default function MapScreen() {
           clusterLabel={(c) => t("map.clusterLabel", { count: c.pets.length })}
           showsUserLocation={hasRealLocation}
           satellite={satellite}
+          places={showPlaces ? nearbyPlaces : []}
+          onPlacePress={setPlace}
           testID="pet-map"
         />
 
@@ -289,7 +298,25 @@ export default function MapScreen() {
           onChange={setShowCircles}
           testID="toggle-life-circles"
         />
+        <ToggleRow
+          icon="medkit"
+          tone="blue"
+          title={t("places.layer")}
+          description={t("places.layerHint")}
+          value={showPlaces}
+          onChange={setShowPlaces}
+          testID="toggle-places"
+        />
+        {showPlaces && nearbyPlaces.length === 0 ? (
+          <Banner icon="information-circle-outline" body={t("places.demoEmpty")} />
+        ) : null}
       </Sheet>
+
+      <PlaceSheet
+        place={place}
+        distance={place ? distanceMeters(location, place.location) : undefined}
+        onClose={() => setPlace(null)}
+      />
 
       {/* Consentimiento propio antes del permiso del sistema (docs/legal/consentimientos.md) */}
       <Sheet visible={consentOpen} onClose={() => setConsentOpen(false)} title={t("map.locationConsentTitle")}>

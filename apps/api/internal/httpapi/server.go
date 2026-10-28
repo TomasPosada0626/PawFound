@@ -93,6 +93,7 @@ func (s *Server) routes(r chi.Router) {
 		r.Post("/pets/{id}/share", s.share)
 		r.Get("/users/{id}", s.profile)
 		r.Get("/stories", s.stories)
+		r.Get("/places", s.places)
 		r.Get("/media/{id}", s.media)
 	})
 
@@ -150,6 +151,7 @@ func (s *Server) routes(r chi.Router) {
 		r.Post("/media", s.upload)
 		r.Post("/pets/{id}/stories", s.addStory)
 		r.Delete("/stories/{id}", s.removeStory)
+		r.Post("/places/{id}/report", s.reportPlace)
 	})
 }
 

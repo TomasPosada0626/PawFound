@@ -156,6 +156,22 @@ export type StoryItem = {
   createdAt: string;
 };
 
+/**
+ * Veterinaria o refugio (capa del mapa). Datos de OpenStreetMap: pueden estar incompletos, por
+ * eso cada lugar se puede reportar.
+ */
+export type Place = {
+  id: string;
+  kind: "vet" | "shelter";
+  name: string;
+  location: LatLng;
+  address?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  emergency?: boolean;
+};
+
 export type MessageKind = "text" | "system" | "sighting";
 
 /** Foto adjunta a un mensaje (grupos y DM). Se envía sin ubicación ni datos del celular. */

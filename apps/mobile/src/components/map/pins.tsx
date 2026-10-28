@@ -1,7 +1,7 @@
 import { View } from "react-native";
 
 import type { ClusterItem } from "@/domain/rules";
-import type { CaseKind, PetCase } from "@/domain/types";
+import type { CaseKind, PetCase, Place } from "@/domain/types";
 import { statusColor } from "@/theme/tokens";
 
 import { PetPhoto } from "../pets";
@@ -84,6 +84,20 @@ export function ClusterBubble({ cluster }: { cluster: ClusterItem }) {
       <Text variant="captionStrong" tone="white">
         {cluster.pets.length}
       </Text>
+    </View>
+  );
+}
+
+/** Pin de veterinaria (cruz) o refugio (casa), azul para no confundirse con los casos. */
+export function PlacePin({ place }: { place: Place }) {
+  return (
+    <View className="items-center">
+      <View
+        style={{ backgroundColor: place.kind === "vet" ? "#1D5FC9" : "#6D4AD6" }}
+        className="h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-sm shadow-black/30"
+      >
+        <Icon name={place.kind === "vet" ? "medkit" : "home"} size={18} color="#FFFFFF" />
+      </View>
     </View>
   );
 }

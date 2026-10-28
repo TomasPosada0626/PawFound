@@ -1,6 +1,6 @@
 import type { Region } from "@/domain/geo";
 import type { ClusterItem } from "@/domain/rules";
-import type { CaseKind, LatLng, PetCase } from "@/domain/types";
+import type { CaseKind, LatLng, PetCase, Place } from "@/domain/types";
 
 /**
  * Anillos del círculo de vida:
@@ -44,6 +44,9 @@ export type PetMapProps = {
   /** Pin simple (punto elegido al reportar o el centro del detalle). */
   marker?: { coordinate: LatLng; kind: CaseKind; pet?: PetCase };
   onMapPress?: (point: LatLng) => void;
+  /** Capa de veterinarias y refugios. */
+  places?: Place[];
+  onPlacePress?: (place: Place) => void;
   showsUserLocation?: boolean;
   satellite?: boolean;
   interactive?: boolean;

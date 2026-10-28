@@ -8,7 +8,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { statusColor } from "@/theme/tokens";
 
 import { darkMapStyle, lightMapStyle } from "./mapStyles";
-import { ClusterBubble, PetPin, PointPin } from "./pins";
+import { ClusterBubble, PetPin, PointPin, PlacePin } from "./pins";
 import { CIRCLE_STYLE, type PetMapProps } from "./types";
 
 /**
@@ -26,6 +26,8 @@ export function PetMap({
   circles = [],
   marker,
   onMapPress,
+  places = [],
+  onPlacePress,
   showsUserLocation,
   satellite,
   interactive = true,
@@ -88,6 +90,19 @@ export function PetMap({
             />
           ),
         )}
+        {places.map((place) => (
+          <Marker
+            key={place.id}
+            coordinate={place.location}
+            anchor={{ x: 0.5, y: 0.5 }}
+            onPress={() => onPlacePress?.(place)}
+            tracksViewChanges={false}
+            accessibilityLabel={place.name}
+            testID={`place-${place.id}`}
+          >
+            <PlacePin place={place} />
+          </Marker>
+        ))}
         {marker ? (
           <Marker coordinate={marker.coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
             {marker.pet ? <PetPin pet={marker.pet} size={64} /> : <PointPin kind={marker.kind} />}

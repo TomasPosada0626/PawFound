@@ -448,6 +448,28 @@ func (s *Server) removeStory(w http.ResponseWriter, r *http.Request) {
 	respond(w, 0, nil, s.App.RemoveStory(r.Context(), actor(r), chi.URLParam(r, "id")))
 }
 
+// --- Veterinarias y refugios -------------------------------------------------------
+
+func (s *Server) places(w http.ResponseWriter, r *http.Request) {
+	lat, ok1 := floatParam(r, "lat")
+	lng, ok2 := floatParam(r, "lng")
+	if !ok1 || !ok2 {
+		writeError(w, &app.Error{Code: "invalid_input", Status: http.StatusBadRequest, Params: map[string]any{"field": "center"}})
+		return
+	}
+	radius, _ := strconv.Atoi(r.URL.Query().Get("radius"))
+	list, err := s.App.Places(r.Context(), geo.Point{Lat: lat, Lng: lng}, radius, r.URL.Query().Get("kind"))
+	respond(w, http.StatusOK, map[string]any{"places": list, "attribution": app.PlacesAttribution}, err)
+}
+
+func (s *Server) reportPlace(w http.ResponseWriter, r *http.Request) {
+	var in struct{ Note string }
+	if !decode(w, r, &in) {
+		return
+	}
+	respond(w, 0, nil, s.App.ReportPlace(r.Context(), actor(r), chi.URLParam(r, "id"), in.Note))
+}
+
 // --- Fotos ------------------------------------------------------------------------
 
 // upload recibe multipart/form-data con "file" y "purpose" (pet, owned, chat).

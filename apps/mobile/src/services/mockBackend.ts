@@ -546,6 +546,13 @@ export class MockBackend {
     this.commit({ stories: this.state.stories.filter((s) => s.id !== storyId) });
   }
 
+  /** Aviso de dato incorrecto en una veterinaria o refugio (cerró, otro teléfono…). */
+  async reportPlace(placeId: string, note: string): Promise<void> {
+    this.requireUser();
+    if (!note.trim()) throw new BackendError("unknown");
+    if (!this.state.places.some((p) => p.id === placeId)) throw new BackendError("not_found");
+  }
+
   async sharePet(petId: string): Promise<void> {
     const pet = this.requirePet(petId);
     const user = this.currentUser;

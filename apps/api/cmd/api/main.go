@@ -3,6 +3,7 @@
 //	api                          sirve la API, el panel de moderación y las tareas periódicas
 //	api migrate                  aplica las migraciones pendientes y termina
 //	api grant-role <correo> <rol> da el rol user, moderator o admin (acceso al panel)
+//	api import-places            importa veterinarias y refugios del Valle de Aburrá (OpenStreetMap)
 package main
 
 import (
@@ -73,6 +74,12 @@ func run(args []string, logger *slog.Logger) error {
 		}
 		logger.Info("rol actualizado", "role", args[2])
 		return nil
+	case "import-places":
+		a := &app.App{DB: pool, Log: logger}
+		a.Init()
+		n, err := a.ImportPlaces(ctx, os.Getenv("OVERPASS_URL"), app.ValleDeAburra, nil)
+		logger.Info("lugares importados de OpenStreetMap", "count", n)
+		return err
 	case "serve":
 	default:
 		return fmt.Errorf("comando desconocido %q", command)

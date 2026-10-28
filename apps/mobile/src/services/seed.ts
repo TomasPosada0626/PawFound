@@ -659,6 +659,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
         u_laura: ["u_sofia"],
       },
       shareLog: { u_valentina: ["max", "collie"] },
+      places: [],
       // La familia de Max fue contando novedades en su historia.
       stories: [
         {
