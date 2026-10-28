@@ -20,7 +20,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.26"
+          # Último parche de 1.26: govulncheck falla con parches viejos de la librería estándar.
+          go-version: "1.26.x"
+          check-latest: true
           cache-dependency-path: apps/api/go.sum
       - run: go build ./...
       - run: go vet ./...
