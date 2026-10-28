@@ -39,13 +39,21 @@ PawFound tiene dos componentes: una API en Go que expone el dominio (usuarios, m
 - **Geoespacial**: cada mascota reportada tiene una ubicación aproximada y un radio de búsqueda que se expande automáticamente con el tiempo transcurrido desde el último avistamiento (regla exacta pendiente de [definir en producto](https://github.com/TomasPosada0626/PawFound/issues) — épica Producto y descubrimiento).
 - **Mensajería**: modelo compartido para DMs y grupos; cada caso (mascota) crea automáticamente su grupo asociado ("Encontremos a [nombre]" / "Encontremos a su familia").
 - **Moderación**: reglas descritas en [docs/legal/moderacion-y-ugc.md](legal/moderacion-y-ugc.md) — revisión proporcional al riesgo, no ocultamiento automático solo por volumen de reportes (3 reportes por sí solos no ocultan nada; se evalúan con señales adicionales, precisamente para evitar sabotaje coordinado).
-- **Alerta Ángel**: envío de SMS geolocalizado a usuarios cercanos cuando se publica un reporte de mascota perdida, con enlace profundo (`https://pawfound.app/alerta/angel/<id>`) al detalle en la app.
+- **Traducción de chats**: cada mensaje guarda el idioma de quien lo escribió (`lang`) y la API
+  lo traduce una sola vez hacia cada idioma presente entre los miembros del hilo
+  (`translations`). La app muestra la traducción al idioma de quien lee, con "Ver original"
+  y un interruptor para desactivarla. El proveedor (DeepL, Google o un LLM) recibe contenido
+  de chat, así que queda sujeto a la misma evaluación de privacidad que los demás proveedores
+  antes de activarse; sin proveedor, los mensajes se muestran en su idioma original.
+- **Alerta Ángel**: notificación push (no SMS) a los celulares cuya zona de alertas aproximada queda dentro del círculo de vida de una mascota perdida: al publicarse (círculo inicial) y luego por un job periódico a medida que el círculo crece. Una alerta por persona y caso, máximo 5 por día, respetando el modo descanso. El push abre `/alerta/angel/<id>` (también enlace universal `https://pawfound.app/alerta/angel/<id>`). Reglas en `apps/mobile/src/domain/alerts.ts`, para portarlas igual a la API.
+- **Antispam y convivencia**: no existen bloqueos entre personas; se reporta (`userReports`) y moderación decide. La API limita mensajes por minuto por cuenta (Upstash Redis) y aplica restricciones temporales para escribir (`mutedUntil`).
+- **Insignias y "me gusta"**: calculadas en el servidor a partir de hechos (reportes, avistamientos, agradecimientos al cerrar un caso, casos compartidos, grupos); la app solo las muestra. Los "me gusta" de perfil son uno por cuenta verificada.
 
 ## App (Expo / Android)
 
-- **Framework**: Expo (React Native) + TypeScript + NativeWind (Tailwind para React Native). Lanzamiento inicial solo para Android; no se asume soporte iOS ni web hasta que se decida explícitamente. Idioma inicial español, inglés soportado desde el día uno (sin strings embebidos en componentes).
+- **Framework**: Expo (React Native) + TypeScript + NativeWind (Tailwind para React Native). Lanzamiento inicial en Android; iOS llega más adelante y debe comportarse igual (ya están `ios.bundleIdentifier` y `associatedDomains` en `app.json`, y la lógica no depende de la plataforma). Web solo para desarrollo de UI. Idioma inicial español, inglés soportado desde el día uno (sin strings embebidos en componentes).
 - **Certificate pinning**: mencionado como buena práctica de seguridad, pero es complejo bajo el flujo administrado de Expo — confirmar el flujo de build nativo elegido (EAS Build / bare workflow) antes de asumirlo como requisito duro.
-- **Notificaciones**: FCM para Android. No se requiere APNs mientras el lanzamiento sea Android-only; si se agrega iOS más adelante, evaluar Expo Notifications para simplificar ambas plataformas.
+- **Notificaciones**: `expo-notifications` en la app (mismo código para Android e iOS), con canales de Android separados ("Alertas Ángel" y "Novedades de casos"). La API envía por FCM (Android) y APNs (iOS, vía FCM o el servicio push de Expo), sujeto a la evaluación del proveedor (issue #39). En modo demostración la app presenta notificaciones locales.
 - **Cliente API**: generado desde el contrato OpenAPI de la API, para evitar desincronización entre app y backend.
 - **Navegación principal**: Inicio, Mapa, Reportar (`+`), Mensajes (DM / Grupos / Notificaciones), Perfil.
 - **Tema**: soporta modo claro y modo oscuro.
@@ -113,6 +121,12 @@ PR hacia `develop`; los E2E de flujo completo corren al menos antes de cada fusi
 fusiona — ver `.github/pull_request_template.md`.
 
 ## Decisiones ya resueltas
+
+- Fórmula del círculo de vida compartida entre app y API mediante vectores de prueba en
+  [`packages/contracts/fixtures/life-circle.json`](../packages/contracts/fixtures/life-circle.json):
+  `apps/mobile/src/domain/lifeCircle.ts` y `apps/api/internal/lifecircle` validan contra el
+  mismo archivo. La aproximación de ubicación (celdas fijas de 250 m, deterministas para que
+  no se puedan promediar) está implementada igual en ambos lados.
 
 - Radio del "círculo de vida" **por perfil** (especie + si hubo evento traumático), no una sola fórmula — [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10). Ver la tabla completa en [PRODUCT.md § Capabilities and Constraints](../PRODUCT.md#capabilities-and-constraints). Informado por literatura general de búsqueda de mascotas perdidas, no por consulta directa con un experto certificado.
 - Ubicación en mapa/detalle: siempre aproximada, nunca dirección exacta por defecto; la dirección exacta solo se comparte manualmente por mensaje directo — [issue #46](https://github.com/TomasPosada0626/PawFound/issues/46).

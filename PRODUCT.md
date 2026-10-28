@@ -4,7 +4,7 @@
 
 ## Platform
 
-android
+android (lanzamiento); iOS más adelante, con el mismo comportamiento (nada exclusivo de Android en la lógica de la app)
 
 ## Stack
 
@@ -75,10 +75,18 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 
   Para el perfil "gato/tímida", el radio pequeño es intencional: la estrategia de búsqueda recomendada es intensiva y cercana (revisar escondites en un radio corto), no expandir agresivamente esperando que se haya desplazado lejos.
 - Notificaciones de la app son avisos de la comunidad, explícitamente no alertas gubernamentales ni SMS (aclarado en `docs/legal/consentimientos.md`).
+- **Alerta Ángel = notificación push de la app** (decisión del 2026-10-28, reemplaza el SMS del mockup `Alerta Angel.png`): cero costo por mensaje y controlable desde ajustes. Al publicarse una mascota perdida, la reciben los celulares cuya zona de alertas (punto aproximado de 250 m, guardado con consentimiento) queda dentro del círculo de vida inicial; a medida que el círculo crece, la reciben los que van quedando dentro. Una sola alerta por persona y caso, máximo 5 por persona al día, silenciosa en modo descanso. Al tocarla abre la pantalla de Alerta Ángel (fotos, "La vi", compartir, aviso de que no es un servicio de emergencia).
+- **Insignias** (issue #61): 8 insignias calculadas por el servidor a partir de hechos reales, con niveles bronce/plata/oro por color del borde: Protector verificado, Voz de la comunidad (reportes), Rescate solidario (encontradas), Ojos atentos (avistamientos en casos ajenos), Ángel de patas (la familia te agradece al cerrar su caso; solo entre quienes participaron, máx. 5), De vuelta a casa (un solo nivel), Megáfono (casos compartidos) y Manada unida (grupos de casos ajenos). Nunca se compran ni se otorgan a mano; los reportes retirados por moderación dejan de contar.
+- **Perfiles públicos y "me gusta"**: ningún perfil es oculto. Se abre desde un caso, un chat directo o tocando el nombre de quien escribe en un grupo, y muestra días en PawFound, insignias, mascotas (foto, nombre y especie) y "me gusta". Solo cuentas verificadas dan "me gusta", uno por persona. Nunca se muestran celular, correo ni dirección.
+- **Sin bloqueos**: nadie bloquea a nadie; se reporta a la persona (spam, groserías, estafa, contenido inapropiado) con el mensaje como contexto, y moderación aplica sanciones escalonadas (aviso → restricción temporal para escribir → cierre de cuenta). La app pregunta con amabilidad antes de enviar un mensaje que podría sonar ofensivo, y la API limita los mensajes por minuto.
+- **Mis mascotas**: perfil preventivo de cada mascota propia; si se pierde, "Se perdió" publica el reporte ya lleno y solo falta confirmar dónde y cuándo.
+- **Afiche con QR** para imprimir o compartir por WhatsApp, sin teléfono ni dirección: el QR abre el caso.
 - Publicación y su chat de caso se archivan al marcar la mascota como encontrada; no se eliminan automáticamente.
 - Límite de 2 publicaciones por cuenta por día, validado en backend (no solo en el cliente), para prevenir spam.
 - El autor de un reporte se muestra con nombre corto/inicial, nunca el nombre completo, a otras personas usuarias — minimización de datos frente a alguien que ya conoce tu ubicación aproximada por el radio de búsqueda.
 - La persona usuaria puede exportar sus datos y eliminar su cuenta (derecho de portabilidad y al olvido) de forma autoservicio desde Privacidad y seguridad, además del canal de soporte para solicitudes ARCO.
+- Chats traducidos automáticamente al idioma de cada persona (español/inglés), con opción de
+  ver el original; la traducción la hace la API con un proveedor evaluado, nunca el cliente.
 - Bilingüe desde la arquitectura: español como idioma predeterminado, inglés como segundo idioma soportado desde el día uno de la implementación (ningún texto de UI embebido directamente en componentes).
 - Responsive en Android: debe verse correcto en pantallas pequeñas, grandes y plegables, no solo en el tamaño del mockup de referencia.
 

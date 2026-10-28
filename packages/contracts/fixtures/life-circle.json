@@ -1,0 +1,187 @@
+{
+  "description": "Vectores de prueba del círculo de vida: radio = min(inicial + tasa × √horas, tope), redondeado al metro. Fuente: PRODUCT.md (issue #10). La app (apps/mobile) y la API (apps/api) validan contra este archivo para no desincronizarse.",
+  "profiles": {
+    "dog_panic": {
+      "initial": 1000,
+      "rate": 1200,
+      "cap": 8000
+    },
+    "dog_calm": {
+      "initial": 500,
+      "rate": 400,
+      "cap": 4000
+    },
+    "cat_or_shy": {
+      "initial": 150,
+      "rate": 60,
+      "cap": 800
+    },
+    "unknown": {
+      "initial": 300,
+      "rate": 250,
+      "cap": 5000
+    }
+  },
+  "cases": [
+    {
+      "profile": "dog_panic",
+      "hours": 0,
+      "meters": 1000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 0.25,
+      "meters": 1600
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 1,
+      "meters": 2200
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 4,
+      "meters": 3400
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 6,
+      "meters": 3939
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 24,
+      "meters": 6879
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 72,
+      "meters": 8000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 500,
+      "meters": 8000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 0,
+      "meters": 500
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 0.25,
+      "meters": 700
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 1,
+      "meters": 900
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 4,
+      "meters": 1300
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 6,
+      "meters": 1480
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 24,
+      "meters": 2460
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 72,
+      "meters": 3894
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 500,
+      "meters": 4000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 0,
+      "meters": 150
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 0.25,
+      "meters": 180
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 1,
+      "meters": 210
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 4,
+      "meters": 270
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 6,
+      "meters": 297
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 24,
+      "meters": 444
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 72,
+      "meters": 659
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 500,
+      "meters": 800
+    },
+    {
+      "profile": "unknown",
+      "hours": 0,
+      "meters": 300
+    },
+    {
+      "profile": "unknown",
+      "hours": 0.25,
+      "meters": 425
+    },
+    {
+      "profile": "unknown",
+      "hours": 1,
+      "meters": 550
+    },
+    {
+      "profile": "unknown",
+      "hours": 4,
+      "meters": 800
+    },
+    {
+      "profile": "unknown",
+      "hours": 6,
+      "meters": 912
+    },
+    {
+      "profile": "unknown",
+      "hours": 24,
+      "meters": 1525
+    },
+    {
+      "profile": "unknown",
+      "hours": 72,
+      "meters": 2421
+    },
+    {
+      "profile": "unknown",
+      "hours": 500,
+      "meters": 5000
+    }
+  ]
+}
