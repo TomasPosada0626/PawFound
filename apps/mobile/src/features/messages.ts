@@ -29,7 +29,19 @@ export function messageText(message: Message, pet: PetCase | undefined, t: T): s
     return message.text;
   }
   if (message.kind === "sighting") return t("chat.sightingMsg", { name: message.authorShortName, zone: message.text });
+  if (message.kind === "location") return locationPreview(message, t);
   return message.text;
+}
+
+/** Vista previa de una ubicación compartida; nunca muestra coordenadas. */
+export function locationPreview(message: Message, t: T): string {
+  const loc = message.location;
+  if (!loc || loc.hidden || !loc.location) return t("chatLocation.hidden");
+  if (loc.kind === "place") return t("chatLocation.previewPlace", { name: loc.label ?? t("places.vet") });
+  if (loc.kind === "meeting") {
+    return loc.label ? `${t("chatLocation.previewMeeting")}: ${loc.label}` : t("chatLocation.previewMeeting");
+  }
+  return t("chatLocation.preview");
 }
 
 export type LocalizedText = {
@@ -65,7 +77,7 @@ export function messagePreview(
   if (!message) return "";
   const localized = message.kind === "text" ? localizedText(message, viewer, autoTranslate).text : messageText(message, pet, t);
   const text = message.photo && !localized ? t("chat.photo") : localized;
-  if (message.kind !== "text") return text;
+  if (message.kind !== "text" && message.kind !== "location") return text;
   const author = message.authorId === userId ? t("common.you") : message.authorShortName || t("common.deletedUser");
   return `${author}: ${text}`;
 }

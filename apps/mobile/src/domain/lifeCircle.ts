@@ -6,6 +6,11 @@ import type { PetCase, Species } from "./types";
  *
  *   radio = min(inicial + tasa × √horas, tope)
  *
+ * Decisión del 2026-10-28: todas las mascotas arrancan en 250 m alrededor del último punto y
+ * llegan a 2 km en unos 30 minutos, porque en las primeras horas es cuando más se mueven y
+ * cuando más sirve avisar a los vecinos. Los perfiles se conservan para poder volver a
+ * diferenciar la velocidad por especie si el piloto lo muestra.
+ *
  * La API aplica la misma regla; ambos lados validan contra
  * packages/contracts/fixtures/life-circle.json para no desincronizarse.
  */
@@ -22,11 +27,15 @@ export type ProfileParams = {
 };
 
 export const LIFE_CIRCLE_PROFILES: Record<LifeCircleProfile, ProfileParams> = {
-  dog_panic: { initial: 1000, rate: 1200, cap: 8000 },
-  dog_calm: { initial: 500, rate: 400, cap: 4000 },
-  cat_or_shy: { initial: 150, rate: 60, cap: 800 },
-  unknown: { initial: 300, rate: 250, cap: 5000 },
+  dog_panic: { initial: 250, rate: 2475, cap: 2000 },
+  dog_calm: { initial: 250, rate: 2475, cap: 2000 },
+  cat_or_shy: { initial: 250, rate: 2475, cap: 2000 },
+  unknown: { initial: 250, rate: 2475, cap: 2000 },
 };
+
+/** Radio inicial y máximo del círculo de vida de una perdida (iguales para todos los perfiles). */
+export const LIFE_CIRCLE_START = 250;
+export const LIFE_CIRCLE_MAX = 2000;
 
 export type ProfileInput = {
   species: Species;
@@ -78,16 +87,22 @@ export function hoursToCap(profile: LifeCircleProfile): number {
 
 export const FOUND_RADIUS_OPTIONS = [400, 1000, 2000, 5000] as const;
 
-/** Momentos que la app usa para mostrar cómo crecerá el círculo. */
-export const PREVIEW_OFFSETS_H = [0, 6, 24, 72] as const;
+/** Momentos que la app usa para mostrar cómo crecerá el círculo: ahora, +5, +15 y +30 minutos. */
+export const PREVIEW_OFFSETS_H = [0, 5 / 60, 15 / 60, 30 / 60] as const;
+
+/** Minutos de un desplazamiento en horas, para las etiquetas ("+15 min"). */
+export const offsetMinutes = (hours: number): number => Math.round(hours * 60);
+
+/** Ventana con la que se explica cuánto crecerá el círculo enseguida. */
+export const GROWTH_STEP_MIN = 5;
 
 export type GrowthSnapshot = {
   profile: LifeCircleProfile;
   hoursElapsed: number;
   current: number;
   cap: number;
-  /** Metros que sumará en la próxima hora (0 si ya está en el tope). */
-  nextHourGrowth: number;
+  /** Metros que sumará en los próximos GROWTH_STEP_MIN minutos (0 si ya está en el tope). */
+  nextGrowth: number;
   /** 0–100: qué tan cerca está del radio máximo del perfil. */
   pctOfCap: number;
   atCap: boolean;
@@ -102,13 +117,13 @@ export function growthSnapshot(
   const hoursElapsed = Math.max(0, hoursBetween(pet.lastSeenAt, now));
   const current = radiusMeters(profile, hoursElapsed);
   const { cap } = LIFE_CIRCLE_PROFILES[profile];
-  const nextHourGrowth = Math.max(0, radiusMeters(profile, hoursElapsed + 1) - current);
+  const nextGrowth = Math.max(0, radiusMeters(profile, hoursElapsed + GROWTH_STEP_MIN / 60) - current);
   return {
     profile,
     hoursElapsed,
     current,
     cap,
-    nextHourGrowth,
+    nextGrowth,
     pctOfCap: Math.round((current / cap) * 100),
     atCap: current >= cap,
   };

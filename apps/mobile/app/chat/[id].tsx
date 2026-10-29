@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DirectionsSheet } from "@/components/DirectionsSheet";
+import { LocationCard } from "@/components/LocationCard";
 import { ReportUserSheet } from "@/components/ReportUserSheet";
 import { BackButton } from "@/components/layout";
 import { PetAvatar, UserAvatar } from "@/components/pets";
@@ -23,7 +25,7 @@ import { MESSAGE_MAX } from "@/services/mockBackend";
 import { counterpart, threadMessages } from "@/services/selectors";
 import { memberDays, mightBeOffensive } from "@/domain/moderation";
 import { BackendError } from "@/services/backendTypes";
-import type { MessagePhoto, User } from "@/domain/types";
+import type { LatLng, MessagePhoto, User } from "@/domain/types";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useDevicePrefs } from "@/store/devicePrefs";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -49,6 +51,7 @@ export default function ChatScreen() {
   const [photoSheet, setPhotoSheet] = useState(false);
   const [viewer, setViewer] = useState<{ photo: MessagePhoto; label: string } | null>(null);
   const [confirm, setConfirm] = useState<"close" | "leave" | null>(null);
+  const [directions, setDirections] = useState<{ destination: LatLng; label?: string } | null>(null);
   const { autoTranslate, setAutoTranslate } = useDevicePrefs();
   const scroll = useRef<ScrollView>(null);
 
@@ -191,7 +194,7 @@ export default function ChatScreen() {
           {messages.map((m) => {
             const mine = m.authorId === user.id;
             const localized = m.kind === "text" ? localizedText(m, locale, autoTranslate, originals.has(m.id)) : null;
-            const body = localized ? localized.text : messageText(m, pet, t);
+            const body = localized ? localized.text : m.kind === "location" ? m.text : messageText(m, pet, t);
             const canToggle = Boolean(m.lang && m.lang !== locale && m.translations?.[locale]);
             const toggleOriginal = () =>
               setOriginals((prev) => {
@@ -200,7 +203,7 @@ export default function ChatScreen() {
                 else next.add(m.id);
                 return next;
               });
-            if (m.kind !== "text") {
+            if (m.kind === "system" || m.kind === "sighting") {
               return (
                 <Pressable
                   key={m.id}
@@ -216,7 +219,7 @@ export default function ChatScreen() {
             }
             const author = state.users[m.authorId];
             const who = mine ? t("common.you") : m.authorShortName || t("common.deletedUser");
-            const photoLabel = m.photo ? t("chat.photoFrom", { name: who }) : "";
+            const photoLabel = m.photo ? t("chat.photoFrom", { name: who }) : m.kind === "location" ? messageText(m, pet, t) : "";
             return (
               <Pressable
                 key={m.id}
@@ -251,6 +254,21 @@ export default function ChatScreen() {
                       {t("common.deletedUser")}
                     </Text>
                   )
+                ) : null}
+                {m.kind === "location" ? (
+                  <View className={body ? "mb-1.5" : ""}>
+                    <LocationCard
+                      message={m}
+                      mine={mine}
+                      onDirections={setDirections}
+                      onStop={() =>
+                        void backend
+                          .stopSharingLocation(m.id)
+                          .then(() => toast(t("chatLocation.stopped")))
+                          .catch(() => toast(t("errors.unknown"), "error"))
+                      }
+                    />
+                  </View>
                 ) : null}
                 {m.photo ? (
                   <Pressable
@@ -333,8 +351,8 @@ export default function ChatScreen() {
             ) : null}
             <View className="flex-row items-end gap-2">
               <IconButton
-                icon="image-outline"
-                label={t("chat.attachPhoto")}
+                icon={isGroup ? "image-outline" : "add-circle-outline"}
+                label={isGroup ? t("chat.attachPhoto") : t("chatLocation.attach")}
                 color={colors.primaryStrong}
                 onPress={() => setPhotoSheet(true)}
                 testID="chat-attach"
@@ -460,7 +478,12 @@ export default function ChatScreen() {
         )}
       </Sheet>
 
-      <Sheet visible={photoSheet} onClose={() => setPhotoSheet(false)} title={t("chat.attachPhoto")} testID="chat-photo-sheet">
+      <Sheet
+        visible={photoSheet}
+        onClose={() => setPhotoSheet(false)}
+        title={isGroup ? t("chat.attachPhoto") : t("chatLocation.attach")}
+        testID="chat-photo-sheet"
+      >
         <ListRow
           icon="camera-outline"
           title={t("chat.takePhoto")}
@@ -473,6 +496,20 @@ export default function ChatScreen() {
           onPress={() => void pickPhoto("library")}
           testID="chat-photo-library"
         />
+        {/* La ubicación de una persona solo se comparte en mensajes directos, nunca en grupos. */}
+        {!isGroup ? (
+          <ListRow
+            icon="location-outline"
+            tone="blue"
+            title={t("chatLocation.share")}
+            description={t("chatLocation.shareHint")}
+            onPress={() => {
+              setPhotoSheet(false);
+              router.push({ pathname: "/chat/ubicacion", params: { thread: thread.id } });
+            }}
+            testID="chat-share-location"
+          />
+        ) : null}
         <Text variant="caption" className="mt-2">
           {t("chat.photoPrivacy")}
         </Text>
@@ -528,6 +565,8 @@ export default function ChatScreen() {
           <Button label={t("common.cancel")} variant="ghost" onPress={() => setConfirm(null)} />
         </View>
       </Sheet>
+
+      <DirectionsSheet target={directions} onClose={() => setDirections(null)} />
 
       <ReportUserSheet
         target={reportTarget?.user ?? null}

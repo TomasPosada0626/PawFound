@@ -107,18 +107,19 @@ type OwnedPet struct {
 	Zone    geo.Point
 }
 
-// OwnedMatchRadius: hasta dónde puede haber llegado una mascota de la especie sin que su
-// familia lo note. Es el tope del perfil más amplio de la especie más el margen de
-// ubicación aproximada (gato 1,3 km, perro 8,5 km, otra 5,5 km).
+// matchReach: hasta dónde puede haber llegado una mascota de la especie sin que su familia lo
+// note. Es independiente del círculo de vida (que llega a 2 km): una coincidencia perdida cuesta
+// más que preguntar de más.
+var matchReach = map[string]float64{"dog": 8000, "cat": 800, "other": 5000}
+
+// OwnedMatchRadius suma a ese alcance el margen de ubicación aproximada (gato 1,3 km, perro
+// 8,5 km, otra 5,5 km).
 func OwnedMatchRadius(species string) float64 {
-	profile := lifecircle.Unknown
-	switch species {
-	case "dog":
-		profile = lifecircle.DogPanic
-	case "cat":
-		profile = lifecircle.CatOrShy
+	reach, ok := matchReach[species]
+	if !ok {
+		reach = matchReach["other"]
 	}
-	return lifecircle.Profiles[profile].Cap + matchMargin
+	return reach + matchMargin
 }
 
 var sizeIndex = map[string]int{"small": 0, "medium": 1, "large": 2}

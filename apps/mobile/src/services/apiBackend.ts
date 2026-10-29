@@ -1,12 +1,14 @@
 import * as SecureStore from "expo-secure-store";
 
 import type { BadgeProgress } from "@/domain/badges";
+import { approximateLocation } from "@/domain/geo";
 import { publishAllowance, type PublishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
   AppNotification,
   Lang,
   LatLng,
+  LocationShare,
   Message,
   MessagePhoto,
   NotificationPrefs,
@@ -618,6 +620,19 @@ export class ApiBackend {
     this.mergeMessages([message]);
   }
 
+  async shareLocation(threadId: string, share: LocationShare, lang: Lang = "es"): Promise<void> {
+    const location =
+      share.kind === "place"
+        ? { kind: "place", placeId: share.placeId }
+        : { kind: share.kind, location: share.location, label: share.label };
+    const message = await this.request<ApiMessage>("POST", `/v1/threads/${threadId}/messages`, { text: "", lang, location });
+    this.mergeMessages([message]);
+  }
+
+  async stopSharingLocation(messageId: string): Promise<void> {
+    this.mergeMessages([await this.request<ApiMessage>("DELETE", `/v1/messages/${messageId}/location`)]);
+  }
+
   async markThreadRead(threadId: string): Promise<void> {
     await this.request("POST", `/v1/threads/${threadId}/read`).catch(() => {});
     const me = this.state.sessionUserId;
@@ -783,9 +798,11 @@ export class ApiBackend {
   }
 
   async loadPlaces(center: LatLng): Promise<void> {
+    // Al servidor solo llega una celda de ~1 km: las distancias exactas se calculan en el celular.
+    const cell = approximateLocation(center, 1000);
     const { places } = await this.request<{ places: Place[] }>(
       "GET",
-      `/v1/places?lat=${center.latitude}&lng=${center.longitude}&radius=15000`,
+      `/v1/places?lat=${cell.latitude.toFixed(4)}&lng=${cell.longitude.toFixed(4)}&radius=15000`,
     );
     this.commit({ places });
   }

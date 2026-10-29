@@ -1,5 +1,4 @@
-import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 import { Platform } from "react-native";
 
 /**
@@ -18,9 +17,35 @@ export type ChannelId = (typeof CHANNELS)[keyof typeof CHANNELS];
 
 export type PushPermission = "granted" | "denied" | "undetermined";
 
+type NotificationsModule = typeof import("expo-notifications");
+let cachedModule: NotificationsModule | null | undefined;
+
+/**
+ * expo-notifications se carga solo cuando se usa. En Expo Go para Android su módulo nativo de
+ * push no existe (desde el SDK 53) y importarlo al abrir la app la rompe; ahí devuelve null y
+ * todo sigue igual salvo las notificaciones del sistema (la bandeja de la app funciona). En el
+ * APK propio (EAS Build) el módulo existe y las notificaciones funcionan completas.
+ */
+export function notificationsModule(): NotificationsModule | null {
+  if (cachedModule !== undefined) return cachedModule;
+  if (Platform.OS === "android" && Constants.executionEnvironment === ExecutionEnvironment.StoreClient) {
+    cachedModule = null;
+    return cachedModule;
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    cachedModule = require("expo-notifications") as NotificationsModule;
+  } catch {
+    cachedModule = null;
+  }
+  return cachedModule;
+}
+
 let handlerSet = false;
 
 export async function configurePush(names: { angel: string; updates: string }): Promise<void> {
+  const Notifications = notificationsModule();
+  if (!Notifications) return;
   try {
     if (!handlerSet) {
       Notifications.setNotificationHandler({
@@ -61,7 +86,8 @@ const toPermission = (status: string): PushPermission =>
 export async function getPushToken(): Promise<string | null> {
   try {
     const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
-    if (!projectId) return null;
+    const Notifications = notificationsModule();
+    if (!projectId || !Notifications) return null;
     const { data } = await Notifications.getExpoPushTokenAsync({ projectId });
     return data;
   } catch {
@@ -70,6 +96,8 @@ export async function getPushToken(): Promise<string | null> {
 }
 
 export async function getPushPermission(): Promise<PushPermission> {
+  const Notifications = notificationsModule();
+  if (!Notifications) return "denied";
   try {
     const { status } = await Notifications.getPermissionsAsync();
     return toPermission(status);
@@ -80,6 +108,8 @@ export async function getPushPermission(): Promise<PushPermission> {
 
 /** Android 13+ pide el permiso POST_NOTIFICATIONS; antes de eso está concedido por defecto. */
 export async function requestPushPermission(): Promise<PushPermission> {
+  const Notifications = notificationsModule();
+  if (!Notifications) return "denied";
   try {
     const { status } = await Notifications.requestPermissionsAsync();
     return toPermission(status);
@@ -91,6 +121,8 @@ export async function requestPushPermission(): Promise<PushPermission> {
 export type LocalPush = { title: string; body: string; url: string; channel: ChannelId; silent: boolean };
 
 export async function presentLocal({ title, body, url, channel, silent }: LocalPush): Promise<void> {
+  const Notifications = notificationsModule();
+  if (!Notifications) return;
   try {
     await Notifications.scheduleNotificationAsync({
       content: { title, body, data: { url }, sound: silent ? false : "default" },

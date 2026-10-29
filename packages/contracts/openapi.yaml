@@ -70,7 +70,7 @@ paths:
       operationId: loginWithProvider
       tags: [auth]
       security: []
-      summary: ID token de Google o Apple (OIDC); la cuenta queda verificada. Facebook responde provider_unavailable.
+      summary: ID token de Google o Apple (OIDC); la cuenta queda verificada.
       requestBody:
         required: true
         content:
@@ -79,7 +79,7 @@ paths:
               type: object
               required: [provider, idToken]
               properties:
-                provider: { type: string, enum: [google, apple, facebook] }
+                provider: { type: string, enum: [google, apple] }
                 idToken: { type: string }
                 lang: { $ref: "#/components/schemas/Lang" }
       responses:
@@ -419,6 +419,12 @@ paths:
       tags: [chats]
       responses:
         "200": { description: Chat, content: { application/json: { schema: { $ref: "#/components/schemas/Thread" } } } }
+    delete:
+      operationId: leaveThread
+      tags: [chats]
+      summary: Elimina el chat de la lista propia; para las demás personas sigue igual
+      responses:
+        "204": { description: Eliminado de la lista }
   /v1/threads/{id}/messages:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     get:
@@ -432,7 +438,10 @@ paths:
     post:
       operationId: sendMessage
       tags: [chats]
-      summary: Texto, foto o ambos. 12 por minuto; bloqueado si moderación restringió la cuenta.
+      summary: >-
+        Texto, foto o ambos, o una ubicación. La ubicación actual y el punto de encuentro solo
+        van en mensajes directos (403 en grupos); una veterinaria también en el grupo del caso.
+        12 por minuto; bloqueado si moderación restringió la cuenta.
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SendInput" } } } }
       responses:
         "201": { description: Enviado, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
@@ -468,14 +477,16 @@ paths:
       summary: Cierra un mensaje directo para las dos personas (los grupos no se cierran)
       responses:
         "204": { description: Cerrado }
-  /v1/threads/{id}:
+  /v1/messages/{id}/location:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     delete:
-      operationId: leaveThread
+      operationId: stopSharingLocation
       tags: [chats]
-      summary: Elimina el chat de la lista propia; para las demás personas sigue igual
+      summary: Quien compartió una ubicación la deja de mostrar; se borran sus coordenadas
       responses:
-        "204": { description: Eliminado de la lista }
+        "200": { description: Mensaje ya sin ubicación visible, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
   /v1/stories:
     get:
       operationId: storyFeed
@@ -509,12 +520,12 @@ paths:
       operationId: places
       tags: [community]
       security: []
-      summary: Veterinarias y refugios cerca (OpenStreetMap, ODbL)
+      summary: Veterinarias cerca (OpenStreetMap, ODbL)
       parameters:
         - { name: lat, in: query, required: true, schema: { type: number } }
         - { name: lng, in: query, required: true, schema: { type: number } }
         - { name: radius, in: query, schema: { type: integer, maximum: 30000 } }
-        - { name: kind, in: query, schema: { type: string, enum: [vet, shelter] } }
+        - { name: kind, in: query, schema: { type: string, enum: [vet] } }
       responses:
         "200":
           description: Lugares
@@ -899,16 +910,39 @@ components:
         authorShortName: { type: string }
         text: { type: string }
         at: { type: string, format: date-time }
-        kind: { type: string, enum: [text, system, sighting] }
+        kind: { type: string, enum: [text, system, sighting, location] }
         lang: { $ref: "#/components/schemas/Lang" }
         translations: { type: object, additionalProperties: { type: string } }
         photo: { $ref: "#/components/schemas/Photo" }
+        location: { $ref: "#/components/schemas/MessageLocation" }
+    MessageLocation:
+      type: object
+      description: >-
+        Ubicación de un mensaje "location". Sin `location` ya no es visible: quien la compartió
+        la quitó, o se cerró el mensaje directo o el caso (las coordenadas ya se borraron).
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [current, meeting, place] }
+        location: { $ref: "#/components/schemas/LatLng" }
+        label: { type: string, description: Nombre del punto de encuentro o de la veterinaria }
+        address: { type: string, description: Dirección pública de la veterinaria }
+        placeId: { type: string }
+        hidden: { type: boolean }
     SendInput:
       type: object
       properties:
         text: { type: string, maxLength: 1000 }
         lang: { $ref: "#/components/schemas/Lang" }
         photoId: { type: string, description: Foto subida con purpose=chat (un solo uso) }
+        location:
+          type: object
+          description: En "place" solo cuenta placeId; el servidor pone el nombre y el punto.
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [current, meeting, place] }
+            location: { $ref: "#/components/schemas/LatLng" }
+            label: { type: string, maxLength: 60 }
+            placeId: { type: string }
     Thread:
       type: object
       properties:
@@ -996,7 +1030,7 @@ components:
       type: object
       properties:
         id: { type: string }
-        kind: { type: string, enum: [vet, shelter] }
+        kind: { type: string, enum: [vet] }
         name: { type: string }
         location: { $ref: "#/components/schemas/LatLng" }
         address: { type: string }

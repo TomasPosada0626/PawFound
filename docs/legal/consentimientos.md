@@ -11,6 +11,14 @@
 lo activo, recibir alertas dentro del radio que elija. Puedo cambiar esta decisión en
 cualquier momento desde ajustes.”
 
+## Ubicación en un mensaje directo (en cada envío)
+
+Se muestra en la pantalla "Compartir ubicación" antes de enviar; enviar es la autorización y
+aplica solo a ese mensaje:
+
+“Solo [nombre] la verá. Se envía este punto una sola vez: no es en vivo. Puedes dejar de
+compartirla cuando quieras. También deja de verse al cerrar este chat o el caso.”
+
 ## Notificaciones
 
 “Deseo recibir notificaciones de mascotas perdidas cercanas. Entiendo que son avisos de la

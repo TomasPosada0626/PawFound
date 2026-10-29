@@ -2,7 +2,14 @@ import { View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path } from "react-native-svg";
 
 import { formatDistance } from "@/domain/geo";
-import { growthSnapshot, PREVIEW_OFFSETS_H, projection, type LifeCircleProfile } from "@/domain/lifeCircle";
+import {
+  GROWTH_STEP_MIN,
+  growthSnapshot,
+  offsetMinutes,
+  PREVIEW_OFFSETS_H,
+  projection,
+  type LifeCircleProfile,
+} from "@/domain/lifeCircle";
 import type { CaseKind, PetCase } from "@/domain/types";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -69,7 +76,7 @@ export function LifeCircleDiagram({
   );
 }
 
-/** Leyenda accesible del diagrama: "Al publicar 1 km · En 6 h 3,9 km · …". */
+/** Leyenda accesible del diagrama: "Al publicar 250 m · En 5 min 960 m · …". */
 export function LifeCircleLegend({ profile }: { profile: LifeCircleProfile }) {
   const { t, locale } = useI18n();
   return (
@@ -77,7 +84,7 @@ export function LifeCircleLegend({ profile }: { profile: LifeCircleProfile }) {
       {projection(profile, PREVIEW_OFFSETS_H).map((p) => (
         <View key={p.hours} className="flex-row items-center justify-between gap-2">
           <Text variant="caption" tone="body">
-            {p.hours === 0 ? t("report.projectionNow") : t("report.projectionAt", { hours: p.hours })}
+            {p.hours === 0 ? t("report.projectionNow") : t("report.projectionAt", { minutes: offsetMinutes(p.hours) })}
           </Text>
           <Text variant="captionStrong" tone="primary">
             {formatDistance(p.meters, locale)}
@@ -90,7 +97,7 @@ export function LifeCircleLegend({ profile }: { profile: LifeCircleProfile }) {
 
 /**
  * Tarjeta del detalle: radio vigente, cuánto crece en la próxima hora, progreso hacia el
- * máximo y una línea de tiempo que previsualiza el círculo en el mapa (+6 h, +24 h, +72 h).
+ * máximo y una línea de tiempo que previsualiza el círculo en el mapa (+5, +15 y +30 min).
  */
 export function LifeCircleCard({
   pet,
@@ -133,7 +140,8 @@ export function LifeCircleCard({
                   distance: formatDistance(g.cap, locale),
                 })
               : t("lifeCircle.growing", {
-                  distance: formatDistance(g.nextHourGrowth, locale),
+                  distance: formatDistance(g.nextGrowth, locale),
+                  minutes: GROWTH_STEP_MIN,
                 })}
           </Text>
           <View
@@ -167,10 +175,10 @@ export function LifeCircleCard({
         {PREVIEW_OFFSETS_H.map((h) => (
           <Chip
             key={h}
-            label={h === 0 ? t("lifeCircle.now") : t("lifeCircle.plusHours", { hours: h })}
+            label={h === 0 ? t("lifeCircle.now") : t("lifeCircle.plusMinutes", { minutes: offsetMinutes(h) })}
             selected={previewHours === h}
             onPress={() => onPreview(h)}
-            testID={`preview-${h}`}
+            testID={`preview-${offsetMinutes(h)}`}
           />
         ))}
       </View>

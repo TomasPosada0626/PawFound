@@ -70,6 +70,12 @@ reportar o buscar una mascota, se rige por la
 [Política de privacidad](politica-de-privacidad.md). PawFound no muestra direcciones ni
 coordenadas exactas de forma predeterminada.
 
+En un mensaje directo puedes compartir tu ubicación actual o un punto de encuentro. Hazlo
+solo con quien confíes, prefiere lugares públicos y concurridos para entregar o recibir una
+mascota, y quita la ubicación cuando ya no la necesites. Las veterinarias que muestra la app
+provienen de OpenStreetMap y pueden estar incompletas o desactualizadas: llama antes de ir.
+PawFound no presta servicios veterinarios ni garantiza la atención de ningún lugar.
+
 ## 8. Alerta Ángel y notificaciones
 
 Al activarlo, PawFound puede enviarte notificaciones de mascotas perdidas cerca de tu

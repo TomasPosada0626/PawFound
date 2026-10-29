@@ -1,6 +1,6 @@
 # places.osm.json
 
-Veterinarias y refugios del Valle de Aburrá exportados de OpenStreetMap con
+Veterinarias del Valle de Aburrá exportadas de OpenStreetMap con
 `go run ./cmd/api import-places` (apps/api). Se usan en el modo demostración de la app.
 
 Datos © colaboradores de OpenStreetMap, disponibles bajo la

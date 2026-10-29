@@ -9,7 +9,7 @@ import { AppHeader, BackButton, Screen, ThemeButton } from "@/components/layout"
 import { LifeCircleDiagram, LifeCircleLegend } from "@/components/lifeCircle";
 import { PetMap } from "@/components/map/PetMap";
 import { Button } from "@/components/ui/Button";
-import { Banner, ListRow, ToggleRow } from "@/components/ui/Controls";
+import { Banner, Card, IconBubble, ListRow, ToggleRow } from "@/components/ui/Controls";
 import { Icon } from "@/components/ui/Icon";
 import { SelectField } from "@/components/ui/SelectField";
 import { OptionList, Sheet } from "@/components/ui/Sheet";
@@ -253,6 +253,29 @@ export default function ReportScreen() {
         value={draft.kind}
         onChange={(kind) => update("kind", kind)}
       />
+
+      {/* Si está herida, primero la veterinaria: el borrador queda guardado para terminar después. */}
+      {!isLost ? (
+        <Card className="mt-4 border-lost/30 bg-lost-soft" testID="report-injured">
+          <View className="flex-row items-center gap-3">
+            <IconBubble icon="medkit" tone="lost" />
+            <View className="flex-1">
+              <Text variant="bodyStrong">{t("report.injuredTitle")}</Text>
+              <Text variant="caption" tone="body">
+                {t("report.injuredBody")}
+              </Text>
+            </View>
+          </View>
+          <Button
+            label={t("report.injuredCta")}
+            icon="medkit"
+            className="mt-3"
+            compact
+            onPress={() => router.push("/veterinarias")}
+            testID="report-find-vet"
+          />
+        </Card>
+      ) : null}
 
       <Text variant="subheading" className="mb-3 mt-6" accessibilityRole="header">
         {t("report.petInfo")}
@@ -590,7 +613,7 @@ export default function ReportScreen() {
               <LifeCircleLegend profile={profile} />
             </View>
             <Text variant="caption" className="mt-3">
-              {`${t("report.projectionCap", { distance: formatDistance(LIFE_CIRCLE_PROFILES[profile].cap, locale) })} · ~${Math.round(hoursToCap(profile))} h`}
+              {`${t("report.projectionCap", { distance: formatDistance(LIFE_CIRCLE_PROFILES[profile].cap, locale) })} · ~${Math.round(hoursToCap(profile) * 60)} min`}
             </Text>
           </View>
         ) : (

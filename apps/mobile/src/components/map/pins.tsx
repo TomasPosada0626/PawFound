@@ -73,7 +73,7 @@ export function PointPin({ kind }: { kind: CaseKind }) {
 
 /** Cluster con conteo; color por mayoría y neutro si está parejo (docs/flujos/mapa-e-inicio.md §3). */
 export function ClusterBubble({ cluster }: { cluster: ClusterItem }) {
-  const color = cluster.majority === "mixed" ? "#0B2545" : statusColor[cluster.majority];
+  const color = cluster.majority === "mixed" ? "#13254A" : statusColor[cluster.majority];
   const size = Math.min(68, 46 + cluster.pets.length * 3);
   return (
     <View
@@ -88,16 +88,54 @@ export function ClusterBubble({ cluster }: { cluster: ClusterItem }) {
   );
 }
 
-/** Pin de veterinaria (cruz) o refugio (casa), azul para no confundirse con los casos. */
-export function PlacePin({ place }: { place: Place }) {
+/**
+ * Pin de veterinaria, azul para no confundirse con los casos (rojo y aguamarina). Con `rank`
+ * muestra el número de la lista (1 = la más cercana) en vez del botiquín.
+ */
+export function PlacePin({ place, selected = false, rank }: { place: Place; selected?: boolean; rank?: number }) {
+  const big = selected || rank === 1;
+  return (
+    <View className="items-center" accessibilityLabel={place.name}>
+      <View
+        style={{ backgroundColor: selected ? "#0B4AA8" : "#1D5FC9" }}
+        className={`${big ? "h-12 w-12 border-[3px]" : "h-9 w-9 border-2"} items-center justify-center rounded-full border-white shadow-md shadow-black/30`}
+      >
+        {rank ? (
+          <Text variant="subheading" tone="white" style={{ fontSize: big ? 18 : 15, lineHeight: big ? 22 : 18 }}>
+            {String(rank)}
+          </Text>
+        ) : (
+          <Icon name="medkit" size={big ? 22 : 18} color="#FFFFFF" />
+        )}
+      </View>
+    </View>
+  );
+}
+
+/** Pin de una ubicación compartida en el chat: persona (actual) o bandera (punto de encuentro). */
+export function SharePin({ kind }: { kind: "current" | "meeting" }) {
+  const color = kind === "current" ? "#1D5FC9" : "#12B3A6";
   return (
     <View className="items-center">
       <View
-        style={{ backgroundColor: place.kind === "vet" ? "#1D5FC9" : "#6D4AD6" }}
-        className="h-9 w-9 items-center justify-center rounded-full border-2 border-white shadow-sm shadow-black/30"
+        className="h-11 w-11 items-center justify-center rounded-full border-[3px] border-white shadow-md shadow-black/25"
+        style={{ backgroundColor: color }}
       >
-        <Icon name={place.kind === "vet" ? "medkit" : "home"} size={18} color="#FFFFFF" />
+        <Icon name={kind === "current" ? "person" : "flag"} size={20} color="#FFFFFF" />
       </View>
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          marginTop: -2,
+          borderLeftWidth: 7,
+          borderRightWidth: 7,
+          borderTopWidth: 10,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: color,
+        }}
+      />
     </View>
   );
 }

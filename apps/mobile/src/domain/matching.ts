@@ -1,5 +1,4 @@
 import { distanceMeters } from "./geo";
-import { LIFE_CIRCLE_PROFILES, type LifeCircleProfile } from "./lifeCircle";
 import type { LatLng, OwnedPet, PetCase, PetSize, Species } from "./types";
 
 /**
@@ -17,10 +16,15 @@ import type { LatLng, OwnedPet, PetCase, PetSize, Species } from "./types";
 
 const MARGIN = 500;
 
-/** Tope del perfil más amplio de la especie + margen de ubicación aproximada. */
+/**
+ * Hasta dónde puede haber llegado una mascota de la especie sin que su familia lo note, más el
+ * margen de la ubicación aproximada. Es independiente del círculo de vida (que llega a 2 km):
+ * una coincidencia perdida cuesta más que preguntar de más. Perro 8 km, gato 800 m, otra 5 km.
+ */
+const MATCH_REACH: Record<Species, number> = { dog: 8000, cat: 800, other: 5000 };
+
 export function ownedMatchRadius(species: Species): number {
-  const profile: LifeCircleProfile = species === "dog" ? "dog_panic" : species === "cat" ? "cat_or_shy" : "unknown";
-  return LIFE_CIRCLE_PROFILES[profile].cap + MARGIN;
+  return MATCH_REACH[species] + MARGIN;
 }
 
 const SIZE_INDEX: Record<PetSize, number> = { small: 0, medium: 1, large: 2 };

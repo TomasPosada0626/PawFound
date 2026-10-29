@@ -29,6 +29,16 @@ export default function ReportSuccessScreen() {
   if (!pet) return <Redirect href="/" />;
   const name = petDisplayName(pet, t);
   const isLost = pet.kind === "lost";
+  const hurt = pet.foundCondition === "injured" || pet.foundCondition === "needs_vet";
+  const findVet = (
+    <Button
+      label={t("report.successInjured")}
+      icon="medkit"
+      variant={hurt ? "primary" : "outline"}
+      onPress={() => router.push({ pathname: "/veterinarias", params: { petId: pet.id } })}
+      testID="success-find-vet"
+    />
+  );
 
   const share = async () => {
     const result = await Share.share({
@@ -81,7 +91,15 @@ export default function ReportSuccessScreen() {
       </Card>
 
       <View className="mt-6 gap-3">
-        <Button label={t("common.share")} icon="share-social" onPress={() => void share()} testID="success-share" />
+        {!isLost && hurt ? findVet : null}
+        <Button
+          label={t("common.share")}
+          icon="share-social"
+          variant={!isLost && hurt ? "outline" : "primary"}
+          onPress={() => void share()}
+          testID="success-share"
+        />
+        {!isLost && !hurt ? findVet : null}
         <Button
           label={t("report.openGroup")}
           icon="people"

@@ -7,8 +7,10 @@ import type {
   LatLng,
   AppNotification,
   Lang,
+  LocationShare,
   Message,
   MessageKind,
+  MessageLocation,
   MessagePhoto,
   NotificationKind,
   NotificationPrefs,
@@ -54,6 +56,8 @@ export const CODE_TTL_MIN = 10;
 export const MAX_CODE_ATTEMPTS = 5;
 export const LOCK_MINUTES = 5;
 export const MESSAGE_MAX = 1000;
+/** Nombre de un punto de encuentro ("Parque de Laureles"). */
+export const LOCATION_LABEL_MAX = 60;
 /** Máximo de personas que la familia puede agradecer al cerrar un caso. */
 export const MAX_HELPERS = 5;
 export const MAX_OWNED_PETS = 10;
@@ -507,7 +511,11 @@ export class MockBackend {
       }),
       // La historia del caso se quita: ya está en casa.
       stories: this.state.stories.filter((s) => s.petId !== petId),
-      messages: [...this.state.messages, this.makeMessage(pet.groupId, "system", user, "reunited")],
+      // Las ubicaciones compartidas en los mensajes directos del caso dejan de verse.
+      messages: [
+        ...this.hideLocations((m) => this.state.threads.some((t) => t.id === m.threadId && t.kind === "dm" && t.petId === petId)),
+        this.makeMessage(pet.groupId, "system", user, "reunited"),
+      ],
       notifications: [
         ...helpers.map((id) => this.makeNotification(id, "thanked", pet.id)),
         ...recipients.map((id) => this.makeNotification(id, "case_closed", pet.id)),
@@ -707,8 +715,25 @@ export class MockBackend {
     if (thread.archived) return;
     this.commit({
       threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, archived: true, closedBy: user.id } : t)),
-      messages: [...this.state.messages, this.makeMessage(threadId, "system", user, "closed")],
+      messages: [...this.hideLocations((m) => m.threadId === threadId), this.makeMessage(threadId, "system", user, "closed")],
     });
+  }
+
+  /**
+   * Mensajes con las ubicaciones de personas (actual y punto de encuentro) que cumplen el
+   * filtro ya ocultas: se borra el punto y queda "ya no visible". Las veterinarias siguen
+   * visibles porque son lugares públicos.
+   */
+  private hideLocations(match: (m: Message) => boolean): Message[] {
+    return this.state.messages.map((m) =>
+      m.location && m.location.kind !== "place" && !m.location.hidden && match(m) ? this.withoutLocation(m) : m,
+    );
+  }
+
+  private withoutLocation(m: Message): Message {
+    if (!m.location) return m;
+    const { location: _point, ...rest } = m.location;
+    return { ...m, location: { ...rest, hidden: true } };
   }
 
   /** Archiva o desarchiva un chat solo en la lista de quien lo pide. */
@@ -752,10 +777,7 @@ export class MockBackend {
     if (user.mutedUntil && new Date(user.mutedUntil) > this.now()) {
       throw new BackendError("muted", { until: user.mutedUntil });
     }
-    // Antispam: límite por minuto (en la API, con Redis; docs/ARCHITECTURE.md).
-    const minuteAgo = new Date(this.now().getTime() - 60_000).toISOString();
-    const recent = this.state.messages.filter((m) => m.authorId === user.id && m.kind === "text" && m.at > minuteAgo);
-    if (recent.length >= MESSAGES_PER_MINUTE) throw new BackendError("rate_limited", {});
+    this.assertMessageRate(user.id);
     // Se traduce una vez hacia cada idioma que usan los miembros, no por cada lector.
     const targets = new Set(
       thread.memberIds.map((id) => this.state.users[id]?.lang).filter((l): l is Lang => Boolean(l) && l !== lang),
@@ -775,6 +797,60 @@ export class MockBackend {
       messages: [...this.state.messages, message],
       threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, readAt: { ...t.readAt, [user.id]: message.at } } : t)),
     });
+  }
+
+  /** Antispam: límite de mensajes por minuto (texto y ubicaciones), igual que la API. */
+  private assertMessageRate(userId: string) {
+    const minuteAgo = new Date(this.now().getTime() - 60_000).toISOString();
+    const recent = this.state.messages.filter(
+      (m) => m.authorId === userId && (m.kind === "text" || m.kind === "location") && m.at > minuteAgo,
+    );
+    if (recent.length >= MESSAGES_PER_MINUTE) throw new BackendError("rate_limited", {});
+  }
+
+  /**
+   * Comparte una ubicación en un chat. No es en vivo: se envía ese punto una vez. La de una
+   * persona (actual o punto de encuentro) solo va en mensajes directos; una veterinaria también
+   * en el grupo del caso, y su nombre y punto salen de la lista de lugares.
+   */
+  async shareLocation(threadId: string, share: LocationShare, lang: Lang = "es"): Promise<void> {
+    const user = this.requireVerified();
+    const thread = this.state.threads.find((t) => t.id === threadId);
+    if (!thread || !thread.memberIds.includes(user.id) || thread.archived) throw new BackendError("not_allowed");
+    if (user.mutedUntil && new Date(user.mutedUntil) > this.now()) {
+      throw new BackendError("muted", { until: user.mutedUntil });
+    }
+    let location: MessageLocation;
+    if (share.kind === "place") {
+      const place = this.state.places.find((p) => p.id === share.placeId);
+      if (!place) throw new BackendError("not_found");
+      location = {
+        kind: "place",
+        location: place.location,
+        label: place.name,
+        placeId: place.id,
+        ...(place.address ? { address: place.address } : {}),
+      };
+    } else {
+      if (thread.kind !== "dm") throw new BackendError("not_allowed");
+      const label = share.kind === "meeting" ? share.label?.trim().slice(0, LOCATION_LABEL_MAX) : undefined;
+      location = { kind: share.kind, location: share.location, ...(label ? { label } : {}) };
+    }
+    this.assertMessageRate(user.id);
+    const message: Message = { ...this.makeMessage(threadId, "location", user, ""), lang, location };
+    this.commit({
+      messages: [...this.state.messages, message],
+      threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, readAt: { ...t.readAt, [user.id]: message.at } } : t)),
+    });
+  }
+
+  /** Quien compartió una ubicación la deja de mostrar cuando quiera. */
+  async stopSharingLocation(messageId: string): Promise<void> {
+    const user = this.requireUser();
+    const message = this.state.messages.find((m) => m.id === messageId);
+    if (!message) throw new BackendError("not_found");
+    if (message.authorId !== user.id || message.kind !== "location") throw new BackendError("not_allowed");
+    this.commit({ messages: this.state.messages.map((m) => (m.id === messageId ? this.withoutLocation(m) : m)) });
   }
 
   /** Idempotente: solo escribe si hay mensajes posteriores a la última lectura. */

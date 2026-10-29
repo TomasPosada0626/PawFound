@@ -27,7 +27,11 @@ explícito para la revisión legal, no asumir un tratamiento igual al de persona
 PawFound tratará datos de cuenta, publicaciones, mensajes, reportes de moderación,
 consentimientos, datos técnicos mínimos y ubicación aproximada. Se usarán para prestar el
 servicio, prevenir abuso, atender solicitudes, mejorar seguridad y cumplir obligaciones
-legales. No se mostrarán direcciones ni coordenadas exactas de forma predeterminada.
+legales. No se mostrarán direcciones ni coordenadas exactas de forma predeterminada. La
+excepción es la ubicación que la persona decide enviar en un mensaje directo (su ubicación
+actual o un punto de encuentro, nunca en grupos y nunca en vivo): solo la ve la otra persona
+y sus coordenadas se borran cuando quien la envió la quita, cuando se cierra la conversación
+o cuando se cierra el caso.
 
 ## Derechos y solicitudes
 
@@ -48,5 +52,7 @@ Supabase (base de datos), Cloudflare (imágenes), Firebase (notificaciones) — 
 ## Retención
 
 Los plazos de retención y anonimización se aprobarán legalmente antes de producción. Una
-publicación y su chat se archivarán al marcar la mascota como encontrada; no se eliminarán
-automáticamente.
+publicación se archivará al marcar la mascota como encontrada; no se eliminará
+automáticamente. Los chats no se cierran ni se borran solos: cada persona los archiva o los
+elimina de su lista. Las coordenadas de una ubicación compartida en el chat se borran en
+cuanto deja de ser visible.

@@ -18,7 +18,7 @@
     "android": {
       "package": "app.pawfound",
       "adaptiveIcon": {
-        "backgroundColor": "#E3F5F1",
+        "backgroundColor": "#04111A",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -49,6 +49,13 @@
             "DEFAULT"
           ]
         }
+      ],
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
       ]
     },
     "web": {
@@ -83,10 +90,10 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 160,
-          "backgroundColor": "#F4F9F8",
+          "imageWidth": 200,
+          "backgroundColor": "#F3F8F9",
           "dark": {
-            "backgroundColor": "#0B1622"
+            "backgroundColor": "#0A1520"
           }
         }
       ],
@@ -98,6 +105,13 @@
           "defaultChannel": "case-updates"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "af254568-a1a0-47c1-8cd3-f5b44f04cd0a"
+      }
+    },
+    "owner": "pawfounds-team"
   }
 }

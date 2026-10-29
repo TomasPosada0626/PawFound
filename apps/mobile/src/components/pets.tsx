@@ -173,7 +173,20 @@ export function UserAvatar({
 }
 
 /** Tarjeta del carrusel "Mascotas cerca de ti" (Home y Mapa). */
-export function PetCard({ pet, distance, now, width = 172 }: { pet: PetCase; distance?: number; now: Date; width?: number }) {
+export function PetCard({
+  pet,
+  distance,
+  now,
+  width = 172,
+  onPress,
+}: {
+  pet: PetCase;
+  distance?: number;
+  now: Date;
+  width?: number;
+  /** Sin onPress abre el caso; en el mapa la usa para mostrar solo esa mascota. */
+  onPress?: () => void;
+}) {
   const { t, locale } = useI18n();
   const { colors } = useTheme();
   const { isFavorite, toggleFavorite } = useDevicePrefs();
@@ -189,7 +202,7 @@ export function PetCard({ pet, distance, now, width = 172 }: { pet: PetCase; dis
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={[name, subtitle, status, distanceText, time].filter(Boolean).join(", ")}
-        onPress={() => router.push(`/pet/${pet.id}`)}
+        onPress={onPress ?? (() => router.push(`/pet/${pet.id}`))}
         className="active:opacity-90"
         testID={`pet-card-${pet.id}`}
       >

@@ -29,12 +29,14 @@ type Params struct {
 	Cap     float64 `json:"cap"`
 }
 
-// Profiles es la tabla de PRODUCT.md.
+// Profiles es la tabla de PRODUCT.md. Decisión del 2026-10-28: todas las mascotas arrancan en
+// 250 m y llegan a 2 km en unos 30 minutos (tasa = 1750 m / √0,5 h). Los perfiles se conservan
+// para poder volver a diferenciar la velocidad por especie si el piloto lo muestra.
 var Profiles = map[Profile]Params{
-	DogPanic: {Initial: 1000, Rate: 1200, Cap: 8000},
-	DogCalm:  {Initial: 500, Rate: 400, Cap: 4000},
-	CatOrShy: {Initial: 150, Rate: 60, Cap: 800},
-	Unknown:  {Initial: 300, Rate: 250, Cap: 5000},
+	DogPanic: {Initial: 250, Rate: 2475, Cap: 2000},
+	DogCalm:  {Initial: 250, Rate: 2475, Cap: 2000},
+	CatOrShy: {Initial: 250, Rate: 2475, Cap: 2000},
+	Unknown:  {Initial: 250, Rate: 2475, Cap: 2000},
 }
 
 // Species de la mascota reportada.

@@ -8,7 +8,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { statusColor } from "@/theme/tokens";
 
 import { darkMapStyle, lightMapStyle } from "./mapStyles";
-import { ClusterBubble, PetPin, PointPin, PlacePin } from "./pins";
+import { ClusterBubble, PetPin, PlacePin, PointPin, SharePin } from "./pins";
 import { CIRCLE_STYLE, type PetMapProps } from "./types";
 
 /**
@@ -25,9 +25,13 @@ export function PetMap({
   clusterLabel,
   circles = [],
   marker,
+  shareMarker,
   onMapPress,
   places = [],
   onPlacePress,
+  selectedPlaceId,
+  numberedPlaces = false,
+  lite = false,
   showsUserLocation,
   satellite,
   interactive = true,
@@ -56,6 +60,7 @@ export function PetMap({
         zoomEnabled={interactive}
         rotateEnabled={false}
         pitchEnabled={false}
+        liteMode={lite}
         onRegionChangeComplete={(r) => onRegionChange?.(r)}
         onPress={(e) => onMapPress?.(e.nativeEvent.coordinate)}
       >
@@ -69,7 +74,7 @@ export function PetMap({
               strokeColor={`${statusColor[c.kind]}${style.strokeAlpha}`}
               fillColor={style.fill[c.kind]}
               strokeWidth={style.strokeWidth}
-              lineDashPattern={[...style.dash]}
+              lineDashPattern={style.dash.length ? [...style.dash] : undefined}
             />
           );
         })}
@@ -90,19 +95,25 @@ export function PetMap({
             />
           ),
         )}
-        {places.map((place) => (
+        {places.map((place, index) => (
           <Marker
-            key={place.id}
+            key={`${place.id}-${place.id === selectedPlaceId ? "on" : "off"}-${numberedPlaces ? index : ""}`}
             coordinate={place.location}
             anchor={{ x: 0.5, y: 0.5 }}
             onPress={() => onPlacePress?.(place)}
             tracksViewChanges={false}
             accessibilityLabel={place.name}
             testID={`place-${place.id}`}
+            zIndex={place.id === selectedPlaceId ? 2 : 1}
           >
-            <PlacePin place={place} />
+            <PlacePin place={place} selected={place.id === selectedPlaceId} rank={numberedPlaces ? index + 1 : undefined} />
           </Marker>
         ))}
+        {shareMarker ? (
+          <Marker coordinate={shareMarker.coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
+            <SharePin kind={shareMarker.kind} />
+          </Marker>
+        ) : null}
         {marker ? (
           <Marker coordinate={marker.coordinate} anchor={{ x: 0.5, y: 1 }} tracksViewChanges={false}>
             {marker.pet ? <PetPin pet={marker.pet} size={64} /> : <PointPin kind={marker.kind} />}

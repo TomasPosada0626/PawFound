@@ -14,7 +14,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { Icon } from "./ui/Icon";
 import { Text } from "./ui/Text";
 
-const RING = { lost: ["#F06277", "#C8283D"], found: ["#2BC4A6", "#0E7C6B"] } as const;
+const RING = { lost: ["#F25555", "#C81E1E"], found: ["#2CCFC0", "#08807A"] } as const;
 
 /**
  * Fila de historias (Inicio): los casos activos cerca, como en las redes, pero sin vencer a las

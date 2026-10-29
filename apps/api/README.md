@@ -89,4 +89,4 @@ internal/testdb       base PostGIS aislada para las pruebas de integración
 Implementado: issues #32 a #37 y #42, y la parte de servidor de #38, #39, #40, #43 y #45.
 Pendiente de proveedor (cada uno con su evaluación de privacidad): correo SMTP, push por
 Expo/FCM/APNs, Cloudflare R2, traducción automática de chats, Sentry (#41) y Upstash Redis
-(#40). Facebook Login todavía no está implementado.
+(#40).

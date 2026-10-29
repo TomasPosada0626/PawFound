@@ -18,7 +18,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { formatDistance, regionForRadius } from "@/domain/geo";
-import { currentRadius, profileFor, radiusInFuture } from "@/domain/lifeCircle";
+import { currentRadius, offsetMinutes, profileFor, radiusInFuture } from "@/domain/lifeCircle";
 import { memberDays } from "@/domain/moderation";
 import { findPossibleMatches } from "@/domain/rules";
 import { useAuthGate } from "@/hooks/useAuthGate";
@@ -184,7 +184,10 @@ export default function PetDetailScreen() {
             </Text>
             {futureRadius > radius ? (
               <Text variant="captionStrong" tone="lost" accessibilityLiveRegion="polite">
-                {t("lifeCircle.previewing", { hours: previewHours, distance: formatDistance(futureRadius, locale) })}
+                {t("lifeCircle.previewing", {
+                  minutes: offsetMinutes(previewHours),
+                  distance: formatDistance(futureRadius, locale),
+                })}
               </Text>
             ) : null}
           </View>

@@ -157,12 +157,13 @@ export type StoryItem = {
 };
 
 /**
- * Veterinaria o refugio (capa del mapa). Datos de OpenStreetMap: pueden estar incompletos, por
- * eso cada lugar se puede reportar.
+ * Veterinaria (capa del mapa y "Está herida: busquemos una veterinaria"). Datos de
+ * OpenStreetMap: pueden estar incompletos, por eso cada lugar se puede reportar. Los refugios
+ * no se muestran: en Medellín no reciben mascotas encontradas.
  */
 export type Place = {
   id: string;
-  kind: "vet" | "shelter";
+  kind: "vet";
   name: string;
   location: LatLng;
   address?: string;
@@ -172,7 +173,27 @@ export type Place = {
   emergency?: boolean;
 };
 
-export type MessageKind = "text" | "system" | "sighting";
+export type MessageKind = "text" | "system" | "sighting" | "location";
+
+/**
+ * Ubicación de un mensaje:
+ * - current: dónde estaba quien la envió en ese momento (no es en vivo). Solo en mensajes directos.
+ * - meeting: punto de encuentro elegido en el mapa. Solo en mensajes directos.
+ * - place: veterinaria a donde alguien lleva la mascota; también en el grupo del caso.
+ * Sin `location` ya no es visible: quien la compartió la quitó, o se cerró el chat o el caso.
+ */
+export type MessageLocation = {
+  kind: "current" | "meeting" | "place";
+  location?: LatLng;
+  label?: string;
+  address?: string;
+  placeId?: string;
+  hidden?: boolean;
+};
+
+/** Lo que se envía al compartir una ubicación (en "place" el servidor pone nombre y punto). */
+export type LocationShare =
+  { kind: "current" | "meeting"; location: LatLng; label?: string } | { kind: "place"; placeId: string };
 
 /** Foto adjunta a un mensaje (grupos y DM). Se envía sin ubicación ni datos del celular. */
 export type MessagePhoto = { uri: string; width: number; height: number };
@@ -191,6 +212,8 @@ export type Message = {
   translations?: Partial<Record<Lang, string>>;
   /** Foto adjunta; el texto puede ir vacío. */
   photo?: MessagePhoto;
+  /** Ubicación compartida (mensajes "location"); el texto puede ir vacío. */
+  location?: MessageLocation;
 };
 
 export type Thread = {

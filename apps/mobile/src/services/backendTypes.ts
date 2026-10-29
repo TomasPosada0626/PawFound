@@ -134,7 +134,7 @@ export type NewSightingInput = {
   note?: string;
 };
 
-export type SocialProvider = "google" | "facebook" | "apple";
+export type SocialProvider = "google" | "apple";
 
 export type ProfilePatch = Partial<
   Pick<User, "name" | "username" | "avatar" | "title" | "bio" | "city" | "neighborhood" | "phone">

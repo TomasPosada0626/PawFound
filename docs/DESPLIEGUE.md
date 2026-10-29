@@ -67,7 +67,7 @@ PUSH_PROVIDER=expo
 Después del primer arranque:
 
 ```bash
-api import-places                              # veterinarias y refugios (OpenStreetMap)
+api import-places                              # veterinarias (OpenStreetMap)
 api grant-role tu-correo@ejemplo.com admin     # acceso al panel /admin
 ```
 

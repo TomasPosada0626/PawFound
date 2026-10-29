@@ -10,20 +10,15 @@ import StoreButtons from "../components/StoreButtons.astro";
 import Base from "../layouts/Base.astro";
 
 // Radios calculados con la fórmula del producto (PRODUCT.md): inicial + tasa × √horas, con tope.
-const profiles = [
-  { name: "Perro asustado (pólvora, tormenta, accidente)", start: "1 km", six: "3,9 km", day: "6,9 km", cap: "8 km" },
-  { name: "Perro tranquilo", start: "500 m", six: "1,5 km", day: "2,5 km", cap: "4 km" },
-  { name: "Gato o mascota tímida", start: "150 m", six: "300 m", day: "450 m", cap: "800 m" },
-  { name: "Otra especie", start: "300 m", six: "900 m", day: "1,5 km", cap: "5 km" },
-];
+const profiles = [{ name: "Toda mascota perdida", start: "250 m", six: "960 m", day: "1,5 km", cap: "2 km" }];
 
 const features = [
   { icon: "bell", tone: "i-lost", title: "Alerta Ángel", text: "Si se pierde una mascota a menos de 250 m de donde estás, te llega al instante. Si estás más lejos, te llega cuando su círculo de búsqueda crece hasta ti." },
   { icon: "stories", tone: "i-violet", title: "Historias que no vencen", text: "Cada caso tiene su historia con fotos y novedades de la familia. No se borra a las 24 horas: sigue ahí hasta que la mascota vuelve a casa." },
-  { icon: "chat", tone: "i-teal", title: "Chats con fotos", text: "Un grupo por caso para coordinar la búsqueda y mensajes directos con la familia. Envía la foto de lo que viste: «¿es este?»." },
+  { icon: "chat", tone: "i-teal", title: "Chats con fotos y ubicación", text: "Un grupo por caso para coordinar la búsqueda y mensajes directos con la familia. Envía la foto de lo que viste y, por mensaje directo, tu ubicación o un punto de encuentro para entregarla." },
   { icon: "heart", tone: "i-gold", title: "¿Es tu mascota?", text: "Registra a tus mascotas antes de que pase algo. Si alguien encuentra una que se parece, te preguntamos al instante." },
   { icon: "qr", tone: "i-blue", title: "Afiche con QR", text: "Crea en segundos un afiche para imprimir o enviar por WhatsApp. Sin números de teléfono: el QR abre el caso." },
-  { icon: "vet", tone: "i-teal", title: "Veterinarias y refugios", text: "En el mapa, dónde llevar una mascota encontrada para leer su microchip y dónde preguntar si se perdió la tuya." },
+  { icon: "vet", tone: "i-teal", title: "¿Está herida? Veterinaria ya", text: "Al reportar una mascota encontrada, te mostramos las veterinarias más cercanas. Eliges una y «Vamos» abre la ruta en Waze o Google Maps." },
   { icon: "star", tone: "i-gold", title: "Insignias de verdad", text: "Se ganan ayudando: avistamientos, reencuentros, casos compartidos. Nunca se compran. La familia elige a quién agradecer." },
   { icon: "lock", tone: "i-violet", title: "Tu ubicación, protegida", text: "Nadie ve tu dirección: todo se muestra aproximado a 250 m. Para las alertas guardamos solo tu último punto, sin historial." },
 ];
@@ -33,13 +28,13 @@ const tutorial = [
   { title: "Activa las Alertas Ángel", text: "Permite las notificaciones y «Alertas donde estés». Te avisamos solo de mascotas perdidas cerca de ti, máximo 5 al día, y sin sonido en tu horario de descanso." },
   { title: "Agrega a tus mascotas", text: "En «Mis mascotas» guarda su foto, señas y collar. Si un día se pierde, el reporte sale con un toque, y si alguien encuentra una parecida te avisamos." },
   { title: "Si se pierde: publica de inmediato", text: "Toca «Se perdió», confirma dónde y cuándo la viste por última vez y publica. Las primeras horas son las que más cuentan: el aviso sale a los vecinos que están cerca." },
-  { title: "Si encuentras una: repórtala", text: "Toma una foto, marca dónde la encontraste y cuéntanos cómo está. Llévala a una veterinaria cercana para leer su microchip: la encuentras en el mapa." },
+  { title: "Si encuentras una: repórtala", text: "Toma una foto, marca dónde la encontraste y cuéntanos cómo está. Si está herida, toca «Busquemos la veterinaria más cercana» y «Vamos» te lleva con Waze o Google Maps; allí también leen su microchip." },
   { title: "Ayuda y comparte", text: "Toca «La vi» si la ves, únete al grupo del caso, comparte la historia o el afiche. Cuando vuelva a casa, la familia te puede agradecer con la insignia «Ángel de patas»." },
 ];
 
 const faqs = [
   { q: "¿PawFound es gratis?", a: "Sí, completamente: sin pagos, sin suscripciones y sin publicidad. Las Alertas Ángel también son gratis: llegan como notificación de la app, no como SMS." },
-  { q: "¿Alguien puede ver dónde vivo?", a: "No. Los reportes, los avistamientos y tu ubicación para las alertas se guardan aproximados a una celda de 250 m y nunca se muestra tu dirección. La dirección exacta solo la compartes tú, si quieres, por mensaje directo." },
+  { q: "¿Alguien puede ver dónde vivo?", a: "No. Los reportes, los avistamientos y tu ubicación para las alertas se guardan aproximados a una celda de 250 m y nunca se muestra tu dirección. La dirección exacta solo la compartes tú, si quieres, por mensaje directo: tu ubicación de ese momento o un punto de encuentro, nunca en vivo, y la puedes quitar cuando quieras." },
   { q: "¿Por qué no puedo bloquear a alguien?", a: "En PawFound nadie bloquea a nadie: si alguien es grosero o intenta estafar, lo reportas desde el mensaje o su perfil y el equipo de moderación lo revisa en menos de 24 horas." },
   { q: "¿Cuándo sale para iPhone?", a: "Primero lanzamos en Android para el Valle de Aburrá. La versión para iPhone llega después y funcionará igual." },
 ];
@@ -117,12 +112,12 @@ const faqs = [
         <p class="eyebrow" style="color:#7fe0cb">El círculo de vida</p>
         <h2 id="circulo-title" style="margin-top:0.6rem">La búsqueda crece al ritmo de la mascota</h2>
         <p class="lead" style="color:#b6c8d2;margin:1rem 0 1.5rem">
-          Un perro asustado por la pólvora corre lejos; un gato se esconde cerca. Por eso el área de búsqueda se calcula según la especie y lo
-          que pasó, y crece con las horas. Cuando el círculo llega a donde estás, te avisamos.
+          Cada búsqueda arranca a 250 m del último lugar donde la vieron y en unos 30 minutos llega a 2 km: las primeras horas son las que
+          más cuentan. Cuando el círculo llega a donde estás, te avisamos.
         </p>
         <div style="overflow-x:auto">
           <table>
-            <thead><tr><th scope="col">Perfil</th><th scope="col">Al publicar</th><th scope="col">6 horas</th><th scope="col">24 horas</th><th scope="col">Máximo</th></tr></thead>
+            <thead><tr><th scope="col">Perfil</th><th scope="col">Al publicar</th><th scope="col">5 minutos</th><th scope="col">15 minutos</th><th scope="col">30 minutos</th></tr></thead>
             <tbody>
               {profiles.map((p) => <tr><td>{p.name}</td><td>{p.start}</td><td>{p.six}</td><td>{p.day}</td><td>{p.cap}</td></tr>)}
             </tbody>

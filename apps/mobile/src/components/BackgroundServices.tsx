@@ -1,4 +1,3 @@
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
@@ -12,6 +11,7 @@ import {
   configurePush,
   getPushPermission,
   getPushToken,
+  notificationsModule,
   presentLocal,
   safeNotificationUrl,
 } from "@/services/pushNotifications";
@@ -39,6 +39,8 @@ export function BackgroundServices() {
 
   // Tocar una notificación abre su pantalla, también si la app estaba cerrada.
   useEffect(() => {
+    const Notifications = notificationsModule();
+    if (!Notifications) return;
     let alive = true;
     const open = (data: unknown) => {
       const url = safeNotificationUrl(data);
