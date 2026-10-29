@@ -145,6 +145,8 @@ export const en: Translations = {
     mapSatellite: "Satellite",
     webPreview: "Web preview",
     showAll: "Show all",
+    showList: "Show the list",
+    hideList: "Hide the list to see more map",
     viewCase: "View case",
     circleNow: "Life circle: {now} around",
     circleGrows: "Started at 250 m and grows up to {max}",

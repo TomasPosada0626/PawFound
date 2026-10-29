@@ -144,6 +144,8 @@ export const es = {
     mapSatellite: "Satélite",
     webPreview: "Vista previa web",
     showAll: "Ver todas",
+    showList: "Mostrar la lista",
+    hideList: "Ocultar la lista para ver más mapa",
     viewCase: "Ver caso",
     circleNow: "Círculo de vida: {now} a la redonda",
     circleGrows: "Arrancó en 250 m y crece hasta {max}",
