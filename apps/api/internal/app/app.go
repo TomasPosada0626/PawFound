@@ -39,9 +39,9 @@ type App struct {
 	Log        *slog.Logger
 	Now        func() time.Time
 
-	// APIBaseURL arma las URLs absolutas de las fotos ("https://api.pawfound.app").
+	// APIBaseURL arma las URLs absolutas de las fotos ("https://pawfound-api.onrender.com").
 	APIBaseURL string
-	// WebBaseURL arma los enlaces que se comparten ("https://pawfound.app").
+	// WebBaseURL arma los enlaces que se comparten ("https://pawfound.pages.dev").
 	WebBaseURL string
 	// RefreshTTL es la vida de un refresh token sin usar.
 	RefreshTTL time.Duration
