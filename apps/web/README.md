@@ -1,6 +1,6 @@
 # PawFound · sitio de lanzamiento
 
-Sitio estático de `pawfound.app` hecho con [Astro](https://astro.build): presentación de
+Sitio estático de `pawfound.pages.dev` hecho con [Astro](https://astro.build): presentación de
 lanzamiento, cómo funciona, el círculo de vida, el tutorial de primera vez, la guía ("se me
 perdió", "encontré una"), ayuda, y la política de privacidad y los términos (se leen de
 `docs/legal/`). También es el destino de los enlaces compartidos y de los QR de los afiches:
