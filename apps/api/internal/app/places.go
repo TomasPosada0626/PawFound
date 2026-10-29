@@ -106,7 +106,7 @@ func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64
 		return 0, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", "PawFound/0.2 (+https://pawfound.app)")
+	req.Header.Set("User-Agent", "PawFound/0.2 (+https://pawfound.pages.dev)")
 	res, err := client.Do(req)
 	if err != nil {
 		return 0, err

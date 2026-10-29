@@ -26,7 +26,7 @@ const ANGEL_GRADIENT = ["#7B5BE3", "#5534C4"] as const;
 
 /**
  * Pantalla de la Alerta Ángel: se abre al tocar la notificación push o el enlace
- * https://pawfound.app/alerta/angel/<id>. Prioriza las acciones que ayudan en los primeros
+ * https://pawfound.pages.dev/alerta/angel/<id>. Prioriza las acciones que ayudan en los primeros
  * minutos: reconocerla (fotos), avisar si la vio y difundir.
  */
 export default function AngelAlertScreen() {

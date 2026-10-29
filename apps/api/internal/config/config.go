@@ -77,7 +77,7 @@ func Load(getenv func(string) string) (Config, error) {
 		DatabaseURL: get("DATABASE_URL", ""),
 		JWTSecret:   get("JWT_SECRET", ""),
 		APIBaseURL:  get("PUBLIC_API_URL", "http://localhost:8080"),
-		WebBaseURL:  get("PUBLIC_WEB_URL", "https://pawfound.app"),
+		WebBaseURL:  get("PUBLIC_WEB_URL", "https://pawfound.pages.dev"),
 		MediaDir:    get("MEDIA_DIR", "./data/media"),
 		R2: R2{
 			AccountID: get("CLOUDFLARE_R2_ACCOUNT_ID", ""), Bucket: get("CLOUDFLARE_R2_BUCKET", ""),
