@@ -50,20 +50,32 @@ var verificationTexts = map[string][3]string{
 	},
 }
 
-// SendVerificationCode envía el código de 6 dígitos.
-func (m SMTPMailer) SendVerificationCode(_ context.Context, email, code, lang string) error {
+// verificationMessage arma el asunto y el texto del código de 6 dígitos en el idioma pedido.
+func verificationMessage(code, lang string) (subject, body string) {
 	t, ok := verificationTexts[lang]
 	if !ok {
 		t = verificationTexts["es"]
 	}
-	return m.send(email, fmt.Sprintf(t[0], code), fmt.Sprintf(t[1], code))
+	return fmt.Sprintf(t[0], code), fmt.Sprintf(t[1], code)
+}
+
+// resetMessage arma el correo del enlace para restablecer la contraseña.
+func resetMessage(link string) (subject, body string) {
+	body = "Hola,\r\n\r\nPara elegir una contraseña nueva abre este enlace (vence en 30 minutos):\r\n\r\n" + link +
+		"\r\n\r\nSi no lo pediste, ignora este correo: tu contraseña no cambia.\r\n"
+	return verificationTexts["es"][2], body
+}
+
+// SendVerificationCode envía el código de 6 dígitos.
+func (m SMTPMailer) SendVerificationCode(_ context.Context, email, code, lang string) error {
+	subject, body := verificationMessage(code, lang)
+	return m.send(email, subject, body)
 }
 
 // SendPasswordReset envía el enlace de un solo uso.
 func (m SMTPMailer) SendPasswordReset(_ context.Context, email, link string) error {
-	body := "Hola,\r\n\r\nPara elegir una contraseña nueva abre este enlace (vence en 30 minutos):\r\n\r\n" + link +
-		"\r\n\r\nSi no lo pediste, ignora este correo: tu contraseña no cambia.\r\n"
-	return m.send(email, verificationTexts["es"][2], body)
+	subject, body := resetMessage(link)
+	return m.send(email, subject, body)
 }
 
 var errHeaderInjection = errors.New("dirección de correo inválida")

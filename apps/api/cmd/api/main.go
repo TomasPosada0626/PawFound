@@ -109,6 +109,9 @@ func run(args []string, logger *slog.Logger) error {
 		a.Media = media.LocalStore{Dir: cfg.MediaDir}
 	}
 	switch {
+	case cfg.BrevoAPIKey != "":
+		// API web de Brevo (HTTPS): funciona aunque el hosting bloquee SMTP, como Render gratis.
+		a.Mailer = providers.BrevoMailer{APIKey: cfg.BrevoAPIKey, From: cfg.SMTP.From}
 	case cfg.SMTP.Host != "":
 		a.Mailer = providers.SMTPMailer{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
 	case cfg.Development():

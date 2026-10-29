@@ -69,6 +69,8 @@ export default function MapScreen() {
   );
   // Mascota elegida en el mapa o en las tarjetas: se muestra solo ella con su círculo de vida.
   const [focusId, setFocusId] = useState<string | null>(null);
+  // La lista de abajo se puede esconder para ver más mapa.
+  const [listOpen, setListOpen] = useState(true);
   const [visible, setVisible] = useState<Region>(target);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [layersOpen, setLayersOpen] = useState(false);
@@ -291,37 +293,30 @@ export default function MapScreen() {
           testID="pet-map"
         />
 
-        <View className="absolute right-4 top-3 gap-2.5">
-          <FloatingButton
-            icon="locate"
-            label={t("map.recenter")}
-            onPress={() => setTarget(regionForRadius(location, DEFAULT_RADIUS))}
-            testID="recenter"
-          />
-          <FloatingButton
-            icon="layers-outline"
-            label={t("map.layers")}
-            caption={t("map.layers")}
-            onPress={() => setLayersOpen(true)}
-            testID="layers"
-          />
-          <FloatingButton
-            icon="navigate-outline"
-            label={t("map.myLocation")}
-            caption={t("map.myLocation")}
-            onPress={() => void locateMe()}
-            testID="locate-me"
-          />
+        <View className="absolute right-3 top-3 gap-2.5">
+          <FloatingButton icon="layers-outline" label={t("map.layers")} onPress={() => setLayersOpen(true)} testID="layers" />
+          <FloatingButton icon="locate" label={t("map.myLocation")} onPress={() => void locateMe()} testID="locate-me" />
         </View>
 
         {/* Hoja inferior "Mascotas cerca de ti" */}
         <View
           className="absolute bottom-0 left-0 right-0 rounded-t-[28px] bg-surface pt-2 shadow-lg shadow-black/15"
-          // Alto del menú inferior y del botón "+" que sobresale (~110) más la barra del sistema:
+          // Alto del menú inferior y del botón "+" que sobresale (~100) más la barra del sistema:
           // las tarjetas quedan completas, sin nada encima.
-          style={{ paddingBottom: 112 + Math.max(insets.bottom, 10) }}
+          style={{ paddingBottom: 100 + Math.max(insets.bottom, 10) }}
         >
-          <View className="mb-2 h-1.5 w-12 self-center rounded-full bg-border" />
+          {/* La barrita (y el título) esconden o muestran la lista para ver más mapa. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={listOpen ? t("map.hideList") : t("map.showList")}
+            accessibilityState={{ expanded: listOpen }}
+            onPress={() => setListOpen((open) => !open)}
+            hitSlop={12}
+            className="mb-1 h-6 w-24 items-center justify-center self-center"
+            testID="sheet-handle"
+          >
+            <View className="h-1.5 w-12 rounded-full bg-border" />
+          </Pressable>
           {focused ? (
             <FocusPanel
               pet={focused}
@@ -332,14 +327,22 @@ export default function MapScreen() {
           ) : (
             <>
               <View className="flex-row items-center justify-between px-4">
-                <View>
-                  <Text variant="heading" accessibilityRole="header">
-                    {t("map.nearby")}
-                  </Text>
-                  <Text variant="caption" accessibilityLiveRegion="polite">
-                    {t("map.results", { count: results.length })}
-                  </Text>
-                </View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t("map.nearby")}. ${t("map.results", { count: results.length })}. ${listOpen ? t("map.hideList") : t("map.showList")}`}
+                  onPress={() => setListOpen((open) => !open)}
+                  className="flex-row items-center gap-2 active:opacity-70"
+                >
+                  <View>
+                    <Text variant="heading" accessibilityRole="header">
+                      {t("map.nearby")}
+                    </Text>
+                    <Text variant="caption" accessibilityLiveRegion="polite">
+                      {t("map.results", { count: results.length })}
+                    </Text>
+                  </View>
+                  <Icon name={listOpen ? "chevron-down" : "chevron-up"} size={18} color={colors.muted} />
+                </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => router.push("/list?filter=nearby")}
@@ -351,12 +354,12 @@ export default function MapScreen() {
                   <Icon name="chevron-forward" size={16} color={colors.primaryStrong} />
                 </Pressable>
               </View>
-              {status === "denied" ? (
+              {listOpen && status === "denied" ? (
                 <View className="px-4 pt-2">
                   <Banner tone="warning" icon="location-outline" body={t("map.locationDenied")} />
                 </View>
               ) : null}
-              {results.length === 0 ? (
+              {!listOpen ? null : results.length === 0 ? (
                 <View className="items-center gap-3 px-6 py-6" testID="map-empty">
                   <Text variant="subheading" className="text-center">
                     {t("map.empty")}
@@ -383,7 +386,14 @@ export default function MapScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={{ gap: 12, paddingHorizontal: 16, paddingTop: 12 }}
                   renderItem={({ item }) => (
-                    <PetCard pet={item.pet} distance={item.distance} now={now} width={164} onPress={() => focusPet(item.pet)} />
+                    <PetCard
+                      pet={item.pet}
+                      distance={item.distance}
+                      now={now}
+                      width={150}
+                      compact
+                      onPress={() => focusPet(item.pet)}
+                    />
                   )}
                 />
               )}
@@ -553,16 +563,15 @@ function FocusPanel({
   );
 }
 
+/** Botón redondo sobre el mapa (solo ícono; el nombre lo lee el lector de pantalla). */
 function FloatingButton({
   icon,
   label,
-  caption,
   onPress,
   testID,
 }: {
   icon: IconName;
   label: string;
-  caption?: string;
   onPress: () => void;
   testID?: string;
 }) {
@@ -573,14 +582,9 @@ function FloatingButton({
       accessibilityLabel={label}
       onPress={onPress}
       testID={testID}
-      className="min-h-[56px] min-w-[56px] items-center justify-center rounded-2xl bg-surface px-2 py-2 shadow-md shadow-black/15 active:opacity-80"
+      className="h-12 w-12 items-center justify-center rounded-full bg-surface shadow-md shadow-black/20 active:opacity-80"
     >
-      <Icon name={icon} size={24} color={colors.ink} />
-      {caption ? (
-        <Text variant="label" tone="muted" className="text-[10px]">
-          {caption}
-        </Text>
-      ) : null}
+      <Icon name={icon} size={22} color={colors.ink} />
     </Pressable>
   );
 }

@@ -35,10 +35,13 @@ Sin dominio propio, esa dirección es la del proyecto. Cuando la tengas, actuali
 
 La imagen se construye con `apps/api/Dockerfile`.
 
-- **Render (más simple)**: *New Web Service* desde el repositorio, entorno *Docker*, directorio
-  `apps/api`. El plan gratuito se duerme tras un rato sin tráfico: mientras duerme no corren
-  las tareas periódicas (el círculo de vida que alcanza a más celulares) y la primera petición
-  tarda en despertar. Sirve para el piloto.
+- **Render (más simple)**: *New Web Service* desde el repositorio, rama `main`, entorno
+  *Docker*, directorio `apps/api`, *Health Check Path* `/ready`. El plan gratuito se duerme tras
+  15 minutos sin tráfico: mientras duerme no corren las tareas periódicas (el círculo de vida
+  que alcanza a más celulares) y la primera petición tarda cerca de un minuto. Además, **bloquea
+  el correo por SMTP** (puertos 465 y 587, desde septiembre de 2025): por eso el correo sale por
+  la API web de Brevo (`BREVO_API_KEY`). Tampoco tiene pestaña *Shell*: los comandos de inicio se
+  corren desde un computador (ver abajo). Sirve para el piloto.
 - **Oracle Cloud Always Free (siempre encendida)**: una máquina virtual gratuita donde corre el
   mismo contenedor con `docker run`. Requiere más configuración y verificar identidad con una
   tarjeta, sin cobro dentro del plan gratuito.
@@ -52,10 +55,8 @@ JWT_SECRET=...                        # openssl rand -base64 48
 PUBLIC_API_URL=https://<tu-api>       # https obligatorio
 PUBLIC_WEB_URL=https://pawfound.pages.dev
 MIGRATE_ON_START=true
-SMTP_HOST=smtp-relay.brevo.com
-SMTP_PORT=587
-SMTP_USERNAME=<usuario SMTP de Brevo>
-SMTP_PASSWORD=<clave SMTP de Brevo>
+CLIENT_IP_HEADER=CF-Connecting-IP     # Render está detrás de Cloudflare: IP real para el antiabuso
+BREVO_API_KEY=<clave de API v3 de Brevo>
 SMTP_FROM=<correo remitente verificado en Brevo>
 CLOUDFLARE_R2_ACCOUNT_ID=...
 CLOUDFLARE_R2_BUCKET=pawfound-fotos
@@ -64,11 +65,16 @@ CLOUDFLARE_R2_SECRET_ACCESS_KEY=...
 PUSH_PROVIDER=expo
 ```
 
-Después del primer arranque:
+Después del primer arranque, desde un computador con el repositorio y la cadena de Neon (el
+segundo comando, después de registrarse en la app):
 
-```bash
-api import-places                              # veterinarias (OpenStreetMap)
-api grant-role tu-correo@ejemplo.com admin     # acceso al panel /admin
+```powershell
+cd apps/api
+$env:APP_ENV="development"
+$env:JWT_SECRET="solo-para-comandos-locales-0123456789abcdef"
+$env:DATABASE_URL="<cadena de Neon>"
+go run ./cmd/api import-places                              # veterinarias (OpenStreetMap)
+go run ./cmd/api grant-role tu-correo@ejemplo.com admin     # acceso al panel /admin
 ```
 
 ## 4. Fotos: Cloudflare R2
@@ -81,8 +87,12 @@ registrar un medio de pago para activar R2 aunque no cobre dentro del plan gratu
 ## 5. Correo: Brevo
 
 1. Crea la cuenta en brevo.com.
-2. *Senders* → agrega y verifica el correo remitente (por ejemplo un Gmail del proyecto).
-3. *SMTP & API* → genera una clave SMTP: es `SMTP_PASSWORD`; el usuario SMTP es `SMTP_USERNAME`.
+2. *Senders* → agrega y verifica el correo remitente (por ejemplo un Gmail del proyecto). Sin
+   dominio propio, Brevo advierte que un correo gratuito llega más a spam: se acepta igual.
+3. *SMTP & API* → pestaña **API Keys** → genera una clave de API: es `BREVO_API_KEY`. La clave
+   SMTP (`SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`) solo sirve en hostings que permiten SMTP.
+4. Si Brevo rechaza los envíos por "IP no autorizada", en *Security* → *Authorised IPs* desactiva
+   el bloqueo de IP desconocidas: Render no tiene una IP fija.
 
 Sin dominio propio los correos pueden caer en spam con más facilidad; la app avisa que se
 revise esa carpeta. Con dominio, se agregan los registros SPF y DKIM que indica Brevo.
@@ -101,3 +111,19 @@ La API key de Google Maps va en `app.json` → `android.config.googleMaps.apiKey
 Para "Continuar con Google" se crean los ID de cliente en Google Cloud Console (pantalla de
 consentimiento + ID de Android con el nombre del paquete y la huella SHA-1 del build) y se
 ponen en `GOOGLE_CLIENT_IDS` (API).
+
+### Actualizaciones sin reinstalar (EAS Update)
+
+La app instalada busca actualizaciones al abrirse (`expo-updates`, canal `preview` o
+`production` según el build). Los cambios de pantallas, textos y colores se publican sin
+compilar ni reinstalar:
+
+```bash
+cd apps/mobile
+npx eas-cli update --channel preview --environment preview --message "qué cambió"
+```
+
+Si la actualización llega en los primeros segundos, la app se reinicia con ella; si no, la usa
+la próxima vez que se abra. Los cambios nativos (permisos, librerías nuevas, ícono) cambian la
+huella (`runtimeVersion` por *fingerprint*) y necesitan un build nuevo: las actualizaciones
+nunca llegan a una app con una huella distinta.
