@@ -53,15 +53,16 @@ export function Checkbox({
 
 export type IconTone = "lost" | "found" | "warning" | "violet" | "blue" | "primary" | "neutral" | "danger";
 
-const ICON_TONES: Record<IconTone, { bg: string; fg: string }> = {
-  lost: { bg: "#FDECEE", fg: "#D63A4E" },
-  found: { bg: "#E3F5F1", fg: "#0E7C6B" },
-  warning: { bg: "#FEF3E2", fg: "#C2410C" },
-  violet: { bg: "#F1ECFE", fg: "#6D4AD6" },
-  blue: { bg: "#E8F1FE", fg: "#1D6FE0" },
-  primary: { bg: "#E3F5F1", fg: "#0E7C6B" },
-  neutral: { bg: "#EEF2F5", fg: "#5B6B7F" },
-  danger: { bg: "#FDECEE", fg: "#C8283D" },
+// En oscuro cada tono conserva su color (más luminoso) sobre un fondo translúcido del mismo tono.
+const ICON_TONES: Record<IconTone, { bg: string; fg: string; darkFg: string }> = {
+  lost: { bg: "#FDECEC", fg: "#E02424", darkFg: "#FF8A8A" },
+  found: { bg: "#E0F6F3", fg: "#08807A", darkFg: "#3CD5C4" },
+  warning: { bg: "#FEF3E2", fg: "#C2410C", darkFg: "#F5A524" },
+  violet: { bg: "#F1ECFE", fg: "#6D4AD6", darkFg: "#B9A2FF" },
+  blue: { bg: "#E8F1FE", fg: "#1D6FE0", darkFg: "#7DB4FF" },
+  primary: { bg: "#E0F6F3", fg: "#08807A", darkFg: "#3CD5C4" },
+  neutral: { bg: "#EEF2F5", fg: "#5D6C80", darkFg: "#C9D6E0" },
+  danger: { bg: "#FDECEC", fg: "#C81E1E", darkFg: "#FF6B6B" },
 };
 
 /** Ícono dentro de un círculo pastel (listas de ajustes y preferencias de los mockups). */
@@ -71,9 +72,9 @@ export function IconBubble({ icon, tone = "primary", size = 44 }: { icon: IconNa
   return (
     <View
       className="items-center justify-center rounded-full"
-      style={{ width: size, height: size, backgroundColor: scheme === "dark" ? "rgba(255,255,255,0.08)" : palette.bg }}
+      style={{ width: size, height: size, backgroundColor: scheme === "dark" ? `${palette.darkFg}24` : palette.bg }}
     >
-      <Icon name={icon} size={size * 0.5} color={scheme === "dark" ? "#E8F0F5" : palette.fg} />
+      <Icon name={icon} size={size * 0.5} color={scheme === "dark" ? palette.darkFg : palette.fg} />
     </View>
   );
 }

@@ -1,0 +1,341 @@
+{
+  "description": "Coincidencias entre un reporte de mascota encontrada y un perfil de 'Mis mascotas' (domain/matching). 'score' se redondea a 3 decimales.",
+  "cases": [
+    {
+      "name": "mismo perro a 1 km: todas las señales",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "criollo",
+        "color": "negra y blanca",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": true,
+      "score": 1.982
+    },
+    {
+      "name": "dos señales (tamaño y color), sexo y raza desconocidos",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "unknown",
+        "size": "medium",
+        "breed": "",
+        "color": "negra y blanca",
+        "state": "active",
+        "location": {
+          "latitude": 6.271649,
+          "longitude": -75.5916
+        }
+      },
+      "match": true,
+      "score": 1.247
+    },
+    {
+      "name": "tamaño vecino cuenta como compatible, no como señal",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "male",
+        "size": "large",
+        "breed": "",
+        "color": "negro",
+        "state": "active",
+        "location": {
+          "latitude": 6.249192,
+          "longitude": -75.5916
+        }
+      },
+      "match": true,
+      "score": 1.441
+    },
+    {
+      "name": "otra especie nunca coincide",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "cat",
+        "sex": "male",
+        "size": "medium",
+        "breed": "criollo",
+        "color": "negra y blanca",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "fuera del radio del perro (8,5 km)",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "criollo",
+        "color": "negra y blanca",
+        "state": "active",
+        "location": {
+          "latitude": 6.352497,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "tamaño opuesto (pequeño vs grande)",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "small",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "male",
+        "size": "large",
+        "breed": "criollo",
+        "color": "negra y blanca",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "el sexo se contradice",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "female",
+        "size": "medium",
+        "breed": "criollo",
+        "color": "negra y blanca",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "el color se contradice",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "criollo",
+        "color": "Café",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "una sola señal no alcanza",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "unknown",
+        "size": "large",
+        "breed": "",
+        "color": "",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "reporte ya cerrado",
+      "owned": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "Criollo",
+        "color": "Negro con blanco",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "dog",
+        "sex": "male",
+        "size": "medium",
+        "breed": "criollo",
+        "color": "negra y blanca",
+        "state": "reunited",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    },
+    {
+      "name": "gato a 1 km: dentro de su radio (1,3 km)",
+      "owned": {
+        "species": "cat",
+        "sex": "female",
+        "size": "small",
+        "breed": "",
+        "color": "Gris atigrada",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "cat",
+        "sex": "female",
+        "size": "small",
+        "breed": "",
+        "color": "gris",
+        "state": "active",
+        "location": {
+          "latitude": 6.253683,
+          "longitude": -75.5916
+        }
+      },
+      "match": true,
+      "score": 1.032
+    },
+    {
+      "name": "gato a 2 km: los gatos se esconden cerca",
+      "owned": {
+        "species": "cat",
+        "sex": "female",
+        "size": "small",
+        "breed": "",
+        "color": "Gris atigrada",
+        "zone": {
+          "latitude": 6.2447,
+          "longitude": -75.5916
+        }
+      },
+      "found": {
+        "species": "cat",
+        "sex": "female",
+        "size": "small",
+        "breed": "",
+        "color": "gris",
+        "state": "active",
+        "location": {
+          "latitude": 6.262666,
+          "longitude": -75.5916
+        }
+      },
+      "match": false,
+      "score": 0
+    }
+  ]
+}

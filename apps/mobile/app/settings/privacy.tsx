@@ -10,7 +10,6 @@ import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { maskEmail } from "@/domain/privacy";
 import type { WhoCanMessage } from "@/domain/types";
-import { formatColombianMobile } from "@/domain/validation";
 import { useI18n } from "@/i18n/I18nProvider";
 import { DEFAULT_PRIVACY_PREFS } from "@/services/mockBackend";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
@@ -59,12 +58,10 @@ export default function PrivacyScreen() {
       <SettingsCard title={t("privacy.accountSecurity")} icon="shield-checkmark-outline">
         <ListRow
           icon="call-outline"
-          title={user.phoneVerified ? t("privacy.phoneVerified") : t("privacy.phoneNotVerified")}
-          description={user.phone ? formatColombianMobile(user.phone) : undefined}
-          value={user.phoneVerified ? t("privacy.verifiedTag") : t("privacy.verifyNow")}
-          onPress={() =>
-            router.push({ pathname: user.phone ? "/auth/verify" : "/auth/phone", params: { next: "/settings/privacy" } })
-          }
+          title={user.verified ? t("privacy.emailVerified") : t("privacy.phoneNotVerified")}
+          description={maskEmail(user.email)}
+          value={user.verified ? t("privacy.verifiedTag") : t("privacy.verifyNow")}
+          onPress={() => router.push({ pathname: "/auth/verify", params: { next: "/settings/privacy" } })}
         />
         <Divider />
         <ListRow icon="mail-outline" title={t("privacy.email")} description={maskEmail(user.email)} />

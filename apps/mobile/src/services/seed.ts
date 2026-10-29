@@ -1,7 +1,8 @@
 import { approximateLocation } from "@/domain/geo";
-import type { AppNotification, Message, OwnedPet, PetCase, Thread, User } from "@/domain/types";
+import type { AppNotification, Message, OwnedPet, PetCase, Place, Thread, User } from "@/domain/types";
 
 import type { BackendState } from "./backendTypes";
+import osmPlaces from "./places.osm.json";
 import { foldText } from "./selectors";
 
 /**
@@ -56,7 +57,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
     // Nombre de usuario válido según la regla de la API: [a-z0-9_], sin tildes.
     username: foldText(name.split(" ")[0] ?? id),
     email: `${id}@demo.pawfound.app`,
-    phoneVerified: true,
+    verified: true,
     avatar: "dog",
     title: "animal_lover",
     bio: "",
@@ -431,14 +432,16 @@ export function createSeed(now: Date = new Date()): SeedResult {
     }),
   ];
 
-  const group = (petId: string, memberIds: string[], archived = false): Thread => ({
+  // Los grupos no se cierran al terminar el caso: siguen ahí y cada persona decide si archivarlos.
+  const group = (petId: string, memberIds: string[]): Thread => ({
     id: `grp_${petId}`,
     kind: "group",
     petId,
     memberIds,
     readAt: Object.fromEntries(memberIds.map((id) => [id, ago(3 * D)])),
     mutedBy: [],
-    archived,
+    archived: false,
+    archivedBy: [],
   });
 
   const threads: Thread[] = [
@@ -452,9 +455,9 @@ export function createSeed(now: Date = new Date()): SeedResult {
     group("beagle", ["u_daniel"]),
     group("negrita", ["u_daniel", "u_laura"]),
     group("michi", ["u_sofia"]),
-    group("canela", ["u_maria", "u_valentina"], true),
-    group("mishu", ["u_valentina"], true),
-    group("terry", ["u_carlos"], true),
+    group("canela", ["u_maria", "u_valentina"]),
+    group("mishu", ["u_valentina"]),
+    group("terry", ["u_carlos"]),
     {
       id: "dm_maria",
       kind: "dm",
@@ -463,6 +466,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       readAt: { u_valentina: ago(2 * H), u_maria: ago(5) },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     },
     {
       id: "dm_ana",
@@ -472,6 +476,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       readAt: { u_valentina: ago(2 * D), u_ana: ago(1 * D) },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     },
     {
       id: "dm_sebastian",
@@ -481,6 +486,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       readAt: { u_valentina: ago(1 * H), u_sebastian: ago(1 * H) },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     },
   ];
 
@@ -610,6 +616,22 @@ export function createSeed(now: Date = new Date()): SeedResult {
       createdAt: ago(60 * D),
       lastCaseId: "rocky",
     },
+    // Coco está en casa, pero se parece al collie encontrado en Belén: "¿Es Coco?" (domain/matching).
+    {
+      id: "own_coco",
+      ownerId: "u_valentina",
+      name: "Coco",
+      species: "dog",
+      breed: "Mestizo",
+      sex: "male",
+      age: "adult",
+      size: "medium",
+      color: "Negro con blanco",
+      description: "Tranquilo y muy dormilón. Le dan miedo los truenos.",
+      photos: [PHOTOS.terrier],
+      shyOrIndoor: false,
+      createdAt: ago(45 * D),
+    },
   ];
 
   return {
@@ -638,6 +660,27 @@ export function createSeed(now: Date = new Date()): SeedResult {
         u_laura: ["u_sofia"],
       },
       shareLog: { u_valentina: ["max", "collie"] },
+      // Veterinarias reales del Valle de Aburrá, importados de OpenStreetMap con
+      // `api import-places` (© colaboradores de OpenStreetMap, licencia ODbL).
+      places: osmPlaces as Place[],
+      remoteBadges: {},
+      // La familia de Max fue contando novedades en su historia.
+      stories: [
+        {
+          id: "sto_max_1",
+          petId: "max",
+          authorId: "u_maria",
+          text: "¡Gracias por compartir! Seguimos buscando por Laureles.",
+          createdAt: ago(20 * H),
+        },
+        {
+          id: "sto_max_2",
+          petId: "max",
+          authorId: "u_maria",
+          text: "Una vecina lo vio anoche cerca del parque. Si lo ves, avísanos con «La vi».",
+          createdAt: ago(3 * H),
+        },
+      ],
       ownedPets,
     },
     credentials: { [DEMO_EMAIL]: DEMO_PASSWORD },

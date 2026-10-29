@@ -44,6 +44,7 @@ export default function MessagesScreen() {
   const setTab = setSelected;
   const [query, setQuery] = useState("");
   const [onlyUnread, setOnlyUnread] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   const { autoTranslate } = useDevicePrefs();
 
   const notifications = useMemo(() => (user ? userNotifications(state, user.id) : []), [state, user]);
@@ -53,6 +54,7 @@ export default function MessagesScreen() {
     if (!user || tab === "notifications") return [];
     const q = foldText(query.trim());
     return threadsForUser(state, user.id, tab === "chats" ? "dm" : "group")
+      .filter((thread) => thread.archivedBy.includes(user.id) === showArchived)
       .map((thread) => {
         const pet = state.pets.find((p) => p.id === thread.petId);
         const other = counterpart(state, thread, user.id);
@@ -61,7 +63,15 @@ export default function MessagesScreen() {
       })
       .filter((r) => !q || foldText(`${r.title} ${r.pet?.name ?? ""} ${r.pet?.breed ?? ""}`).includes(q))
       .filter((r) => !onlyUnread || r.unread > 0);
-  }, [state, user, tab, query, onlyUnread, t]);
+  }, [state, user, tab, query, onlyUnread, showArchived, t]);
+
+  const archivedCount = useMemo(
+    () =>
+      user && tab !== "notifications"
+        ? threadsForUser(state, user.id, tab === "chats" ? "dm" : "group").filter((th) => th.archivedBy.includes(user.id)).length
+        : 0,
+    [state, user, tab],
+  );
 
   const visibleNotifications = useMemo(() => {
     const q = foldText(query.trim());
@@ -169,7 +179,21 @@ export default function MessagesScreen() {
                   })
                 )}
               </>
-            ) : rows.length === 0 ? (
+            ) : null}
+            {tab !== "notifications" && (archivedCount > 0 || showArchived) ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowArchived((v) => !v)}
+                className="min-h-[48px] flex-row items-center gap-3 rounded-2xl bg-surface-alt px-4"
+                testID="toggle-archived"
+              >
+                <Icon name={showArchived ? "arrow-back" : "archive-outline"} size={20} color={colors.primaryStrong} />
+                <Text variant="bodyStrong" tone="primary">
+                  {showArchived ? t("messages.backToInbox") : t("messages.archived", { count: archivedCount })}
+                </Text>
+              </Pressable>
+            ) : null}
+            {tab === "notifications" ? null : rows.length === 0 ? (
               <EmptyState
                 icon={tab === "chats" ? "chatbubble-ellipses-outline" : "people-outline"}
                 title={

@@ -29,7 +29,14 @@ jest.mock("expo-location", () => ({
   getForegroundPermissionsAsync: jest.fn(async () => ({ status: "undetermined" })),
   getCurrentPositionAsync: jest.fn(async () => ({ coords: { latitude: 6.2449, longitude: -75.5912 } })),
   reverseGeocodeAsync: jest.fn(async () => [{ district: "Laureles", city: "Medellín", subregion: null, street: null }]),
+  requestBackgroundPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  startLocationUpdatesAsync: jest.fn(async () => {}),
+  stopLocationUpdatesAsync: jest.fn(async () => {}),
+  hasStartedLocationUpdatesAsync: jest.fn(async () => false),
+  getLastKnownPositionAsync: jest.fn(async () => null),
 }));
+
+jest.mock("expo-task-manager", () => ({ defineTask: jest.fn() }));
 
 jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
@@ -59,6 +66,10 @@ jest.mock("expo-notifications", () => ({
 jest.mock("expo-sharing", () => ({
   isAvailableAsync: jest.fn(async () => true),
   shareAsync: jest.fn(async () => {}),
+}));
+
+jest.mock("expo-clipboard", () => ({
+  setStringAsync: jest.fn(async () => true),
 }));
 
 jest.mock("react-native-view-shot", () => ({

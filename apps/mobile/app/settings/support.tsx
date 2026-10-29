@@ -10,7 +10,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
-import { LEGAL_URLS } from "@/config";
+import { LEGAL_URLS, SUPPORT_EMAIL } from "@/config";
 import { useI18n } from "@/i18n/I18nProvider";
 import { foldText } from "@/services/selectors";
 import { useCurrentUser } from "@/store/backend";
@@ -181,14 +181,24 @@ export default function SupportScreen() {
           showCounter
           testID="support-message"
         />
+        <Text variant="caption" className="mt-3">
+          {t("support.viaEmail", { email: SUPPORT_EMAIL })}
+        </Text>
         <View className="mb-2 mt-4">
           <Button
             label={t("support.send")}
+            icon="mail-outline"
             disabled={message.trim().length < 10}
             onPress={() => {
-              setContact(null);
-              setMessage("");
-              toast(t("support.sent"));
+              // Abre la app de correo con el mensaje listo: así de verdad le llega al equipo.
+              const subject = `PawFound · ${contact ? t(`support.${contact}`) : ""}`;
+              const url = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(message.trim())}`;
+              void Linking.openURL(url)
+                .then(() => {
+                  setContact(null);
+                  setMessage("");
+                })
+                .catch(() => toast(t("support.noMailApp", { email: SUPPORT_EMAIL }), "error"));
             }}
             testID="support-send"
           />

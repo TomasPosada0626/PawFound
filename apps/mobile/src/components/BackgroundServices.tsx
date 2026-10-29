@@ -1,12 +1,20 @@
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { useEffect, useRef } from "react";
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 
 import { isQuietTime } from "@/domain/alerts";
 import { notificationUrl } from "@/features/notifications";
 import { useI18n } from "@/i18n/I18nProvider";
-import { CHANNELS, configurePush, getPushPermission, presentLocal, safeNotificationUrl } from "@/services/pushNotifications";
+import { currentPoint, setAlertLocationSink } from "@/services/alertLocation";
+import {
+  CHANNELS,
+  configurePush,
+  getPushPermission,
+  getPushToken,
+  notificationsModule,
+  presentLocal,
+  safeNotificationUrl,
+} from "@/services/pushNotifications";
 import { useBackend, useBackendState } from "@/store/backend";
 
 import { petDisplayName } from "./pets";
@@ -31,6 +39,8 @@ export function BackgroundServices() {
 
   // Tocar una notificación abre su pantalla, también si la app estaba cerrada.
   useEffect(() => {
+    const Notifications = notificationsModule();
+    if (!Notifications) return;
     let alive = true;
     const open = (data: unknown) => {
       const url = safeNotificationUrl(data);
@@ -49,6 +59,38 @@ export function BackgroundServices() {
       subscription.remove();
     };
   }, []);
+
+  // Alertas donde estés: los puntos del GPS (segundo plano) van a la cuenta actual, y al
+  // abrir o volver a la app se refresca la ubicación con lo que ya permitió.
+  const hasAlertLocation = Boolean(userId && state.alertZones[userId]);
+  useEffect(() => {
+    if (!hasAlertLocation) {
+      setAlertLocationSink(null);
+      return;
+    }
+    setAlertLocationSink((point) => backend.updateAlertLocation(point));
+    const refresh = () =>
+      void currentPoint().then((point) => {
+        if (point) void backend.updateAlertLocation(point);
+      });
+    refresh();
+    const sub = AppState.addEventListener("change", (status) => status === "active" && refresh());
+    return () => {
+      setAlertLocationSink(null);
+      sub.remove();
+    };
+  }, [backend, hasAlertLocation]);
+
+  // Con la API: el celular se registra para recibir push cuando hay permiso (las alertas llegan
+  // aunque la app esté cerrada). En la demostración registerPushToken no hace nada.
+  useEffect(() => {
+    if (!userId) return;
+    void getPushPermission().then(async (permission) => {
+      if (permission !== "granted") return;
+      const token = await getPushToken();
+      if (token) await backend.registerPushToken(token, Platform.OS === "ios" ? "ios" : "android").catch(() => {});
+    });
+  }, [backend, userId]);
 
   // Tareas del servidor: al abrir, al volver a la app y cada minuto.
   useEffect(() => {
@@ -84,16 +126,18 @@ export function BackgroundServices() {
       for (const n of fresh) {
         const pet = state.pets.find((p) => p.id === n.petId);
         if (!pet) continue;
+        const owned = n.ownedPetId ? state.ownedPets.find((p) => p.id === n.ownedPetId) : undefined;
+        const name = owned?.name ?? petDisplayName(pet, t);
         void presentLocal({
-          title: t(`notifications.${n.kind}`),
-          body: t(`notifications.body_${n.kind}`, { name: petDisplayName(pet, t) }),
+          title: t(`notifications.${n.kind}`, { name }),
+          body: t(`notifications.body_${n.kind}`, { name }),
           url: notificationUrl(n),
           channel: n.kind === "angel_alert" || n.kind === "life_circle" ? CHANNELS.angel : CHANNELS.updates,
           silent,
         });
       }
     });
-  }, [backend, state.notifications, state.pets, t, userId]);
+  }, [backend, state.notifications, state.ownedPets, state.pets, t, userId]);
 
   return null;
 }

@@ -8,13 +8,13 @@ import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
-import { maskPhone } from "@/domain/privacy";
+import { maskEmail } from "@/domain/privacy";
 import { safeNext } from "@/hooks/useAuthGate";
 import { useNow } from "@/hooks/useNow";
 import { countdown } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
-import { DEMO_SMS_CODE } from "@/services/mockBackend";
+import { DEMO_CODE } from "@/services/mockBackend";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -38,15 +38,12 @@ export default function VerifyScreen() {
   const [resends, setResends] = useState(0);
   const inputs = useRef<(TextInput | null)[]>([]);
 
-  // Si se llega sin un código pendiente (p. ej. desde el aviso de "verifica tu número"), se envía uno.
+  // Si se llega sin un código pendiente (p. ej. desde el aviso de "verifica tu correo"), se envía uno.
   useEffect(() => {
-    if (user && !user.phoneVerified && user.phone && !state.verification) {
-      void backend.startPhoneVerification(user.phone).catch(() => {});
-    }
+    if (user && !user.verified && !state.verification) void backend.sendVerificationCode().catch(() => {});
   }, [backend, user, state.verification]);
 
   if (!user) return <Redirect href={{ pathname: "/auth/login", params: { next } }} />;
-  if (!user.phone) return <Redirect href={{ pathname: "/auth/phone", params: { next } }} />;
 
   const code = digits.join("");
   const wait = backend.secondsUntilResend();
@@ -55,7 +52,7 @@ export default function VerifyScreen() {
     const clean = value.replace(/\D/g, "");
     setError(null);
     if (clean.length > 1) {
-      // Pegado o autocompletado del SMS: reparte los dígitos desde esta casilla.
+      // Pegado o autocompletado del código: reparte los dígitos desde esta casilla.
       const next = [...digits];
       clean
         .slice(0, LENGTH - index)
@@ -77,7 +74,8 @@ export default function VerifyScreen() {
       await backend.verifyCode(code);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       toast(t("auth.verifiedToast"));
-      router.replace(next as never);
+      // Siguiente paso del registro: activar las alertas (opcional, con su porqué).
+      router.replace({ pathname: "/auth/alerts", params: { next } });
     } catch (e) {
       const err = e instanceof BackendError ? e : new BackendError("unknown");
       setError(
@@ -111,7 +109,7 @@ export default function VerifyScreen() {
   return (
     <AuthLayout
       title={t("auth.verifyTitle")}
-      subtitle={t("auth.verifySubtitle", { phone: maskPhone(user.phone) })}
+      subtitle={t("auth.verifySubtitle", { email: maskEmail(user.email) })}
       showBack
       testID="verify-screen"
     >
@@ -202,7 +200,7 @@ export default function VerifyScreen() {
       </View>
 
       <View className="mt-3">
-        <Banner icon="flask-outline" body={t("auth.demoCode", { code: DEMO_SMS_CODE })} />
+        <Banner icon="flask-outline" body={t("auth.demoCode", { code: DEMO_CODE })} />
       </View>
     </AuthLayout>
   );

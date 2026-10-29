@@ -1,0 +1,12 @@
+{{define "content"}}
+<section class="card login">
+  <p class="brand big"><span class="paw" aria-hidden="true">🐾</span> PawFound</p>
+  <h1>Panel de moderación</h1>
+  <p class="muted">Solo para el equipo de moderación. Cada decisión queda registrada con tu nombre.</p>
+  <form method="post" action="/admin/login" class="stack">
+    <label>Correo <input type="email" name="email" autocomplete="username" required></label>
+    <label>Contraseña <input type="password" name="password" autocomplete="current-password" required></label>
+    <button type="submit" class="primary">Entrar</button>
+  </form>
+</section>
+{{end}}

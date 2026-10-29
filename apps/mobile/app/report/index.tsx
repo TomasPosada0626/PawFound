@@ -9,7 +9,7 @@ import { AppHeader, BackButton, Screen, ThemeButton } from "@/components/layout"
 import { LifeCircleDiagram, LifeCircleLegend } from "@/components/lifeCircle";
 import { PetMap } from "@/components/map/PetMap";
 import { Button } from "@/components/ui/Button";
-import { Banner, ListRow, ToggleRow } from "@/components/ui/Controls";
+import { Banner, Card, IconBubble, ListRow, ToggleRow } from "@/components/ui/Controls";
 import { Icon } from "@/components/ui/Icon";
 import { SelectField } from "@/components/ui/SelectField";
 import { OptionList, Sheet } from "@/components/ui/Sheet";
@@ -97,7 +97,7 @@ export default function ReportScreen() {
   const center = draft.point ?? location;
   const region = useMemo(() => regionForRadius(center, Math.max(previewRadius, 400)), [center, previewRadius]);
 
-  if (!user || !user.phoneVerified) return <Redirect href={{ pathname: "/auth/login", params: { next: "/report" } }} />;
+  if (!user || !user.verified) return <Redirect href={{ pathname: "/auth/login", params: { next: "/report" } }} />;
 
   const err = (key: keyof DraftErrors) => {
     const code = errors[key];
@@ -192,7 +192,7 @@ export default function ReportScreen() {
     value: c,
     label: t(`conditions.${c}`),
   }));
-  const custodyOptions = (["with_me", "vet", "shelter", "left_there"] as FoundCustody[]).map((c) => ({
+  const custodyOptions = (["with_me", "vet", "left_there"] as FoundCustody[]).map((c) => ({
     value: c,
     label: t(`custodies.${c}`),
   }));
@@ -253,6 +253,29 @@ export default function ReportScreen() {
         value={draft.kind}
         onChange={(kind) => update("kind", kind)}
       />
+
+      {/* Si está herida, primero la veterinaria: el borrador queda guardado para terminar después. */}
+      {!isLost ? (
+        <Card className="mt-4 border-lost/30 bg-lost-soft" testID="report-injured">
+          <View className="flex-row items-center gap-3">
+            <IconBubble icon="medkit" tone="lost" />
+            <View className="flex-1">
+              <Text variant="bodyStrong">{t("report.injuredTitle")}</Text>
+              <Text variant="caption" tone="body">
+                {t("report.injuredBody")}
+              </Text>
+            </View>
+          </View>
+          <Button
+            label={t("report.injuredCta")}
+            icon="medkit"
+            className="mt-3"
+            compact
+            onPress={() => router.push("/veterinarias")}
+            testID="report-find-vet"
+          />
+        </Card>
+      ) : null}
 
       <Text variant="subheading" className="mb-3 mt-6" accessibilityRole="header">
         {t("report.petInfo")}
@@ -460,33 +483,36 @@ export default function ReportScreen() {
           height={220}
           region={region}
           marker={draft.point ? { coordinate: draft.point, kind: draft.kind } : undefined}
-          circles={draft.point ? [{ center: draft.point, radius: previewRadius, kind: draft.kind }] : []}
+          circles={draft.point && isLost ? [{ center: draft.point, radius: previewRadius, kind: draft.kind }] : []}
           onMapPress={(p) => void setPoint(p)}
           testID="report-map"
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${isLost ? t("report.lifeRadius") : t("report.searchRadius")}: ${formatDistance(previewRadius, locale)}`}
-          onPress={() => setRadiusSheet(true)}
-          className="absolute bottom-3 left-3 min-h-[52px] flex-row items-center gap-3 rounded-2xl bg-surface px-3 py-2 shadow-md shadow-black/15 active:opacity-80"
-          testID="radius-pill"
-        >
-          <Icon name="radio-button-off" size={26} color={colors.primaryStrong} />
-          <View>
-            <Text variant="label" tone="muted">
-              {isLost ? t("report.lifeRadius") : t("report.searchRadius")}
-            </Text>
-            <Text variant="subheading" tone="primary">
-              {formatDistance(previewRadius, locale)}
-            </Text>
-            {isLost ? (
+        {/* Solo las perdidas tienen círculo de vida; una encontrada es solo el punto donde se encontró. */}
+        {isLost ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("report.lifeRadius")}: ${formatDistance(previewRadius, locale)}`}
+            onPress={() => setRadiusSheet(true)}
+            className="absolute bottom-3 left-3 min-h-[52px] flex-row items-center gap-3 rounded-2xl bg-surface px-3 py-2 shadow-md shadow-black/15 active:opacity-80"
+            testID="radius-pill"
+          >
+            <Icon name="radio-button-off" size={26} color={colors.primaryStrong} />
+            <View>
               <Text variant="label" tone="muted">
-                {t("report.radiusGrows")}
+                {isLost ? t("report.lifeRadius") : t("report.searchRadius")}
               </Text>
-            ) : null}
-          </View>
-          <Icon name="chevron-down" size={18} color={colors.ink} />
-        </Pressable>
+              <Text variant="subheading" tone="primary">
+                {formatDistance(previewRadius, locale)}
+              </Text>
+              {isLost ? (
+                <Text variant="label" tone="muted">
+                  {t("report.radiusGrows")}
+                </Text>
+              ) : null}
+            </View>
+            <Icon name="chevron-down" size={18} color={colors.ink} />
+          </Pressable>
+        ) : null}
       </View>
       <Text
         variant="caption"
@@ -590,7 +616,7 @@ export default function ReportScreen() {
               <LifeCircleLegend profile={profile} />
             </View>
             <Text variant="caption" className="mt-3">
-              {`${t("report.projectionCap", { distance: formatDistance(LIFE_CIRCLE_PROFILES[profile].cap, locale) })} · ~${Math.round(hoursToCap(profile))} h`}
+              {`${t("report.projectionCap", { distance: formatDistance(LIFE_CIRCLE_PROFILES[profile].cap, locale) })} · ~${Math.round(hoursToCap(profile) * 60)} min`}
             </Text>
           </View>
         ) : (

@@ -1,0 +1,30 @@
+---
+import Icon from "../components/Icon.astro";
+import StoreButtons from "../components/StoreButtons.astro";
+import Base from "../layouts/Base.astro";
+---
+
+<!--
+  Destino de los enlaces compartidos y de los QR de los afiches (pawfound.app/mascota/<id>).
+  Con la app instalada, Android/iOS abren el caso directamente; si no, se muestra esta página
+  (public/_redirects envía /mascota/* aquí).
+-->
+<Base title="Ayuda a encontrar a esta mascota · PawFound" description="Abre el caso en PawFound para ver sus fotos, la zona de búsqueda y avisar a la familia.">
+  <section class="hero">
+    <div class="wrap" style="grid-template-columns:1fr;max-width:46rem;text-align:center;justify-items:center">
+      <span class="icon i-lost" style="width:72px;height:72px;border-radius:24px"><Icon name="paw" /></span>
+      <h1 style="font-size:clamp(2.2rem,6vw,3.6rem)">Una familia necesita tu ayuda</h1>
+      <p class="lead center">Abre el caso en PawFound para ver sus fotos, la zona donde la están buscando y avisar si la viste. Nunca compartimos teléfonos ni direcciones.</p>
+      <a class="btn btn-light" id="open-app" href="pawfound://">Abrir en la app</a>
+      <StoreButtons />
+      <p class="hero-note">¿Todavía no tienes PawFound? Muy pronto en Google Play.</p>
+    </div>
+  </section>
+  <script is:inline>
+    // Solo ids con letras, números, _ y - (nunca se inyecta texto de la URL en la página).
+    const id = (location.pathname.split("/mascota/")[1] || "").split("/")[0];
+    if (/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
+      document.getElementById("open-app").href = "pawfound://pet/" + id;
+    }
+  </script>
+</Base>

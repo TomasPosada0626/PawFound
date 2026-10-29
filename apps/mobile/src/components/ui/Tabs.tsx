@@ -70,7 +70,7 @@ export function SegmentedControl<K extends string>({
               selected && "border-[1.5px] border-primary-strong bg-surface",
             )}
           >
-            {item.icon ? <Icon name={item.icon} size={20} color={item.iconColor ?? "#0E7C6B"} /> : null}
+            {item.icon ? <Icon name={item.icon} size={20} color={item.iconColor ?? "#08807A"} /> : null}
             <Text variant="subheading" tone={selected ? (item.key === "lost" ? "lost" : "primary") : "ink"}>
               {item.label}
             </Text>

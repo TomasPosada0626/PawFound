@@ -1,0 +1,53 @@
+{{define "actions"}}
+<form method="post" action="{{.Action}}" class="card decide">
+  <h2>Decisión</h2>
+  <p class="suggest">Sugerido según su historial: <strong>{{suggest .Suggest}}</strong></p>
+  <input type="hidden" name="csrf" value="{{.CSRF}}">
+  <fieldset>
+    <legend class="sr-only">Acción</legend>
+    {{if .IsReport}}<label class="option"><input type="radio" name="action" value="dismiss" {{if eq .Suggest "dismiss"}}checked{{end}} required> <span><strong>Descartar</strong> No hay infracción.</span></label>{{end}}
+    <label class="option"><input type="radio" name="action" value="warn" {{if eq .Suggest "warn"}}checked{{end}} required> <span><strong>Enviar aviso</strong> Primera vez o falta leve.</span></label>
+    <label class="option"><input type="radio" name="action" value="mute24" {{if eq .Suggest "mute24"}}checked{{end}}> <span><strong>Restringir 24 horas</strong> No puede escribir en chats.</span></label>
+    <label class="option"><input type="radio" name="action" value="mute168" {{if eq .Suggest "mute168"}}checked{{end}}> <span><strong>Restringir 7 días</strong> Reincidencia.</span></label>
+    {{if .HasMessage}}<label class="option"><input type="radio" name="action" value="remove_message"> <span><strong>Retirar el mensaje</strong> Deja de verse en el chat.</span></label>{{end}}
+    {{if .HasPet}}<label class="option"><input type="radio" name="action" value="remove_pet"> <span><strong>Retirar la publicación</strong> Sale del mapa y deja de contar para insignias.</span></label>{{end}}
+    {{if .Muted}}<label class="option"><input type="radio" name="action" value="unmute"> <span><strong>Levantar la restricción</strong> Puede volver a escribir.</span></label>{{end}}
+    {{if .Suspended}}<label class="option"><input type="radio" name="action" value="unsuspend"> <span><strong>Reactivar la cuenta</strong> Por apelación aceptada.</span></label>
+    {{else}}<label class="option danger"><input type="radio" name="action" value="suspend" {{if eq .Suggest "suspend"}}checked{{end}}> <span><strong>Suspender la cuenta</strong> Cierra todas sus sesiones.</span></label>{{end}}
+  </fieldset>
+  <label>Motivo (obligatorio para suspender; queda en la bitácora)
+    <textarea name="note" rows="3" maxlength="500"></textarea></label>
+  <label class="confirm"><input type="checkbox" name="confirm" value="yes"> Confirmo la suspensión, si la elegí</label>
+  <button type="submit" class="primary">Aplicar decisión</button>
+</form>
+{{end}}
+
+{{define "history"}}
+<section class="card">
+  <h2>Historial de moderación</h2>
+  {{if .}}
+  <ol class="timeline">
+    {{range .}}
+    <li><span class="when">{{date .At}}</span> <strong>{{action .Action}}</strong>{{if .Hours}} ({{deref_int .Hours}} h){{end}}
+      <span class="muted">por {{if .ModeratorName}}{{deref .ModeratorName}}{{else}}—{{end}}</span>
+      {{if .Note}}<blockquote>{{.Note}}</blockquote>{{end}}</li>
+    {{end}}
+  </ol>
+  {{else}}<p class="empty">Sin sanciones previas.</p>{{end}}
+</section>
+{{end}}
+
+{{define "person"}}
+<section class="card person">
+  <h2>{{.Name}}</h2>
+  <p class="muted">@{{.Username}} · {{.Email}}</p>
+  <dl>
+    <div><dt>En PawFound</dt><dd>{{days .CreatedAt}} días</dd></div>
+    <div><dt>Correo</dt><dd>{{if .Verified}}verificado{{else}}sin verificar{{end}}</dd></div>
+    <div><dt>Avisos</dt><dd>{{.Warnings}}</dd></div>
+    <div><dt>Estado</dt><dd>{{if .SuspendedAt}}<span class="chip chip-scam">Suspendida</span>{{else if active .MutedUntil}}<span class="chip chip-rude">Restringida hasta {{date (deref_time .MutedUntil)}}</span>{{else}}Activa{{end}}</dd></div>
+  </dl>
+  {{if ne .Role "user"}}<p><span class="chip chip-system">Equipo: {{.Role}}</span></p>{{end}}
+  <p><a href="/admin/users/{{.ID}}">Ver la cuenta completa</a></p>
+</section>
+{{end}}

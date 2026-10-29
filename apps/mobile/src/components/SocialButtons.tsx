@@ -15,17 +15,15 @@ const PROVIDERS: {
   key: SocialProvider;
   icon: IconName;
   color: string | null;
-  label: "auth.google" | "auth.facebook" | "auth.apple";
+  label: "auth.google" | "auth.apple";
 }[] = [
   { key: "google", icon: "logo-google", color: "#4285F4", label: "auth.google" },
-  { key: "facebook", icon: "logo-facebook", color: "#1877F2", label: "auth.facebook" },
   { key: "apple", icon: "logo-apple", color: null, label: "auth.apple" },
 ];
 
 /**
- * Google, Facebook y Apple (login.png). El proveedor autentica identidad pero no un
- * celular colombiano: si la cuenta no tiene teléfono verificado y la persona venía a
- * reportar o escribir, se le pide verificarlo antes de seguir.
+ * Google y Apple. El proveedor ya confirmó el correo, así que la cuenta llega verificada
+ * (insignia azul) sin pedir el código de 6 dígitos.
  */
 export function SocialButtons({ next }: { next: string }) {
   const { t } = useI18n();
@@ -37,9 +35,8 @@ export function SocialButtons({ next }: { next: string }) {
   const signIn = async (provider: SocialProvider) => {
     setBusy(provider);
     try {
-      const { needsPhone } = await backend.loginWithProvider(provider);
-      if (needsPhone && next !== "/") router.replace({ pathname: "/auth/phone", params: { next } });
-      else router.replace(next as never);
+      await backend.loginWithProvider(provider);
+      router.replace(next as never);
     } catch {
       toast(t("errors.network"), "error");
     } finally {

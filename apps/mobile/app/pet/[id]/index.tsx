@@ -1,6 +1,6 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -18,7 +18,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { formatDistance, regionForRadius } from "@/domain/geo";
-import { currentRadius, profileFor, radiusInFuture } from "@/domain/lifeCircle";
+import { currentRadius, offsetMinutes, profileFor, radiusInFuture } from "@/domain/lifeCircle";
 import { memberDays } from "@/domain/moderation";
 import { findPossibleMatches } from "@/domain/rules";
 import { useAuthGate } from "@/hooks/useAuthGate";
@@ -37,6 +37,10 @@ export default function PetDetailScreen() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const backend = useBackend();
+  // Con la API trae lo más reciente de este caso (en la demostración no hace nada).
+  useEffect(() => {
+    if (id) void backend.loadPet(id).catch(() => {});
+  }, [backend, id]);
   const state = useBackendState();
   const user = useCurrentUser();
   const now = useNow(30_000);
@@ -48,6 +52,7 @@ export default function PetDetailScreen() {
   const [confirmReunite, setConfirmReunite] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [previewHours, setPreviewHours] = useState(0);
+  const [recenterKey, setRecenterKey] = useState(0);
 
   const pet = state.pets.find((p) => p.id === id);
   const matches = useMemo(
@@ -118,6 +123,11 @@ export default function PetDetailScreen() {
     router.push(`/pet/${pet.id}/poster`);
   };
 
+  const openStory = () => {
+    setMoreOpen(false);
+    router.push(`/pet/${pet.id}/story`);
+  };
+
   const reunite = (helperIds: string[]) =>
     run("reunite", async () => {
       await backend.markReunited(pet.id, helperIds);
@@ -131,18 +141,33 @@ export default function PetDetailScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* Mapa con el círculo de vida */}
         <View style={{ height: 360 + insets.top }}>
+          {/* Solo esta mascota. Se puede mover y acercar; "Centrar" la devuelve al caso. */}
           <PetMap
-            region={detailRegion(pet.location, Math.max(radius, futureRadius))}
-            circles={[
-              { center: pet.location, radius, kind: pet.kind, variant: "current" },
-              ...(futureRadius > radius
-                ? [{ center: pet.location, radius: futureRadius, kind: pet.kind, variant: "future" as const }]
-                : []),
-            ]}
+            region={detailRegion(pet.location, pet.kind === "lost" ? Math.max(radius, futureRadius) : 350)}
+            recenterKey={recenterKey}
+            circles={
+              pet.kind === "lost"
+                ? [
+                    { center: pet.location, radius, kind: pet.kind, variant: "focus" as const },
+                    ...(futureRadius > radius
+                      ? [{ center: pet.location, radius: futureRadius, kind: pet.kind, variant: "future" as const }]
+                      : []),
+                  ]
+                : []
+            }
             marker={{ coordinate: pet.location, kind: pet.kind, pet }}
-            interactive={false}
             testID="detail-map"
           />
+          <View className="absolute bottom-10 right-4">
+            <IconButton
+              icon="locate"
+              label={t("map.recenter")}
+              variant="surface"
+              color={colors.ink}
+              onPress={() => setRecenterKey((k) => k + 1)}
+              testID="detail-recenter"
+            />
+          </View>
           <View className="absolute left-0 right-0 flex-row items-center justify-between px-4" style={{ top: insets.top + 8 }}>
             <BackButton />
             <View className="rounded-full bg-surface/80 px-3 py-1">
@@ -159,23 +184,28 @@ export default function PetDetailScreen() {
           </View>
           <View
             accessible
-            accessibilityLabel={`${pet.kind === "lost" ? t("pet.lifeRadius") : t("pet.foundRadius")}: ${formatDistance(radius, locale)}. ${t("pet.lastSeenAgo", { time: relativeTime(pet.lastSeenAt, now, locale) })}`}
+            accessibilityLabel={`${pet.kind === "lost" ? `${t("pet.lifeRadius")}: ${formatDistance(radius, locale)}` : t("pet.foundSpot")}. ${t("pet.lastSeenAgo", { time: relativeTime(pet.lastSeenAt, now, locale) })}`}
             className="absolute items-center self-center rounded-2xl bg-surface px-5 py-2 shadow-md shadow-black/15"
             style={{ top: insets.top + 72 }}
             testID="radius-bubble"
           >
             <Text variant="caption" tone="body">
-              {pet.kind === "lost" ? t("pet.lifeRadius") : t("pet.foundRadius")}
+              {pet.kind === "lost" ? t("pet.lifeRadius") : t("pet.foundSpot")}
             </Text>
-            <Text variant="title" tone="primary">
-              {formatDistance(radius, locale)}
+            <Text variant={pet.kind === "lost" ? "title" : "heading"} tone="primary">
+              {pet.kind === "lost" ? formatDistance(radius, locale) : pet.zone}
             </Text>
             <Text variant="caption" tone="body">
-              {t("pet.lastSeenAgo", { time: relativeTime(pet.lastSeenAt, now, locale).toLowerCase() })}
+              {t(pet.kind === "lost" ? "pet.lastSeenAgo" : "pet.foundAgo", {
+                time: relativeTime(pet.lastSeenAt, now, locale).toLowerCase(),
+              })}
             </Text>
             {futureRadius > radius ? (
               <Text variant="captionStrong" tone="lost" accessibilityLiveRegion="polite">
-                {t("lifeCircle.previewing", { hours: previewHours, distance: formatDistance(futureRadius, locale) })}
+                {t("lifeCircle.previewing", {
+                  minutes: offsetMinutes(previewHours),
+                  distance: formatDistance(futureRadius, locale),
+                })}
               </Text>
             ) : null}
           </View>
@@ -351,6 +381,14 @@ export default function PetDetailScreen() {
                     />
                   </View>
                 </View>
+                <Button
+                  label={t("story.open")}
+                  subtitle={t("story.openHint")}
+                  icon="logo-instagram"
+                  variant="ghost"
+                  onPress={openStory}
+                  testID="story"
+                />
               </View>
             ) : null}
 
@@ -358,10 +396,6 @@ export default function PetDetailScreen() {
             {active && pet.kind === "lost" ? (
               <View className="mt-5">
                 <LifeCircleCard pet={pet} now={now} previewHours={previewHours} onPreview={setPreviewHours} />
-              </View>
-            ) : active ? (
-              <View className="mt-5">
-                <Banner icon="radio-button-on" body={t("lifeCircle.found")} />
               </View>
             ) : null}
 
@@ -454,6 +488,26 @@ export default function PetDetailScreen() {
       <Sheet visible={moreOpen} onClose={() => setMoreOpen(false)} title={t("common.moreOptions")}>
         <ListRow icon="share-social-outline" title={t("common.share")} onPress={share} />
         <ListRow icon="qr-code-outline" title={t("poster.open")} description={t("poster.openHint")} onPress={openPoster} />
+        {active ? (
+          <ListRow
+            icon="albums-outline"
+            tone="lost"
+            title={t("stories.viewThis")}
+            onPress={() => {
+              setMoreOpen(false);
+              router.push(`/historias/${pet.id}`);
+            }}
+            testID="more-view-story"
+          />
+        ) : null}
+        <ListRow
+          icon="logo-instagram"
+          tone="violet"
+          title={t("story.open")}
+          description={t("story.openHint")}
+          onPress={openStory}
+          testID="more-story"
+        />
         {!isOwner ? (
           <ListRow
             icon="flag-outline"

@@ -70,7 +70,10 @@ __tests__/              # flujos completos sobre el router real
   patas" que la familia otorga al cerrar el caso.
 - **Perfiles públicos con "me gusta"** (`app/user/[id].tsx`), días en PawFound, y
   convivencia sin bloqueos: reportar persona, aviso amable y límite de mensajes.
-- **Mis mascotas** (perfil preventivo → reporte con un toque) y **afiche con QR**.
+- **Mis mascotas** (perfil preventivo → reporte con un toque), **afiche con QR** e
+  **historia para Instagram** (`app/pet/[id]/story.tsx`, con guía para Destacadas).
+- **Fotos en el chat** (grupos y DM) y **"¿Es tu mascota?"** (`src/domain/matching.ts`,
+  vectores compartidos con la API en `packages/contracts/fixtures/owned-matches.json`).
 - **Accesibilidad** (docs/accesibilidad.md): touch targets ≥ 48 dp, labels reales,
   regiones vivas para errores, estado nunca solo por color, contraste AA probado en tests.
 
@@ -99,3 +102,15 @@ la versión corregida de Expo.
 - Avatares ilustrados definitivos (hoy son avatares de animales con emoji, issue #61).
 - Proveedor de traducción, SMS y almacenamiento de fotos, cada uno tras su evaluación en
   `docs/legal/incidentes-y-proveedores.md`.
+
+## Conectar con la API real
+
+Sin configuración la app corre en **modo demostración** (todo en memoria). Para usar la API:
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start   # la IP de tu computador en la red local
+```
+
+`src/services/apiBackend.ts` implementa la misma interfaz que el backend de demostración, así
+que las pantallas no cambian. La ubicación en segundo plano para las Alertas Ángel necesita
+un build propio (EAS o `expo run:android`): en Expo Go solo se actualiza con la app abierta.

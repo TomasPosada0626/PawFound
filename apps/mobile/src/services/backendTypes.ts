@@ -1,3 +1,4 @@
+import type { BadgeProgress } from "@/domain/badges";
 import type {
   AgeRange,
   AlertZone,
@@ -10,6 +11,8 @@ import type {
   NotificationPrefs,
   OwnedPet,
   PetCase,
+  Place,
+  StoryItem,
   PetSize,
   PrivacyPrefs,
   Sex,
@@ -34,6 +37,11 @@ export type ErrorCode =
   | "invalid_username"
   | "username_taken"
   | "muted"
+  | "story_full"
+  | "provider_unavailable"
+  | "invalid_input"
+  | "suspended"
+  | "unauthorized"
   | "network"
   | "unknown";
 
@@ -50,7 +58,7 @@ export class BackendError extends Error {
 
 export type Verification = {
   userId: string;
-  phone: string;
+  email: string;
   code: string;
   sentAt: string;
   attempts: number;
@@ -79,6 +87,15 @@ export type BackendState = {
   userReports: UserReport[];
   /** "Me gusta" de perfil: cuenta → quienes le dieron me gusta (uno por persona). */
   profileLikes: Record<string, string[]>;
+  /** Actualizaciones de las historias de casos (no vencen; se quitan al cerrar el caso). */
+  stories: StoryItem[];
+  /**
+   * Veterinarias cercanas. En demostración está vacío: no se inventan lugares; con
+   * el servidor se cargan de OpenStreetMap (api import-places).
+   */
+  places: Place[];
+  /** Insignias de otras cuentas calculadas por la API (en demostración se calculan aquí). */
+  remoteBadges: Record<string, BadgeProgress[]>;
 };
 
 export type OwnedPetInput = Omit<OwnedPet, "id" | "ownerId" | "createdAt" | "lastCaseId">;
@@ -117,6 +134,8 @@ export type NewSightingInput = {
   note?: string;
 };
 
-export type SocialProvider = "google" | "facebook" | "apple";
+export type SocialProvider = "google" | "apple";
 
-export type ProfilePatch = Partial<Pick<User, "name" | "username" | "avatar" | "title" | "bio" | "city" | "neighborhood">>;
+export type ProfilePatch = Partial<
+  Pick<User, "name" | "username" | "avatar" | "title" | "bio" | "city" | "neighborhood" | "phone">
+>;

@@ -23,7 +23,7 @@ export type CaseKind = "lost" | "found";
 export type CaseState = "active" | "reunited" | "archived";
 
 export type FoundCondition = "good" | "scared" | "injured" | "needs_vet";
-export type FoundCustody = "with_me" | "vet" | "shelter" | "left_there";
+export type FoundCustody = "with_me" | "vet" | "left_there";
 
 export type Sighting = {
   id: string;
@@ -112,6 +112,8 @@ export type OwnedPet = {
 export type AlertZone = {
   location: LatLng;
   zone: string;
+  /** Última actualización del GPS; pasadas 24 h sin actualizar deja de usarse. */
+  updatedAt?: string;
 };
 
 export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear";
@@ -123,8 +125,10 @@ export type User = {
   name: string;
   username: string;
   email: string;
+  /** Opcional: nunca se verifica ni se muestra a otras personas. */
   phone?: string;
-  phoneVerified: boolean;
+  /** Correo verificado con el código de 6 dígitos (o por Google/Apple): insignia azul. */
+  verified: boolean;
   avatar: AvatarId;
   title: ProfileTitle;
   bio: string;
@@ -139,7 +143,59 @@ export type User = {
   lang: Lang;
 };
 
-export type MessageKind = "text" | "system" | "sighting";
+/**
+ * Actualización en la historia de un caso (foto, texto o ambos). Las historias no vencen: se
+ * quitan cuando la familia las borra o cuando el caso se cierra.
+ */
+export type StoryItem = {
+  id: string;
+  petId: string;
+  authorId: string;
+  photo?: string;
+  text: string;
+  createdAt: string;
+};
+
+/**
+ * Veterinaria (capa del mapa y "Está herida: busquemos una veterinaria"). Datos de
+ * OpenStreetMap: pueden estar incompletos, por eso cada lugar se puede reportar.
+ */
+export type Place = {
+  id: string;
+  kind: "vet";
+  name: string;
+  location: LatLng;
+  address?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  emergency?: boolean;
+};
+
+export type MessageKind = "text" | "system" | "sighting" | "location";
+
+/**
+ * Ubicación de un mensaje:
+ * - current: dónde estaba quien la envió en ese momento (no es en vivo). Solo en mensajes directos.
+ * - meeting: punto de encuentro elegido en el mapa. Solo en mensajes directos.
+ * - place: veterinaria a donde alguien lleva la mascota; también en el grupo del caso.
+ * Sin `location` ya no es visible: quien la compartió la quitó, o se cerró el chat o el caso.
+ */
+export type MessageLocation = {
+  kind: "current" | "meeting" | "place";
+  location?: LatLng;
+  label?: string;
+  address?: string;
+  placeId?: string;
+  hidden?: boolean;
+};
+
+/** Lo que se envía al compartir una ubicación (en "place" el servidor pone nombre y punto). */
+export type LocationShare =
+  { kind: "current" | "meeting"; location: LatLng; label?: string } | { kind: "place"; placeId: string };
+
+/** Foto adjunta a un mensaje (grupos y DM). Se envía sin ubicación ni datos del celular. */
+export type MessagePhoto = { uri: string; width: number; height: number };
 
 export type Message = {
   id: string;
@@ -153,6 +209,10 @@ export type Message = {
   lang?: Lang;
   /** Traducciones generadas por el servidor (proveedor sujeto a evaluación de privacidad). */
   translations?: Partial<Record<Lang, string>>;
+  /** Foto adjunta; el texto puede ir vacío. */
+  photo?: MessagePhoto;
+  /** Ubicación compartida (mensajes "location"); el texto puede ir vacío. */
+  location?: MessageLocation;
 };
 
 export type Thread = {
@@ -164,7 +224,11 @@ export type Thread = {
   /** Último mensaje leído por usuario (id de usuario → ISO). */
   readAt: Record<string, string>;
   mutedBy: string[];
+  /** Chat cerrado: un mensaje directo que cerró una de las dos personas (los grupos no se cierran). */
   archived: boolean;
+  closedBy?: string;
+  /** Quienes lo archivaron en su propia lista (cada persona decide; nunca se borra solo). */
+  archivedBy: string[];
 };
 
 export type NotificationKind =
@@ -180,13 +244,17 @@ export type NotificationKind =
   /** El círculo de vida de una mascota perdida creció hasta tu zona. */
   | "life_circle"
   /** La familia te agradeció al cerrar el caso (insignia "Ángel de patas"). */
-  | "thanked";
+  | "thanked"
+  /** Alguien encontró una mascota parecida a una de "Mis mascotas": "¿Es Rocky?". */
+  | "owned_match";
 
 export type AppNotification = {
   id: string;
   userId: string;
   kind: NotificationKind;
   petId: string;
+  /** En owned_match: la mascota propia que se parece al reporte encontrado. */
+  ownedPetId?: string;
   at: string;
   read: boolean;
 };

@@ -4,7 +4,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "@/components/ui/Toast";
 import { I18nProvider, useI18n } from "@/i18n/I18nProvider";
 import type { Locale } from "@/i18n/core";
-import type { MockBackend } from "@/services/mockBackend";
+import type { Backend } from "@/services/backend";
 import { readJSON, STORAGE_KEYS } from "@/services/storage";
 import { BackendProvider, useBackend } from "@/store/backend";
 import { DevicePrefsProvider } from "@/store/devicePrefs";
@@ -48,7 +48,7 @@ function useSyncedSession() {
   return useSyncExternalStore(backend.subscribe, () => backend.getSnapshot().sessionUserId);
 }
 
-export function AppProviders({ children, backend, locale }: { children: ReactNode; backend?: MockBackend; locale?: Locale }) {
+export function AppProviders({ children, backend, locale }: { children: ReactNode; backend?: Backend; locale?: Locale }) {
   return (
     <SafeAreaProvider>
       <BackendProvider backend={backend}>

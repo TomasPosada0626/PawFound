@@ -51,7 +51,7 @@ Reducir el tiempo entre una pérdida y un reencuentro mediante reportes claros, 
 
 ## Funcionalidades principales
 
-- **Cuentas verificadas**: inicio de sesión con correo, Google, Facebook o Apple; el registro se verifica por SMS y otorga automáticamente la insignia azul de verificado.
+- **Cuentas verificadas**: inicio de sesión con correo o nombre de usuario, Google o Apple; el registro se verifica con un código de 6 dígitos enviado al correo y otorga automáticamente la insignia azul de verificado.
 - **Mapa comunitario**: todas las mascotas reportadas (perdidas y encontradas) se ven como pines; cada una tiene su propio "círculo de vida", el radio estimado de búsqueda, que se amplía automáticamente con el tiempo.
 - **Reportes**: reportar una mascota perdida o encontrada desde el botón `+`.
 - **Alerta Ángel**: aviso por SMS geolocalizado a la comunidad cercana cuando se reporta una mascota perdida.
@@ -73,7 +73,7 @@ Detalle de arquitectura en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 1. Definir alcance, usuarios y criterios de éxito.
 2. Diseñar el flujo de reporte, búsqueda y verificación.
 3. Construir un MVP accesible y seguro.
-4. Validar con personas cuidadoras, refugios y voluntariado.
+4. Validar con personas cuidadoras, rescatistas y voluntariado.
 
 ## Documentación
 

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{.Title}} · Moderación PawFound</title>
+  <link rel="stylesheet" href="/admin/static/admin.css">
+</head>
+<body>
+{{if .Moderator}}
+<header class="topbar">
+  <a class="brand" href="/admin/"><span class="paw" aria-hidden="true">🐾</span> PawFound <span class="brand-tag">Moderación</span></a>
+  <nav aria-label="Secciones">
+    <a href="/admin/" {{if eq .Section "dashboard"}}aria-current="page"{{end}}>Resumen</a>
+    <a href="/admin/activity" {{if eq .Section "activity"}}aria-current="page"{{end}}>Actividad</a>
+    <a href="/admin/reports" {{if eq .Section "reports"}}aria-current="page"{{end}}>Reportes</a>
+    <a href="/admin/users" {{if eq .Section "users"}}aria-current="page"{{end}}>Cuentas</a>
+    <a href="/admin/log" {{if eq .Section "log"}}aria-current="page"{{end}}>Bitácora</a>
+  </nav>
+  <form method="post" action="/admin/logout" class="who">
+    <span>{{.Moderator.Name}}</span>
+    <input type="hidden" name="csrf" value="{{.CSRF}}">
+    <button type="submit" class="link">Salir</button>
+  </form>
+</header>
+{{end}}
+<main id="main" class="page{{if not .Moderator}} page-narrow{{end}}">
+  {{if .Flash}}<p class="flash ok" role="status">{{.Flash}}</p>{{end}}
+  {{if .Error}}<p class="flash error" role="alert">{{.Error}}</p>{{end}}
+  {{template "content" .}}
+</main>
+</body>
+</html>

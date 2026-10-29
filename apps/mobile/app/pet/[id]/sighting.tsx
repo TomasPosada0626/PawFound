@@ -40,8 +40,7 @@ export default function SightingScreen() {
     [point, pet],
   );
 
-  if (!user || !user.phoneVerified)
-    return <Redirect href={{ pathname: "/auth/login", params: { next: `/pet/${id}/sighting` } }} />;
+  if (!user || !user.verified) return <Redirect href={{ pathname: "/auth/login", params: { next: `/pet/${id}/sighting` } }} />;
   if (!pet) return <Redirect href="/" />;
 
   const place = async (p: LatLng, z?: string | null) => {

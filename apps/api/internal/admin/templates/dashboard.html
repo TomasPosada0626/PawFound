@@ -1,0 +1,36 @@
+{{define "content"}}
+{{$s := .Data.Stats}}
+<h1>Resumen</h1>
+<section class="stats" aria-label="Estado de la cola">
+  <a class="stat{{if gt $s.Open 0}} stat-alert{{end}}" href="/admin/reports"><strong>{{$s.Open}}</strong><span>reportes abiertos</span></a>
+  <div class="stat"><strong>{{if $s.OldestOpen}}{{ago (deref_time $s.OldestOpen)}}{{else}}—{{end}}</strong><span>el más antiguo sin revisar</span></div>
+  <div class="stat"><strong>{{$s.Resolved24}}</strong><span>resueltos en 24 h</span></div>
+  <div class="stat"><strong>{{$s.Muted}}</strong><span>cuentas con mensajes restringidos</span></div>
+  <div class="stat"><strong>{{$s.Suspended}}</strong><span>cuentas suspendidas</span></div>
+</section>
+<div class="grid-2">
+  <section class="card">
+    <h2>Por revisar primero</h2>
+    {{if .Data.Queue}}
+    <ul class="queue">
+      {{range .Data.Queue}}
+      <li><a href="/admin/reports/{{.ID}}">
+        <span class="chip chip-{{.Reason}}">{{reason .Reason}}</span>
+        <span class="queue-main">{{target .TargetKind}} · {{if .ReportedName}}{{deref .ReportedName}}{{else}}cuenta eliminada{{end}}</span>
+        <span class="muted">{{ago .CreatedAt}}</span>
+      </a></li>
+      {{end}}
+    </ul>
+    {{else}}<p class="empty">No hay reportes abiertos. 🐶</p>{{end}}
+  </section>
+  <section class="card guide">
+    <h2>Cómo decidimos</h2>
+    <ol>
+      <li><strong>Contexto antes que volumen.</strong> Tres reportes no prueban nada solos: lee el mensaje y lo que lo rodea.</li>
+      <li><strong>Escalonado.</strong> Aviso → 24 horas sin escribir → 7 días → suspensión. Una estafa confirmada puede ir directo a suspensión.</li>
+      <li><strong>Nadie se bloquea.</strong> Las personas reportan; el equipo decide y deja el motivo.</li>
+      <li><strong>Primero las estafas y el acoso.</strong> Responde en menos de 24 horas.</li>
+    </ol>
+  </section>
+</div>
+{{end}}

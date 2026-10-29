@@ -1,35 +1,1041 @@
 openapi: 3.1.0
 info:
   title: PawFound API
-  version: 0.1.0-dev
+  version: 0.2.0-dev
   description: >
     Contrato de la API de PawFound. Fuente de verdad del request/response shape entre
-    apps/api y apps/mobile — el cliente TypeScript de la app se genera desde este archivo,
-    no se escribe a mano.
+    apps/api y apps/mobile. Las formas coinciden con apps/mobile/src/domain/types.ts.
+
+    Reglas transversales: toda ubicación que devuelve la API ya está aproximada a celdas de
+    250 m (nunca el punto exacto); los errores de negocio llegan como {"error": {"code",
+    "params"}} con códigos traducibles por la app; las acciones de escritura comunitaria
+    exigen celular verificado (insignia azul).
 servers:
   - url: http://localhost:8080
     description: Desarrollo local
+security:
+  - bearer: []
+
+tags:
+  - name: auth
+  - name: me
+  - name: pets
+  - name: chats
+  - name: community
+  - name: media
 
 paths:
   /health:
     get:
       operationId: getHealth
-      summary: Estado del proceso de la API
-      tags: [health]
+      tags: [auth]
+      security: []
+      summary: El proceso está vivo
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/HealthStatus" } } } }
+  /ready:
+    get:
+      operationId: getReady
+      tags: [auth]
+      security: []
+      summary: La base de datos responde
+      responses:
+        "200": { description: OK }
+        "503": { description: Sin base de datos }
+
+  /v1/auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      security: []
+      summary: Crea la cuenta y envía el código de verificación al correo (límite por IP)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RegisterInput" } } } }
+      responses:
+        "201": { $ref: "#/components/responses/Session" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /v1/auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      security: []
+      summary: Correo o nombre de usuario y contraseña. Mismo error para cuenta inexistente y clave incorrecta.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/LoginInput" } } } }
+      responses:
+        "200": { $ref: "#/components/responses/Session" }
+        "401": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/auth/oauth:
+    post:
+      operationId: loginWithProvider
+      tags: [auth]
+      security: []
+      summary: ID token de Google o Apple (OIDC); la cuenta queda verificada.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provider, idToken]
+              properties:
+                provider: { type: string, enum: [google, apple] }
+                idToken: { type: string }
+                lang: { $ref: "#/components/schemas/Lang" }
+      responses:
+        "200": { $ref: "#/components/responses/Session" }
+        "401": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /v1/auth/refresh:
+    post:
+      operationId: refresh
+      tags: [auth]
+      security: []
+      summary: Rota el refresh token. Reusar uno ya rotado revoca toda la familia.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RefreshInput" } } } }
+      responses:
+        "200": { $ref: "#/components/responses/Session" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RefreshInput" } } } }
+      responses:
+        "204": { description: Sesión cerrada }
+  /v1/auth/password-reset:
+    post:
+      operationId: requestPasswordReset
+      tags: [auth]
+      security: []
+      summary: Siempre 202, exista o no la cuenta
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { email: { type: string } } } } } }
+      responses:
+        "202": { description: Si la cuenta existe, se envió el enlace }
+  /v1/auth/password-reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      tags: [auth]
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token, password], properties: { token: { type: string }, password: { type: string } } } } } }
+      responses:
+        "204": { description: Contraseña cambiada; se cierran todas las sesiones }
+        "410": { $ref: "#/components/responses/Error" }
+  /v1/auth/email/resend:
+    post:
+      operationId: resendCode
+      tags: [auth]
+      summary: Reenvía el código de 6 dígitos al correo (espera de 45 s, máximo 5 por hora)
+      responses:
+        "200": { description: Reenviado, content: { application/json: { schema: { type: object, properties: { resendInSeconds: { type: integer } } } } } }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/auth/email/verify:
+    post:
+      operationId: verifyCode
+      tags: [auth]
+      summary: Verifica el correo y otorga la insignia azul (5 intentos, luego 5 min de bloqueo)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string } } } } } }
+      responses:
+        "200": { description: Verificado, content: { application/json: { schema: { $ref: "#/components/schemas/Me" } } } }
+        "410": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+
+  /v1/me:
+    get:
+      operationId: getMe
+      tags: [me]
+      responses:
+        "200": { description: Cuenta propia, content: { application/json: { schema: { $ref: "#/components/schemas/Me" } } } }
+    patch:
+      operationId: updateProfile
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ProfilePatch" } } } }
+      responses:
+        "200": { description: Perfil actualizado, content: { application/json: { schema: { $ref: "#/components/schemas/Me" } } } }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: deleteAccount
+      tags: [me]
+      summary: Derecho al olvido. Los reportes activos se archivan sin autor.
+      responses:
+        "204": { description: Cuenta eliminada }
+  /v1/me/export:
+    get:
+      operationId: exportData
+      tags: [me]
+      summary: Portabilidad (Ley 1581)
+      responses:
+        "200": { description: Todos los datos de la cuenta, content: { application/json: { schema: { type: object } } } }
+  /v1/me/lang:
+    put:
+      operationId: setLanguage
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { lang: { $ref: "#/components/schemas/Lang" } } } } } }
+      responses:
+        "204": { description: Guardado }
+  /v1/me/notification-prefs:
+    put:
+      operationId: updateNotificationPrefs
+      tags: [me]
+      summary: Cambio parcial; lo no enviado se conserva
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/NotificationPrefs" } } } }
+      responses:
+        "200": { description: Preferencias completas, content: { application/json: { schema: { $ref: "#/components/schemas/NotificationPrefs" } } } }
+  /v1/me/privacy:
+    put:
+      operationId: updatePrivacy
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PrivacyPrefs" } } } }
+      responses:
+        "200": { description: Guardado, content: { application/json: { schema: { $ref: "#/components/schemas/PrivacyPrefs" } } } }
+  /v1/me/alert-zone:
+    put:
+      operationId: setAlertZone
+      tags: [me]
+      summary: Guarda la zona de Alertas Ángel (aproximada) y registra el consentimiento
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AlertZone" } } } }
+      responses:
+        "200": { description: Zona aproximada guardada, content: { application/json: { schema: { $ref: "#/components/schemas/AlertZone" } } } }
+    delete:
+      operationId: deleteAlertZone
+      tags: [me]
+      summary: Revoca el consentimiento y borra la zona
+      responses:
+        "204": { description: Borrada }
+  /v1/me/location:
+    put:
+      operationId: setAlertLocation
+      tags: [me]
+      summary: Última ubicación para las Alertas Ángel (la API la aproxima a 250 m y no guarda historial)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AlertZone" } } } }
+      responses:
+        "200": { description: Punto aproximado guardado, content: { application/json: { schema: { $ref: "#/components/schemas/AlertZone" } } } }
+    delete:
+      operationId: deleteAlertLocation
+      tags: [me]
+      summary: Desactiva "Alertas donde estés" y borra el punto
+      responses:
+        "204": { description: Borrada }
+  /v1/me/devices:
+    post:
+      operationId: registerDevice
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token, platform], properties: { token: { type: string }, platform: { type: string, enum: [android, ios] } } } } } }
+      responses:
+        "204": { description: Registrado }
+    delete:
+      operationId: unregisterDevice
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [token], properties: { token: { type: string } } } } } }
+      responses:
+        "204": { description: Borrado }
+  /v1/me/pets:
+    get:
+      operationId: myReports
+      tags: [me]
+      responses:
+        "200": { description: Reportes propios, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Pet" } } } } }
+  /v1/me/owned-pets:
+    get:
+      operationId: ownedPets
+      tags: [me]
+      responses:
+        "200": { description: Mis mascotas, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/OwnedPet" } } } } }
+    post:
+      operationId: createOwnedPet
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/OwnedPetInput" } } } }
+      responses:
+        "201": { description: Creada, content: { application/json: { schema: { $ref: "#/components/schemas/OwnedPet" } } } }
+  /v1/me/owned-pets/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: updateOwnedPet
+      tags: [me]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/OwnedPetInput" } } } }
+      responses:
+        "200": { description: Actualizada, content: { application/json: { schema: { $ref: "#/components/schemas/OwnedPet" } } } }
+    delete:
+      operationId: deleteOwnedPet
+      tags: [me]
+      responses:
+        "204": { description: Borrada }
+  /v1/me/owned-pets/{id}/matches:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: ownedPetMatches
+      tags: [me]
+      summary: Reportes de mascotas encontradas que se parecen a esta (domain/matching)
       responses:
         "200":
-          description: La API está activa.
+          description: Coincidencias
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthStatus"
+                type: object
+                properties:
+                  matches: { type: array, items: { $ref: "#/components/schemas/OwnedMatch" } }
+                  needsAlertZone: { type: boolean }
+  /v1/me/notifications:
+    get:
+      operationId: notifications
+      tags: [me]
+      responses:
+        "200": { description: Las 100 más recientes, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Notification" } } } } }
+  /v1/me/notifications/read-all:
+    post:
+      operationId: readAllNotifications
+      tags: [me]
+      responses:
+        "204": { description: Leídas }
+  /v1/me/notifications/{id}/read:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: readNotification
+      tags: [me]
+      responses:
+        "204": { description: Leída }
+
+  /v1/pets:
+    get:
+      operationId: nearbyPets
+      tags: [pets]
+      security: [{}, { bearer: [] }]
+      summary: Casos activos dentro del radio, por cercanía (PostGIS)
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radius, in: query, schema: { type: integer, maximum: 50000, default: 20000 } }
+        - { name: kind, in: query, schema: { $ref: "#/components/schemas/CaseKind" } }
+        - { name: species, in: query, schema: { $ref: "#/components/schemas/Species" } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 200 } }
+      responses:
+        "200": { description: Casos, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Pet" } } } } }
+    post:
+      operationId: createReport
+      tags: [pets]
+      summary: Publica un reporte (2 por día), crea su grupo y envía Alertas Ángel y coincidencias
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReportInput" } } } }
+      responses:
+        "201": { description: Publicado, content: { application/json: { schema: { $ref: "#/components/schemas/Pet" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/pets/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getPet
+      tags: [pets]
+      security: [{}, { bearer: [] }]
+      responses:
+        "200": { description: Caso, content: { application/json: { schema: { $ref: "#/components/schemas/Pet" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: withdrawReport
+      tags: [pets]
+      summary: La familia retira su reporte (se archiva)
+      responses:
+        "204": { description: Archivado }
+  /v1/pets/{id}/share:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: sharePet
+      tags: [pets]
+      security: [{}, { bearer: [] }]
+      responses:
+        "204": { description: Contado }
+  /v1/pets/{id}/sightings:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: addSighting
+      tags: [pets]
+      summary: '"La vi"'
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SightingInput" } } } }
+      responses:
+        "201": { description: Caso actualizado, content: { application/json: { schema: { $ref: "#/components/schemas/Pet" } } } }
+  /v1/pets/{id}/reunite:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: reunite
+      tags: [pets]
+      summary: Cierra el caso y agradece hasta 5 personas que participaron ("Ángel de patas")
+      requestBody: { content: { application/json: { schema: { type: object, properties: { helperIds: { type: array, items: { type: string }, maxItems: 5 } } } } } }
+      responses:
+        "200": { description: Cerrado, content: { application/json: { schema: { $ref: "#/components/schemas/Pet" } } } }
+  /v1/pets/{id}/helpers:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: reunionHelpers
+      tags: [pets]
+      summary: Solo la familia. Quienes reportaron avistamientos, escribieron en el grupo o por DM.
+      responses:
+        "200": { description: Candidatos, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/HelperCandidate" } } } } }
+  /v1/pets/{id}/matches:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: possibleMatches
+      tags: [pets]
+      summary: Solo la familia. Reportes del tipo opuesto que podrían ser la misma mascota.
+      responses:
+        "200": { description: Coincidencias, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Pet" } } } } }
+  /v1/pets/{id}/report:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: reportPet
+      tags: [pets]
+      requestBody: { content: { application/json: { schema: { $ref: "#/components/schemas/ReportReasonInput" } } } }
+      responses:
+        "204": { description: En la cola de moderación }
+  /v1/pets/{id}/join:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: joinGroup
+      tags: [chats]
+      responses:
+        "200": { $ref: "#/components/responses/ThreadId" }
+  /v1/pets/{id}/direct:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: openDirect
+      tags: [chats]
+      summary: Abre o reutiliza el DM con la familia. Respeta "quién puede escribirme".
+      responses:
+        "200": { $ref: "#/components/responses/ThreadId" }
+        "403": { $ref: "#/components/responses/Error" }
+
+  /v1/threads:
+    get:
+      operationId: threads
+      tags: [chats]
+      responses:
+        "200": { description: Chats propios, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Thread" } } } } }
+  /v1/threads/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: thread
+      tags: [chats]
+      responses:
+        "200": { description: Chat, content: { application/json: { schema: { $ref: "#/components/schemas/Thread" } } } }
+    delete:
+      operationId: leaveThread
+      tags: [chats]
+      summary: Elimina el chat de la lista propia; para las demás personas sigue igual
+      responses:
+        "204": { description: Eliminado de la lista }
+  /v1/threads/{id}/messages:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: messages
+      tags: [chats]
+      parameters:
+        - { name: before, in: query, schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 200 } }
+      responses:
+        "200": { description: Mensajes en orden cronológico, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Message" } } } } }
+    post:
+      operationId: sendMessage
+      tags: [chats]
+      summary: >-
+        Texto, foto o ambos, o una ubicación. La ubicación actual y el punto de encuentro solo
+        van en mensajes directos (403 en grupos); una veterinaria también en el grupo del caso.
+        12 por minuto; bloqueado si moderación restringió la cuenta.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/SendInput" } } } }
+      responses:
+        "201": { description: Enviado, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/threads/{id}/read:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: readThread
+      tags: [chats]
+      responses:
+        "204": { description: Leído }
+  /v1/threads/{id}/mute:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: toggleMute
+      tags: [chats]
+      responses:
+        "200": { description: Estado, content: { application/json: { schema: { type: object, properties: { muted: { type: boolean } } } } } }
+  /v1/threads/{id}/archive:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: toggleArchive
+      tags: [chats]
+      summary: Archiva o desarchiva el chat solo en la lista propia
+      responses:
+        "200": { description: Estado, content: { application/json: { schema: { type: object, properties: { archived: { type: boolean } } } } } }
+  /v1/threads/{id}/close:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: closeDirect
+      tags: [chats]
+      summary: Cierra un mensaje directo para las dos personas (los grupos no se cierran)
+      responses:
+        "204": { description: Cerrado }
+  /v1/messages/{id}/location:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: stopSharingLocation
+      tags: [chats]
+      summary: Quien compartió una ubicación la deja de mostrar; se borran sus coordenadas
+      responses:
+        "200": { description: Mensaje ya sin ubicación visible, content: { application/json: { schema: { $ref: "#/components/schemas/Message" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/stories:
+    get:
+      operationId: storyFeed
+      tags: [pets]
+      security: [{}, { bearer: [] }]
+      summary: Historias de los casos activos cerca (no vencen; se quitan al cerrar el caso)
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radius, in: query, schema: { type: integer, maximum: 30000, default: 10000 } }
+      responses:
+        "200": { description: Historias, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Story" } } } } }
+  /v1/pets/{id}/stories:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: addStory
+      tags: [pets]
+      summary: La familia agrega una actualización (foto subida con purpose=story y/o texto de 140 caracteres; máx. 20)
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { text: { type: string, maxLength: 140 }, photoId: { type: string } } } } } }
+      responses:
+        "201": { description: Agregada, content: { application/json: { schema: { $ref: "#/components/schemas/StoryItem" } } } }
+  /v1/stories/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: removeStory
+      tags: [pets]
+      responses:
+        "204": { description: Quitada }
+  /v1/places:
+    get:
+      operationId: places
+      tags: [community]
+      security: []
+      summary: Veterinarias cerca (OpenStreetMap, ODbL)
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radius, in: query, schema: { type: integer, maximum: 30000 } }
+        - { name: kind, in: query, schema: { type: string, enum: [vet] } }
+      responses:
+        "200":
+          description: Lugares
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  places: { type: array, items: { $ref: "#/components/schemas/Place" } }
+                  attribution: { type: string }
+  /v1/places/{id}/report:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: reportPlace
+      tags: [community]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [note], properties: { note: { type: string, maxLength: 300 } } } } } }
+      responses:
+        "204": { description: Recibido }
+  /v1/ws:
+    get:
+      operationId: realtime
+      tags: [chats]
+      security: []
+      summary: >
+        WebSocket. El primer mensaje debe ser {"type":"auth","token":"<accessToken>"} (el token
+        nunca va en la URL). Eventos: ready, message (Message), notification (Notification).
+      responses:
+        "101": { description: Conexión abierta }
+
+  /v1/users/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: publicProfile
+      tags: [community]
+      security: [{}, { bearer: [] }]
+      summary: Ningún perfil es oculto. Nunca incluye correo ni celular.
+      responses:
+        "200": { description: Perfil, content: { application/json: { schema: { $ref: "#/components/schemas/PublicProfile" } } } }
+  /v1/users/{id}/like:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: toggleLike
+      tags: [community]
+      summary: Da o quita el me gusta (cuentas verificadas, uno por persona, no a uno mismo)
+      responses:
+        "200": { description: Estado, content: { application/json: { schema: { type: object, properties: { liked: { type: boolean }, likes: { type: integer } } } } } }
+  /v1/users/{id}/report:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: reportUser
+      tags: [community]
+      summary: Sin bloqueos; se reporta y moderación decide
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ReportReasonInput" } } } }
+      responses:
+        "204": { description: En la cola de moderación }
+
+  /v1/media:
+    post:
+      operationId: uploadMedia
+      tags: [media]
+      summary: Sube una foto. Se re-codifica a JPEG (sin EXIF ni GPS), máx. 1600 px, 8 MB.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, purpose]
+              properties:
+                file: { type: string, format: binary }
+                purpose: { type: string, enum: [pet, owned, chat, story] }
+      responses:
+        "201": { description: Subida, content: { application/json: { schema: { $ref: "#/components/schemas/UploadedMedia" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+  /v1/media/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getMedia
+      tags: [media]
+      security: [{}, { bearer: [] }]
+      summary: Fotos de reportes y Mis mascotas son públicas; las de chat, solo para miembros
+      responses:
+        "200": { description: JPEG, content: { image/jpeg: {} } }
+        "404": { $ref: "#/components/responses/Error" }
 
 components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: string } }
+  responses:
+    Error:
+      description: Error de negocio
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Session:
+      description: Sesión abierta
+      content: { application/json: { schema: { $ref: "#/components/schemas/Session" } } }
+    ThreadId:
+      description: Chat
+      content: { application/json: { schema: { type: object, properties: { threadId: { type: string } } } } }
   schemas:
     HealthStatus:
       type: object
       required: [status]
       properties:
-        status:
+        status: { type: string, enum: [ok] }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code]
+          properties:
+            code:
+              type: string
+              enum: [unauthorized, invalid_credentials, email_taken, invalid_phone, wrong_code, locked, expired,
+                rate_limited, not_allowed, not_found, cannot_message, invalid_username, username_taken, muted, suspended,
+                invalid_input, invalid_image, provider_unavailable, story_full, unknown]
+            params: { type: object, additionalProperties: true }
+    Lang: { type: string, enum: [es, en] }
+    Species: { type: string, enum: [dog, cat, other] }
+    Sex: { type: string, enum: [male, female, unknown] }
+    Age: { type: string, enum: [puppy, young, adult, senior, unknown] }
+    Size: { type: string, enum: [small, medium, large] }
+    CaseKind: { type: string, enum: [lost, found] }
+    LatLng:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude: { type: number }
+        longitude: { type: number }
+    RegisterInput:
+      type: object
+      required: [name, email, username, password, acceptTerms, confirmAge]
+      properties:
+        name: { type: string, description: Nombre y al menos un apellido }
+        email: { type: string, format: email }
+        username: { type: string, pattern: "^@?[a-z0-9_]{3,20}$" }
+        password: { type: string, minLength: 8, description: Con mayúscula, minúscula y número }
+        lang: { $ref: "#/components/schemas/Lang" }
+        acceptTerms: { type: boolean }
+        confirmAge: { type: boolean }
+    LoginInput:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier: { type: string, description: Correo o nombre de usuario }
+        password: { type: string }
+    RefreshInput:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+    Session:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: Segundos de vida del accessToken }
+        me: { $ref: "#/components/schemas/Me" }
+        needsVerification: { type: boolean }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        username: { type: string }
+        email: { type: string }
+        phone: { type: string }
+        verified: { type: boolean, description: Correo verificado (insignia azul) }
+        avatar: { type: string, enum: [dog, cat, fox, panda, bunny, bear] }
+        title: { type: string, enum: [animal_lover, rescuer, neighbor, volunteer, foster] }
+        bio: { type: string, maxLength: 150 }
+        city: { type: string }
+        neighborhood: { type: string }
+        createdAt: { type: string, format: date-time }
+        mutedUntil: { type: string, format: date-time }
+        lang: { $ref: "#/components/schemas/Lang" }
+        role: { type: string, enum: [user, moderator, admin] }
+    PublicUser:
+      type: object
+      description: Nombre corto ("Valentina A."); nunca correo ni celular
+      properties:
+        id: { type: string }
+        name: { type: string }
+        username: { type: string }
+        avatar: { type: string }
+        title: { type: string }
+        bio: { type: string }
+        city: { type: string }
+        neighborhood: { type: string }
+        verified: { type: boolean, description: Correo verificado (insignia azul) }
+        createdAt: { type: string, format: date-time }
+        lang: { $ref: "#/components/schemas/Lang" }
+    UserSummary:
+      type: object
+      properties:
+        id: { type: string }
+        shortName: { type: string }
+        avatar: { type: string }
+        verified: { type: boolean, description: Correo verificado (insignia azul) }
+        createdAt: { type: string, format: date-time }
+        lang: { $ref: "#/components/schemas/Lang" }
+    ProfilePatch:
+      type: object
+      properties:
+        name: { type: string }
+        username: { type: string, pattern: "^@?[a-z0-9_]{3,20}$" }
+        avatar: { type: string }
+        title: { type: string }
+        bio: { type: string }
+        city: { type: string }
+        neighborhood: { type: string }
+    NotificationPrefs:
+      type: object
+      properties:
+        lostNearby: { type: boolean }
+        foundNearby: { type: boolean, description: "También activa los avisos de ¿es tu mascota?" }
+        comments: { type: boolean }
+        directMessages: { type: boolean }
+        groups: { type: boolean }
+        lifeCircle: { type: boolean }
+        angelAlerts: { type: boolean }
+        quietHours: { type: boolean }
+        quietFrom: { type: string, pattern: "^\\d{2}:\\d{2}$" }
+        quietTo: { type: string, pattern: "^\\d{2}:\\d{2}$" }
+        push: { type: boolean }
+        email: { type: boolean }
+        dailyDigest: { type: boolean }
+    PrivacyPrefs:
+      type: object
+      properties:
+        whoCanMessage: { type: string, enum: [everyone, verified, nobody] }
+    AlertZone:
+      type: object
+      required: [location, zone]
+      properties:
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+    Me:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/User" }
+        notificationPrefs: { $ref: "#/components/schemas/NotificationPrefs" }
+        privacyPrefs: { $ref: "#/components/schemas/PrivacyPrefs" }
+        alertZone: { oneOf: [{ $ref: "#/components/schemas/AlertZone" }, { type: "null" }] }
+        allowance:
+          type: object
+          properties:
+            allowed: { type: boolean }
+            retryAt: { type: string, format: date-time }
+    Sighting:
+      type: object
+      properties:
+        id: { type: string }
+        at: { type: string, format: date-time }
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+        note: { type: string }
+        authorId: { type: string, description: Solo para la familia del caso }
+        authorShortName: { type: string }
+    Pet:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { $ref: "#/components/schemas/CaseKind" }
+        state: { type: string, enum: [active, reunited, archived] }
+        name: { type: string }
+        species: { $ref: "#/components/schemas/Species" }
+        breed: { type: string }
+        sex: { $ref: "#/components/schemas/Sex" }
+        age: { $ref: "#/components/schemas/Age" }
+        size: { $ref: "#/components/schemas/Size" }
+        color: { type: string }
+        collar: { type: string }
+        marks: { type: string }
+        description: { type: string }
+        photos: { type: array, items: { type: string, format: uri } }
+        traumaticEvent: { type: boolean }
+        shyOrIndoor: { type: boolean }
+        lastSeenAt: { type: string, format: date-time }
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+        foundSearchRadius: { type: integer, enum: [400, 1000, 2000, 5000] }
+        reward: { type: boolean }
+        foundCondition: { type: string, enum: [good, scared, injured, needs_vet] }
+        foundCustody: { type: string, enum: [with_me, vet, left_there] }
+        ownerId: { type: string }
+        ownerShortName: { type: string }
+        owner: { $ref: "#/components/schemas/UserSummary" }
+        createdAt: { type: string, format: date-time }
+        reunitedAt: { type: string, format: date-time }
+        sightings: { type: array, items: { $ref: "#/components/schemas/Sighting" } }
+        shareCount: { type: integer }
+        groupId: { type: string }
+        helperIds: { type: array, items: { type: string }, description: Solo para la familia }
+        moderationRemoved: { type: boolean }
+        currentRadius: { type: integer, description: Radio vigente en metros (círculo de vida o radio elegido) }
+    ReportInput:
+      type: object
+      required: [kind, species, sex, age, size, lastSeenAt, location, zone]
+      properties:
+        kind: { $ref: "#/components/schemas/CaseKind" }
+        name: { type: string, description: Obligatorio en perdidas }
+        species: { $ref: "#/components/schemas/Species" }
+        breed: { type: string }
+        sex: { $ref: "#/components/schemas/Sex" }
+        age: { $ref: "#/components/schemas/Age" }
+        size: { $ref: "#/components/schemas/Size" }
+        color: { type: string }
+        collar: { type: string }
+        marks: { type: string }
+        description: { type: string, maxLength: 500 }
+        photos: { type: array, maxItems: 5, items: { type: string, description: id o URL devuelta por POST /v1/media } }
+        traumaticEvent: { type: boolean }
+        shyOrIndoor: { type: boolean }
+        lastSeenAt: { type: string, format: date-time }
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+        foundSearchRadius: { type: integer }
+        reward: { type: boolean }
+        foundCondition: { type: string }
+        foundCustody: { type: string }
+        ownedPetId: { type: string }
+    SightingInput:
+      type: object
+      required: [at, location, zone]
+      properties:
+        at: { type: string, format: date-time }
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+        note: { type: string, maxLength: 200 }
+    HelperCandidate:
+      type: object
+      properties:
+        userId: { type: string }
+        user: { $ref: "#/components/schemas/UserSummary" }
+        reasons: { type: array, items: { type: string, enum: [sighting, group, direct] } }
+    OwnedPetInput:
+      type: object
+      required: [name, species, sex, age, size]
+      properties:
+        name: { type: string }
+        species: { $ref: "#/components/schemas/Species" }
+        breed: { type: string }
+        sex: { $ref: "#/components/schemas/Sex" }
+        age: { $ref: "#/components/schemas/Age" }
+        size: { $ref: "#/components/schemas/Size" }
+        color: { type: string }
+        collar: { type: string }
+        marks: { type: string }
+        description: { type: string }
+        photos: { type: array, maxItems: 5, items: { type: string } }
+        shyOrIndoor: { type: boolean }
+    OwnedPet:
+      allOf:
+        - $ref: "#/components/schemas/OwnedPetInput"
+        - type: object
+          properties:
+            id: { type: string }
+            ownerId: { type: string }
+            createdAt: { type: string, format: date-time }
+            lastCaseId: { type: string }
+    OwnedMatch:
+      type: object
+      properties:
+        pet: { $ref: "#/components/schemas/Pet" }
+        distance: { type: number, description: Metros desde la zona de alertas }
+        score: { type: number }
+    Photo:
+      type: object
+      properties:
+        url: { type: string, format: uri }
+        width: { type: integer }
+        height: { type: integer }
+    Message:
+      type: object
+      properties:
+        id: { type: string }
+        threadId: { type: string }
+        authorId: { type: string }
+        authorShortName: { type: string }
+        text: { type: string }
+        at: { type: string, format: date-time }
+        kind: { type: string, enum: [text, system, sighting, location] }
+        lang: { $ref: "#/components/schemas/Lang" }
+        translations: { type: object, additionalProperties: { type: string } }
+        photo: { $ref: "#/components/schemas/Photo" }
+        location: { $ref: "#/components/schemas/MessageLocation" }
+    MessageLocation:
+      type: object
+      description: >-
+        Ubicación de un mensaje "location". Sin `location` ya no es visible: quien la compartió
+        la quitó, o se cerró el mensaje directo o el caso (las coordenadas ya se borraron).
+      required: [kind]
+      properties:
+        kind: { type: string, enum: [current, meeting, place] }
+        location: { $ref: "#/components/schemas/LatLng" }
+        label: { type: string, description: Nombre del punto de encuentro o de la veterinaria }
+        address: { type: string, description: Dirección pública de la veterinaria }
+        placeId: { type: string }
+        hidden: { type: boolean }
+    SendInput:
+      type: object
+      properties:
+        text: { type: string, maxLength: 1000 }
+        lang: { $ref: "#/components/schemas/Lang" }
+        photoId: { type: string, description: Foto subida con purpose=chat (un solo uso) }
+        location:
+          type: object
+          description: En "place" solo cuenta placeId; el servidor pone el nombre y el punto.
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [current, meeting, place] }
+            location: { $ref: "#/components/schemas/LatLng" }
+            label: { type: string, maxLength: 60 }
+            placeId: { type: string }
+    Thread:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [dm, group] }
+        petId: { type: string }
+        memberIds: { type: array, items: { type: string } }
+        members: { type: array, items: { $ref: "#/components/schemas/UserSummary" } }
+        readAt: { type: object, additionalProperties: { type: string, format: date-time } }
+        mutedBy: { type: array, items: { type: string } }
+        archived: { type: boolean, description: Cerrado (mensaje directo cerrado por una de las dos personas) }
+        closedBy: { type: string }
+        archivedBy: { type: array, items: { type: string }, description: Quien lo archivó en su propia lista }
+        lastMessage: { $ref: "#/components/schemas/Message" }
+        unread: { type: integer }
+    Notification:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        kind:
           type: string
-          enum: [ok]
+          enum: [sighting, case_closed, possible_match, owned_match, angel_alert, life_circle, thanked]
+        petId: { type: string }
+        ownedPetId: { type: string, description: En owned_match, la mascota propia que se parece }
+        at: { type: string, format: date-time }
+        read: { type: boolean }
+    BadgeProgress:
+      type: object
+      properties:
+        id: { type: string, enum: [verified, reporter, rescuer, eyes, paw_angel, reunion, spreader, community] }
+        count: { type: integer }
+        tier: { type: integer, minimum: 0, maximum: 3 }
+        maxTier: { type: integer }
+        next: { type: [integer, "null"] }
+    PublicProfile:
+      type: object
+      properties:
+        user: { $ref: "#/components/schemas/PublicUser" }
+        memberDays: { type: integer }
+        likes: { type: integer }
+        likedByMe: { type: boolean }
+        badges: { type: array, items: { $ref: "#/components/schemas/BadgeProgress" } }
+        pets:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              species: { $ref: "#/components/schemas/Species" }
+              photo: { type: string, format: uri }
+        reported: { type: integer }
+        found: { type: integer }
+    ReportReasonInput:
+      type: object
+      properties:
+        reason: { type: string, enum: [spam, rude, scam, inappropriate, other] }
+        threadId: { type: string }
+        messageId: { type: string }
+        note: { type: string, maxLength: 300 }
+    UploadedMedia:
+      type: object
+      properties:
+        id: { type: string }
+        url: { type: string, format: uri }
+        width: { type: integer }
+        height: { type: integer }
+    StoryItem:
+      type: object
+      properties:
+        id: { type: string }
+        petId: { type: string }
+        authorId: { type: string }
+        photo: { type: string, format: uri }
+        text: { type: string }
+        createdAt: { type: string, format: date-time }
+    Story:
+      type: object
+      properties:
+        pet: { $ref: "#/components/schemas/Pet" }
+        items: { type: array, items: { $ref: "#/components/schemas/StoryItem" } }
+        updatedAt: { type: string, format: date-time }
+    Place:
+      type: object
+      properties:
+        id: { type: string }
+        kind: { type: string, enum: [vet] }
+        name: { type: string }
+        location: { $ref: "#/components/schemas/LatLng" }
+        address: { type: string }
+        phone: { type: string }
+        website: { type: string }
+        openingHours: { type: string }
+        emergency: { type: boolean }
+        source: { type: string }

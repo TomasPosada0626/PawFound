@@ -1,8 +1,12 @@
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { DirectionsSheet } from "@/components/DirectionsSheet";
+import { LocationCard } from "@/components/LocationCard";
 import { ReportUserSheet } from "@/components/ReportUserSheet";
 import { BackButton } from "@/components/layout";
 import { PetAvatar, UserAvatar } from "@/components/pets";
@@ -21,7 +25,7 @@ import { MESSAGE_MAX } from "@/services/mockBackend";
 import { counterpart, threadMessages } from "@/services/selectors";
 import { memberDays, mightBeOffensive } from "@/domain/moderation";
 import { BackendError } from "@/services/backendTypes";
-import type { User } from "@/domain/types";
+import type { LatLng, MessagePhoto, User } from "@/domain/types";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useDevicePrefs } from "@/store/devicePrefs";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -31,6 +35,10 @@ export default function ChatScreen() {
   const { t, locale } = useI18n();
   const { colors } = useTheme();
   const backend = useBackend();
+  // Con la API trae lo más reciente de este chat (en la demostración no hace nada).
+  useEffect(() => {
+    if (id) void backend.loadThread(id).catch(() => {});
+  }, [backend, id]);
   const state = useBackendState();
   const user = useCurrentUser();
   const toast = useToast();
@@ -39,6 +47,11 @@ export default function ChatScreen() {
   const [reportTarget, setReportTarget] = useState<{ user: User; messageId?: string } | null>(null);
   const [kindNudge, setKindNudge] = useState(false);
   const [originals, setOriginals] = useState<Set<string>>(new Set());
+  const [photo, setPhoto] = useState<MessagePhoto | null>(null);
+  const [photoSheet, setPhotoSheet] = useState(false);
+  const [viewer, setViewer] = useState<{ photo: MessagePhoto; label: string } | null>(null);
+  const [confirm, setConfirm] = useState<"close" | "leave" | null>(null);
+  const [directions, setDirections] = useState<{ destination: LatLng; label?: string } | null>(null);
   const { autoTranslate, setAutoTranslate } = useDevicePrefs();
   const scroll = useRef<ScrollView>(null);
 
@@ -73,21 +86,45 @@ export default function ChatScreen() {
   const muted = thread.mutedBy.includes(user.id);
   const isGroup = thread.kind === "group";
 
+  const pickPhoto = async (source: "camera" | "library") => {
+    setPhotoSheet(false);
+    const permission =
+      source === "camera"
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      toast(t("report.photoPermission"), "error");
+      return;
+    }
+    // exif: false — la app no lee el GPS de la foto; el servidor además la re-codifica sin metadatos.
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.7, exif: false };
+    const result =
+      source === "camera" ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
+    const asset = result.canceled ? undefined : result.assets[0];
+    if (!asset) return;
+    setPhoto({ uri: asset.uri, width: asset.width || 4, height: asset.height || 3 });
+  };
+
+  const canSend = Boolean(text.trim() || photo);
+
   const send = async (confirmed = false) => {
     const body = text.trim();
-    if (!body) return;
+    const attached = photo;
+    if (!body && !attached) return;
     // Aviso amable (no censura): un tono respetuoso consigue más ayuda.
-    if (!confirmed && mightBeOffensive(body)) {
+    if (!confirmed && body && mightBeOffensive(body)) {
       setKindNudge(true);
       return;
     }
     setKindNudge(false);
     setText("");
+    setPhoto(null);
     try {
-      await backend.sendMessage(thread.id, body, locale);
+      await backend.sendMessage(thread.id, body, locale, attached ?? undefined);
       requestAnimationFrame(() => scroll.current?.scrollToEnd({ animated: true }));
     } catch (error) {
       setText(body);
+      setPhoto(attached);
       const code = error instanceof BackendError ? error.code : "unknown";
       toast(
         code === "muted"
@@ -157,7 +194,7 @@ export default function ChatScreen() {
           {messages.map((m) => {
             const mine = m.authorId === user.id;
             const localized = m.kind === "text" ? localizedText(m, locale, autoTranslate, originals.has(m.id)) : null;
-            const body = localized ? localized.text : messageText(m, pet, t);
+            const body = localized ? localized.text : m.kind === "location" ? m.text : messageText(m, pet, t);
             const canToggle = Boolean(m.lang && m.lang !== locale && m.translations?.[locale]);
             const toggleOriginal = () =>
               setOriginals((prev) => {
@@ -166,7 +203,7 @@ export default function ChatScreen() {
                 else next.add(m.id);
                 return next;
               });
-            if (m.kind !== "text") {
+            if (m.kind === "system" || m.kind === "sighting") {
               return (
                 <Pressable
                   key={m.id}
@@ -181,11 +218,13 @@ export default function ChatScreen() {
               );
             }
             const author = state.users[m.authorId];
+            const who = mine ? t("common.you") : m.authorShortName || t("common.deletedUser");
+            const photoLabel = m.photo ? t("chat.photoFrom", { name: who }) : m.kind === "location" ? messageText(m, pet, t) : "";
             return (
               <Pressable
                 key={m.id}
                 accessible
-                accessibilityLabel={`${mine ? t("common.you") : m.authorShortName}: ${body}. ${clockTime(new Date(m.at), locale)}`}
+                accessibilityLabel={`${who}: ${[photoLabel, body].filter(Boolean).join(". ")}. ${clockTime(new Date(m.at), locale)}`}
                 accessibilityHint={!mine && author ? t("chat.reportHint") : undefined}
                 onLongPress={!mine && author ? () => setReportTarget({ user: author, messageId: m.id }) : undefined}
                 testID={`message-${m.id}`}
@@ -216,9 +255,42 @@ export default function ChatScreen() {
                     </Text>
                   )
                 ) : null}
-                <Text variant="body" tone={mine ? "white" : "ink"}>
-                  {body}
-                </Text>
+                {m.kind === "location" ? (
+                  <View className={body ? "mb-1.5" : ""}>
+                    <LocationCard
+                      message={m}
+                      mine={mine}
+                      onDirections={setDirections}
+                      onStop={() =>
+                        void backend
+                          .stopSharingLocation(m.id)
+                          .then(() => toast(t("chatLocation.stopped")))
+                          .catch(() => toast(t("errors.unknown"), "error"))
+                      }
+                    />
+                  </View>
+                ) : null}
+                {m.photo ? (
+                  <Pressable
+                    accessibilityRole="imagebutton"
+                    accessibilityLabel={`${photoLabel}. ${t("chat.viewPhoto")}`}
+                    onPress={() => m.photo && setViewer({ photo: m.photo, label: photoLabel })}
+                    className={cn("overflow-hidden rounded-2xl", body ? "mb-1.5" : "")}
+                    testID={`photo-${m.id}`}
+                  >
+                    <Image
+                      source={{ uri: m.photo.uri }}
+                      style={{ width: 220, aspectRatio: Math.min(1.6, Math.max(0.6, m.photo.width / m.photo.height)) }}
+                      contentFit="cover"
+                      accessible={false}
+                    />
+                  </Pressable>
+                ) : null}
+                {body ? (
+                  <Text variant="body" tone={mine ? "white" : "ink"}>
+                    {body}
+                  </Text>
+                ) : null}
                 {localized?.translatedFrom || localized?.untranslatedFrom || canToggle ? (
                   <Pressable
                     accessibilityRole={canToggle ? "button" : "text"}
@@ -246,35 +318,68 @@ export default function ChatScreen() {
 
         {thread.archived ? (
           <View className="p-4">
-            <Banner icon="archive-outline" body={t("chat.archived")} />
+            <Banner
+              icon="lock-closed-outline"
+              body={
+                thread.closedBy === user.id
+                  ? t("chat.closedByMe")
+                  : t("chat.closedByOther", { name: other ? shortName(other.name) : t("common.deletedUser") })
+              }
+            />
           </View>
         ) : (
-          <View className="flex-row items-end gap-2 border-t border-border bg-surface px-3 py-2">
-            <TextInput
-              accessibilityLabel={t("chat.placeholder")}
-              placeholder={t("chat.placeholder")}
-              placeholderTextColor={colors.muted}
-              value={text}
-              onChangeText={setText}
-              multiline
-              maxLength={MESSAGE_MAX}
-              className="max-h-[120px] min-h-[48px] flex-1 rounded-3xl bg-surface-alt px-4 py-3 font-regular text-[15px] text-ink"
-              testID="chat-input"
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("chat.send")}
-              accessibilityState={{ disabled: !text.trim() }}
-              disabled={!text.trim()}
-              onPress={() => void send()}
-              className={cn(
-                "h-12 w-12 items-center justify-center rounded-full",
-                text.trim() ? "bg-primary-strong" : "bg-border",
-              )}
-              testID="chat-send"
-            >
-              <Icon name="send" size={20} color="#FFFFFF" />
-            </Pressable>
+          <View className="border-t border-border bg-surface px-3 py-2">
+            {photo ? (
+              <View className="mb-2 flex-row items-center gap-3 rounded-2xl bg-surface-alt p-2" testID="chat-photo-preview">
+                <Image
+                  source={{ uri: photo.uri }}
+                  style={{ width: 56, height: 56, borderRadius: 12 }}
+                  contentFit="cover"
+                  accessible={false}
+                />
+                <Text variant="caption" className="flex-1">
+                  {t("chat.photoPrivacy")}
+                </Text>
+                <IconButton
+                  icon="close"
+                  label={t("chat.removePhoto")}
+                  color={colors.ink}
+                  onPress={() => setPhoto(null)}
+                  testID="chat-photo-remove"
+                />
+              </View>
+            ) : null}
+            <View className="flex-row items-end gap-2">
+              <IconButton
+                icon={isGroup ? "image-outline" : "add-circle-outline"}
+                label={isGroup ? t("chat.attachPhoto") : t("chatLocation.attach")}
+                color={colors.primaryStrong}
+                onPress={() => setPhotoSheet(true)}
+                testID="chat-attach"
+              />
+              <TextInput
+                accessibilityLabel={t("chat.placeholder")}
+                placeholder={t("chat.placeholder")}
+                placeholderTextColor={colors.muted}
+                value={text}
+                onChangeText={setText}
+                multiline
+                maxLength={MESSAGE_MAX}
+                className="max-h-[120px] min-h-[48px] flex-1 rounded-3xl bg-surface-alt px-4 py-3 font-regular text-[15px] text-ink"
+                testID="chat-input"
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("chat.send")}
+                accessibilityState={{ disabled: !canSend }}
+                disabled={!canSend}
+                onPress={() => void send()}
+                className={cn("h-12 w-12 items-center justify-center rounded-full", canSend ? "bg-primary-strong" : "bg-border")}
+                testID="chat-send"
+              >
+                <Icon name="send" size={20} color="#FFFFFF" />
+              </Pressable>
+            </View>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -298,6 +403,42 @@ export default function ChatScreen() {
           value={autoTranslate}
           onChange={setAutoTranslate}
           testID="toggle-auto-translate"
+        />
+        <ListRow
+          icon={thread.archivedBy.includes(user.id) ? "file-tray-outline" : "archive-outline"}
+          tone="neutral"
+          title={thread.archivedBy.includes(user.id) ? t("chat.unarchive") : t("chat.archive")}
+          onPress={() => {
+            setMenuOpen(false);
+            void backend
+              .toggleArchive(thread.id)
+              .then((archived) => toast(archived ? t("chat.archivedToast") : t("chat.unarchivedToast")));
+          }}
+          testID="chat-archive"
+        />
+        {!isGroup && !thread.archived ? (
+          <ListRow
+            icon="lock-closed-outline"
+            tone="neutral"
+            title={t("chat.closeDm")}
+            description={t("chat.closeDmHint")}
+            onPress={() => {
+              setMenuOpen(false);
+              setConfirm("close");
+            }}
+            testID="chat-close"
+          />
+        ) : null}
+        <ListRow
+          icon="trash-outline"
+          danger
+          title={t("chat.leave")}
+          description={isGroup ? t("chat.leaveGroupHint") : t("chat.leaveHint")}
+          onPress={() => {
+            setMenuOpen(false);
+            setConfirm("leave");
+          }}
+          testID="chat-leave"
         />
         <ListRow
           icon={muted ? "notifications-outline" : "notifications-off-outline"}
@@ -336,6 +477,96 @@ export default function ChatScreen() {
           </Text>
         )}
       </Sheet>
+
+      <Sheet
+        visible={photoSheet}
+        onClose={() => setPhotoSheet(false)}
+        title={isGroup ? t("chat.attachPhoto") : t("chatLocation.attach")}
+        testID="chat-photo-sheet"
+      >
+        <ListRow
+          icon="camera-outline"
+          title={t("chat.takePhoto")}
+          onPress={() => void pickPhoto("camera")}
+          testID="chat-photo-camera"
+        />
+        <ListRow
+          icon="images-outline"
+          title={t("chat.choosePhoto")}
+          onPress={() => void pickPhoto("library")}
+          testID="chat-photo-library"
+        />
+        {/* La ubicación de una persona solo se comparte en mensajes directos, nunca en grupos. */}
+        {!isGroup ? (
+          <ListRow
+            icon="location-outline"
+            tone="blue"
+            title={t("chatLocation.share")}
+            description={t("chatLocation.shareHint")}
+            onPress={() => {
+              setPhotoSheet(false);
+              router.push({ pathname: "/chat/ubicacion", params: { thread: thread.id } });
+            }}
+            testID="chat-share-location"
+          />
+        ) : null}
+        <Text variant="caption" className="mt-2">
+          {t("chat.photoPrivacy")}
+        </Text>
+      </Sheet>
+
+      <Modal visible={viewer !== null} transparent animationType="fade" onRequestClose={() => setViewer(null)}>
+        <View className="flex-1 bg-black" accessibilityViewIsModal testID="photo-viewer">
+          <SafeAreaView edges={["top"]} className="flex-row justify-end px-3">
+            <IconButton
+              icon="close"
+              label={t("chat.closePhoto")}
+              color="#FFFFFF"
+              onPress={() => setViewer(null)}
+              testID="photo-viewer-close"
+            />
+          </SafeAreaView>
+          {viewer ? (
+            <Image
+              source={{ uri: viewer.photo.uri }}
+              style={{ flex: 1 }}
+              contentFit="contain"
+              accessible
+              accessibilityLabel={viewer.label}
+            />
+          ) : null}
+        </View>
+      </Modal>
+
+      <Sheet
+        visible={confirm !== null}
+        onClose={() => setConfirm(null)}
+        title={confirm === "close" ? t("chat.closeDm") : t("chat.leave")}
+        testID="chat-confirm"
+      >
+        <Text variant="body" className="mb-5">
+          {confirm === "close" ? t("chat.closeDmHint") : isGroup ? t("chat.leaveGroupHint") : t("chat.leaveHint")}
+        </Text>
+        <View className="gap-3 pb-2">
+          <Button
+            label={confirm === "close" ? t("chat.closeConfirm") : t("chat.leaveConfirm")}
+            variant="danger"
+            onPress={() => {
+              const action = confirm;
+              setConfirm(null);
+              if (action === "close") void backend.closeDirect(thread.id);
+              if (action === "leave") {
+                void backend.leaveThread(thread.id);
+                router.replace("/messages");
+              }
+            }}
+            testID="chat-confirm-yes"
+          />
+          <Button label={t("common.cancel")} variant="ghost" onPress={() => setConfirm(null)} />
+        </View>
+      </Sheet>
+
+      <DirectionsSheet target={directions} onClose={() => setDirections(null)} />
 
       <ReportUserSheet
         target={reportTarget?.user ?? null}

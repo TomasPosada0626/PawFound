@@ -3,11 +3,12 @@
  * global.css replica estos valores como variables CSS para las clases de NativeWind;
  * `tokens.test.ts` verifica que no se desincronicen.
  *
+ * Perdidas en rojo y encontradas en aguamarina, en toda la app (pines, anillos, etiquetas).
  * Contraste verificado contra docs/accesibilidad.md (WCAG 2.1 AA):
- * - `primaryStrong` #0E7C6B sobre blanco: 5.1:1 (texto y enlaces teal).
- * - Botón primario: degradado #0E8572 → #0B6E60, texto blanco ≥ 4.5:1 en todo el recorrido.
- * - `lost` #D63A4E con texto blanco: 4.6:1.
- * El teal de marca #1FA98F solo da 2.9:1 sobre blanco: se usa para rellenos
+ * - `primaryStrong` #08807A (aguamarina profundo) sobre blanco: 4.8:1 (texto y enlaces).
+ * - Botón primario: degradado #08807A → #065F69, texto blanco ≥ 4.8:1 en todo el recorrido.
+ * - `lost` #E02424 (rojo) con texto blanco: 4.7:1; `lostInk` #B91C1C sobre blanco: 6.5:1.
+ * El aguamarina de marca #12B3A6 solo da 2.6:1 sobre blanco: se usa para rellenos
  * decorativos (pines, anillos, íconos grandes), nunca como color de texto.
  */
 
@@ -38,58 +39,58 @@ export type Palette = {
 
 export const palettes: Record<ColorScheme, Palette> = {
   light: {
-    bg: "#F4F9F8",
+    bg: "#F3F8F9",
     surface: "#FFFFFF",
-    surfaceAlt: "#EEF6F4",
-    border: "#D5E6E2",
-    ink: "#0B2545",
-    body: "#24364B",
-    muted: "#5B6B7F",
-    primary: "#1FA98F",
-    primaryStrong: "#0E7C6B",
-    primarySoft: "#E3F5F1",
-    lost: "#D63A4E",
-    lostSoft: "#FDECEE",
-    lostInk: "#B42335",
-    found: "#0E7C6B",
-    foundSoft: "#E3F5F1",
-    foundInk: "#0B6E60",
+    surfaceAlt: "#E9F5F5",
+    border: "#D2E5E6",
+    ink: "#13254A",
+    body: "#2A3B55",
+    muted: "#5D6C80",
+    primary: "#12B3A6",
+    primaryStrong: "#08807A",
+    primarySoft: "#E0F6F3",
+    lost: "#E02424",
+    lostSoft: "#FDECEC",
+    lostInk: "#B91C1C",
+    found: "#08807A",
+    foundSoft: "#E0F6F3",
+    foundInk: "#076B67",
     warning: "#B45309",
     warningSoft: "#FEF3E2",
-    danger: "#C8283D",
+    danger: "#C81E1E",
     verified: "#1D6FE0",
   },
   dark: {
-    bg: "#0B1622",
-    surface: "#13212F",
-    surfaceAlt: "#1A2B3B",
-    border: "#26394B",
+    bg: "#0A1520",
+    surface: "#12202D",
+    surfaceAlt: "#192A39",
+    border: "#25394A",
     ink: "#E8F0F5",
     body: "#C9D6E0",
     muted: "#9DB0C0",
-    primary: "#2BC4A6",
-    primaryStrong: "#3CCFB0",
-    primarySoft: "#123A36",
-    lost: "#D63A4E",
-    lostSoft: "#3A1820",
-    lostInk: "#FF8A98",
-    found: "#0E7C6B",
-    foundSoft: "#123A36",
-    foundInk: "#5FDCC0",
+    primary: "#2CCFC0",
+    primaryStrong: "#3CD5C4",
+    primarySoft: "#0F3A39",
+    lost: "#E02424",
+    lostSoft: "#3A1416",
+    lostInk: "#FF8A8A",
+    found: "#08807A",
+    foundSoft: "#0F3A39",
+    foundInk: "#5EE3D3",
     warning: "#F5A524",
     warningSoft: "#3A2A10",
-    danger: "#FF6B7D",
+    danger: "#FF6B6B",
     verified: "#5AA2FF",
   },
 };
 
 /** Degradado del botón primario y del CTA "Reportar" (mismo en claro y oscuro). */
-export const primaryGradient = ["#0E8572", "#0B6E60"] as const;
+export const primaryGradient = ["#08807A", "#065F69"] as const;
 
 /** Colores de estado de un caso, para pines y anillos (con texto/ícono, nunca solo color). */
 export const statusColor = {
-  lost: "#D63A4E",
-  found: "#1FA98F",
+  lost: "#E02424",
+  found: "#12B3A6",
 } as const;
 
 export const radius = {

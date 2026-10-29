@@ -1,5 +1,11 @@
 # Flujo: onboarding, login y registro con verificación SMS
 
+> **Desactualizado (2026-10-28)**: la verificación ahora es gratis por correo, con un código
+> de 6 dígitos, y el inicio de sesión social es solo con Google o Apple (Facebook se quitó).
+> El registro pide correo, nombre y apellidos, nombre de usuario y contraseña; se entra con
+> correo o nombre de usuario. Este documento conserva el diseño original por SMS como
+> historia; el flujo vigente está en PRODUCT.md y en la app.
+
 Especificación de flujo para [issue #11](https://github.com/TomasPosada0626/PawFound/issues/11).
 Fuente visual: [`Diseño ideal/login.png`](../../Diseño%20ideal/login.png) y
 [`Diseño ideal/Registro.png`](../../Diseño%20ideal/Registro.png) — el mockup manda sobre

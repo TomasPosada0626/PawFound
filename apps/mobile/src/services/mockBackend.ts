@@ -1,24 +1,30 @@
 import { alertAudience, type AlertCandidate } from "@/domain/alerts";
 import { approximateLocation } from "@/domain/geo";
+import { matchOwned } from "@/domain/matching";
 import { findPossibleMatches, publishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
+  LatLng,
   AppNotification,
   Lang,
+  LocationShare,
   Message,
   MessageKind,
+  MessageLocation,
+  MessagePhoto,
   NotificationKind,
   NotificationPrefs,
   OwnedPet,
   PetCase,
   PrivacyPrefs,
+  StoryItem,
   Thread,
   User,
   UserReport,
   UserReportReason,
 } from "@/domain/types";
 import { shortName } from "@/domain/privacy";
-import { normalizeColombianMobile } from "@/domain/validation";
+import { normalizeColombianMobile, normalizeUsername } from "@/domain/validation";
 
 import { reunionHelperCandidates } from "./selectors";
 
@@ -43,12 +49,15 @@ import {
  * dispositivo; la API real usa Argon2id (docs/ARCHITECTURE.md).
  */
 
-export const DEMO_SMS_CODE = "123456";
+/** Código de verificación en modo demostración (la API real lo envía al correo). */
+export const DEMO_CODE = "123456";
 export const RESEND_COOLDOWN_S = 45;
 export const CODE_TTL_MIN = 10;
 export const MAX_CODE_ATTEMPTS = 5;
 export const LOCK_MINUTES = 5;
 export const MESSAGE_MAX = 1000;
+/** Nombre de un punto de encuentro ("Parque de Laureles"). */
+export const LOCATION_LABEL_MAX = 60;
 /** Máximo de personas que la familia puede agradecer al cerrar un caso. */
 export const MAX_HELPERS = 5;
 export const MAX_OWNED_PETS = 10;
@@ -148,55 +157,64 @@ export class MockBackend {
   /** Acciones de escritura comunitaria exigen teléfono verificado (insignia azul). */
   private requireVerified(): User {
     const user = this.requireUser();
-    if (!user.phoneVerified) throw new BackendError("not_allowed");
+    if (!user.verified) throw new BackendError("not_allowed");
     return user;
   }
 
-  async login(email: string, password: string): Promise<{ needsVerification: boolean }> {
-    const entry = this.credentials.get(email.trim().toLowerCase());
+  /** Entra con el correo o con el nombre de usuario. */
+  async login(identifier: string, password: string): Promise<{ needsVerification: boolean }> {
+    const id = identifier.trim().toLowerCase();
+    const username = id.includes("@") && !id.startsWith("@") ? null : normalizeUsername(id);
+    const email = username
+      ? Object.values(this.state.users)
+          .find((u) => u.username === username)
+          ?.email.toLowerCase()
+      : id;
+    const entry = email ? this.credentials.get(email) : undefined;
     // Mismo error para correo inexistente y contraseña incorrecta: no revela si la cuenta existe.
     if (!entry || entry.password !== password) throw new BackendError("invalid_credentials");
     const user = this.state.users[entry.userId];
     if (!user) throw new BackendError("invalid_credentials");
     this.commit({ sessionUserId: user.id });
-    if (!user.phoneVerified && user.phone) {
-      this.issueCode(user.id, user.phone);
+    if (!user.verified) {
+      this.issueCode(user.id, user.email);
       return { needsVerification: true };
     }
     return { needsVerification: false };
   }
 
-  async loginWithProvider(provider: SocialProvider): Promise<{ needsPhone: boolean }> {
+  /** Google o Apple ya confirmaron el correo: la cuenta queda verificada sin código. */
+  async loginWithProvider(provider: SocialProvider): Promise<void> {
     const email = `demo.${provider}@pawfound.app`;
     let user = Object.values(this.state.users).find((u) => u.email === email);
     if (!user) {
-      user = this.makeUser({ name: `Persona ${provider[0]?.toUpperCase()}${provider.slice(1)}`, email });
+      user = { ...this.makeUser({ name: `Persona ${provider[0]?.toUpperCase()}${provider.slice(1)}`, email }), verified: true };
       this.commit({ users: { ...this.state.users, [user.id]: user } });
     }
     this.commit({ sessionUserId: user.id });
-    return { needsPhone: !user.phoneVerified };
   }
 
-  async register(input: { name: string; email: string; phone: string; password: string }): Promise<void> {
+  /** Registro con correo, nombre y apellidos, usuario y contraseña. Envía el código al correo. */
+  async register(input: { name: string; email: string; username: string; password: string }): Promise<void> {
     const email = input.email.trim().toLowerCase();
     if (this.credentials.has(email)) throw new BackendError("email_taken");
-    const phone = normalizeColombianMobile(input.phone);
-    if (!phone) throw new BackendError("invalid_phone");
-    if (this.phoneTaken(phone)) throw new BackendError("phone_taken");
-    const user = this.makeUser({ name: input.name.trim(), email, phone });
+    const username = normalizeUsername(input.username);
+    if (!username) throw new BackendError("invalid_username");
+    if (Object.values(this.state.users).some((u) => u.username === username)) throw new BackendError("username_taken");
+    const user = this.makeUser({ name: input.name.trim(), email, username });
     this.credentials.set(email, { userId: user.id, password: input.password });
     this.commit({ users: { ...this.state.users, [user.id]: user }, sessionUserId: user.id });
-    this.issueCode(user.id, phone);
+    this.issueCode(user.id, email);
   }
 
-  private makeUser({ name, email, phone }: { name: string; email: string; phone?: string }): User {
+  private makeUser({ name, email, username: chosen }: { name: string; email: string; username?: string }): User {
     const base =
       email
         .split("@")[0]
         ?.replace(/[^a-z0-9_]/gi, "")
         .toLowerCase() || "pawfriend";
-    let username = base.slice(0, 16);
-    while (Object.values(this.state.users).some((u) => u.username === username)) {
+    let username = chosen ?? base.slice(0, 16);
+    while (!chosen && Object.values(this.state.users).some((u) => u.username === username)) {
       username = `${base.slice(0, 14)}${Math.floor(Math.random() * 90 + 10)}`;
     }
     return {
@@ -204,8 +222,7 @@ export class MockBackend {
       name,
       username,
       email,
-      phone,
-      phoneVerified: false,
+      verified: false,
       avatar: "dog",
       title: "animal_lover",
       bio: "",
@@ -217,24 +234,17 @@ export class MockBackend {
     };
   }
 
-  private phoneTaken(phone: string, exceptUserId?: string) {
-    return Object.values(this.state.users).some((u) => u.phone === phone && u.phoneVerified && u.id !== exceptUserId);
-  }
-
-  private issueCode(userId: string, phone: string) {
+  /** En demostración el código siempre es DEMO_CODE; la API real lo envía al correo. */
+  private issueCode(userId: string, email: string) {
     this.commit({
-      verification: { userId, phone, code: DEMO_SMS_CODE, sentAt: this.iso(), attempts: 0 },
+      verification: { userId, email, code: DEMO_CODE, sentAt: this.iso(), attempts: 0 },
     });
   }
 
-  /** Paso "agrega y verifica tu número" (login social o cuenta sin teléfono). */
-  async startPhoneVerification(rawPhone: string): Promise<void> {
+  /** Envía un código al correo de la cuenta actual (si todavía no está verificada). */
+  async sendVerificationCode(): Promise<void> {
     const user = this.requireUser();
-    const phone = normalizeColombianMobile(rawPhone);
-    if (!phone) throw new BackendError("invalid_phone");
-    if (this.phoneTaken(phone, user.id)) throw new BackendError("phone_taken");
-    this.commit({ users: { ...this.state.users, [user.id]: { ...user, phone, phoneVerified: false } } });
-    this.issueCode(user.id, phone);
+    if (!user.verified) this.issueCode(user.id, user.email);
   }
 
   secondsUntilResend(): number {
@@ -249,7 +259,7 @@ export class MockBackend {
     if (!v) throw new BackendError("not_allowed");
     if (this.secondsUntilResend() > 0) throw new BackendError("not_allowed");
     // Se conserva el contador de intentos: reenviar no reinicia el bloqueo.
-    this.commit({ verification: { ...v, sentAt: this.iso(), code: DEMO_SMS_CODE } });
+    this.commit({ verification: { ...v, sentAt: this.iso(), code: DEMO_CODE } });
   }
 
   async verifyCode(code: string): Promise<void> {
@@ -273,9 +283,9 @@ export class MockBackend {
     }
     const user = this.state.users[v.userId];
     if (!user) throw new BackendError("not_found");
-    // Al verificar se otorga la insignia azul automáticamente (PRODUCT.md).
+    // Al verificar el correo se otorga la insignia azul ("Protector verificado").
     this.commit({
-      users: { ...this.state.users, [user.id]: { ...user, phone: v.phone, phoneVerified: true } },
+      users: { ...this.state.users, [user.id]: { ...user, verified: true } },
       verification: null,
     });
   }
@@ -348,6 +358,7 @@ export class MockBackend {
       readAt: { [user.id]: now },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     };
     const matches = findPossibleMatches(pet, this.state.pets, this.now());
     const matchNotifications = matches.map((m) => this.makeNotification(m.pet.ownerId, "possible_match", petId));
@@ -355,17 +366,39 @@ export class MockBackend {
     const angelNotifications = alertAudience(pet, this.alertCandidates(pet), this.now()).map((id) =>
       this.makeNotification(id, "angel_alert", petId),
     );
+    // "¿Es tu mascota?": una encontrada parecida a una de "Mis mascotas" avisa a su familia.
+    const ownedNotifications = pet.kind === "found" ? this.ownedMatchNotifications(pet) : [];
     this.commit({
       pets: [pet, ...this.state.pets],
       threads: [thread, ...this.state.threads],
       messages: [...this.state.messages, this.makeMessage(groupId, "system", user, "created")],
-      notifications: [...angelNotifications, ...matchNotifications, ...this.state.notifications],
+      notifications: [...angelNotifications, ...ownedNotifications, ...matchNotifications, ...this.state.notifications],
       ownedPets: this.state.ownedPets.map((p) =>
         p.id === input.ownedPetId && p.ownerId === user.id ? { ...p, lastCaseId: petId } : p,
       ),
       reportLog: { ...this.state.reportLog, [user.id]: [...(this.state.reportLog[user.id] ?? []), now] },
     });
     return pet;
+  }
+
+  /**
+   * Familias cuya mascota propia se parece a este reporte encontrado (domain/matching). Solo
+   * con zona de alertas (la única ubicación que tenemos, con consentimiento) y con "encontradas
+   * cerca" activado; si la mascota ya tiene un reporte de pérdida activo, ese caso recibe la
+   * coincidencia normal y no se avisa dos veces.
+   */
+  private ownedMatchNotifications(found: PetCase): AppNotification[] {
+    return this.state.ownedPets
+      .filter((owned) => owned.ownerId !== found.ownerId && this.notificationPrefsFor(owned.ownerId).foundNearby)
+      .filter((owned) => {
+        const lastCase = owned.lastCaseId ? this.getPet(owned.lastCaseId) : undefined;
+        return !(lastCase?.kind === "lost" && lastCase.state === "active");
+      })
+      .filter((owned) => {
+        const zone = this.state.alertZones[owned.ownerId];
+        return zone ? matchOwned(found, { ...owned, zone: zone.location }) !== null : false;
+      })
+      .map((owned) => ({ ...this.makeNotification(owned.ownerId, "owned_match", found.id), ownedPetId: owned.id }));
   }
 
   getPet(petId: string): PetCase | undefined {
@@ -462,7 +495,13 @@ export class MockBackend {
     const allowed = new Set(reunionHelperCandidates(this.state, petId).map((c) => c.userId));
     const helpers = [...new Set(helperIds)].filter((id) => allowed.has(id)).slice(0, MAX_HELPERS);
     const thread = this.state.threads.find((t) => t.id === pet.groupId);
-    const recipients = (thread?.memberIds ?? []).filter((id) => id !== user.id && !helpers.includes(id));
+    // También quienes lo compartieron: así saben que ya pueden quitar la historia o el afiche.
+    const sharers = Object.entries(this.state.shareLog)
+      .filter(([, pets]) => pets.includes(petId))
+      .map(([id]) => id);
+    const recipients = [...new Set([...(thread?.memberIds ?? []), ...sharers])].filter(
+      (id) => id !== user.id && !helpers.includes(id) && this.state.users[id],
+    );
     this.commit({
       pets: this.replacePet({
         ...pet,
@@ -470,14 +509,56 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
-      messages: [...this.state.messages, this.makeMessage(pet.groupId, "system", user, "reunited")],
+      // La historia del caso se quita: ya está en casa.
+      stories: this.state.stories.filter((s) => s.petId !== petId),
+      // Las ubicaciones compartidas en los mensajes directos del caso dejan de verse.
+      messages: [
+        ...this.hideLocations((m) => this.state.threads.some((t) => t.id === m.threadId && t.kind === "dm" && t.petId === petId)),
+        this.makeMessage(pet.groupId, "system", user, "reunited"),
+      ],
       notifications: [
         ...helpers.map((id) => this.makeNotification(id, "thanked", pet.id)),
         ...recipients.map((id) => this.makeNotification(id, "case_closed", pet.id)),
         ...this.state.notifications,
       ],
     });
+  }
+
+  /** Agrega una actualización a la historia del caso (solo la familia, con el caso activo). */
+  async addStory(petId: string, input: { text: string; photo?: string }): Promise<StoryItem> {
+    const user = this.requireVerified();
+    const pet = this.requirePet(petId);
+    if (pet.ownerId !== user.id || pet.state !== "active") throw new BackendError("not_allowed");
+    const text = input.text.trim().slice(0, 140);
+    if (!text && !input.photo) throw new BackendError("unknown");
+    if (this.state.stories.filter((s) => s.petId === petId).length >= 20) throw new BackendError("story_full");
+    const item: StoryItem = {
+      id: this.id("sto"),
+      petId,
+      authorId: user.id,
+      text,
+      createdAt: this.iso(),
+      ...(input.photo ? { photo: input.photo } : {}),
+    };
+    this.commit({ stories: [...this.state.stories, item] });
+    return item;
+  }
+
+  /** Quita una actualización de la historia (su autor o la familia). */
+  async removeStory(storyId: string): Promise<void> {
+    const user = this.requireUser();
+    const item = this.state.stories.find((s) => s.id === storyId);
+    if (!item) return;
+    const pet = this.getPet(item.petId);
+    if (item.authorId !== user.id && pet?.ownerId !== user.id) throw new BackendError("not_allowed");
+    this.commit({ stories: this.state.stories.filter((s) => s.id !== storyId) });
+  }
+
+  /** Aviso de dato incorrecto en una veterinaria (cerró, otro teléfono…). */
+  async reportPlace(placeId: string, note: string): Promise<void> {
+    this.requireUser();
+    if (!note.trim()) throw new BackendError("unknown");
+    if (!this.state.places.some((p) => p.id === placeId)) throw new BackendError("not_found");
   }
 
   async sharePet(petId: string): Promise<void> {
@@ -552,9 +633,30 @@ export class MockBackend {
   async setAlertZone(zone: AlertZone | null): Promise<void> {
     const user = this.requireUser();
     const zones = { ...this.state.alertZones };
-    if (zone) zones[user.id] = { ...zone, location: approximateLocation(zone.location) };
+    if (zone) zones[user.id] = { ...zone, location: approximateLocation(zone.location), updatedAt: this.iso() };
     else delete zones[user.id];
     this.commit({ alertZones: zones });
+  }
+
+  /**
+   * Nuevo punto del GPS (alertas donde estés). Solo cuenta si la persona activó las alertas
+   * por ubicación; se guarda aproximado y sin historial. Si sigue en la misma celda, solo se
+   * renueva cada 30 minutos para no reescribir el estado en cada lectura.
+   */
+  async updateAlertLocation(point: LatLng, zoneName?: string): Promise<void> {
+    const user = this.currentUser;
+    const current = user ? this.state.alertZones[user.id] : undefined;
+    if (!user || !current) return;
+    const location = approximateLocation(point);
+    const sameCell = location.latitude === current.location.latitude && location.longitude === current.location.longitude;
+    const recent = current.updatedAt && this.now().getTime() - new Date(current.updatedAt).getTime() < 30 * 60_000;
+    if (sameCell && recent && !zoneName) return;
+    this.commit({
+      alertZones: {
+        ...this.state.alertZones,
+        [user.id]: { location, zone: zoneName ?? current.zone, updatedAt: this.iso() },
+      },
+    });
   }
 
   // --- Mensajería ----------------------------------------------------------
@@ -583,11 +685,12 @@ export class MockBackend {
     const other = this.state.users[otherId];
     if (!other) throw new BackendError("not_found");
     const prefs = this.state.privacyPrefs[otherId] ?? DEFAULT_PRIVACY_PREFS;
-    if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.phoneVerified)) {
+    if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.verified)) {
       throw new BackendError("cannot_message");
     }
+    // Un mensaje directo cerrado no se reabre: se abre uno nuevo.
     const existing = this.state.threads.find(
-      (t) => t.kind === "dm" && t.memberIds.includes(user.id) && t.memberIds.includes(otherId),
+      (t) => t.kind === "dm" && !t.archived && t.memberIds.includes(user.id) && t.memberIds.includes(otherId),
     );
     if (existing) return existing.id;
     const thread: Thread = {
@@ -598,38 +701,156 @@ export class MockBackend {
       readAt: { [user.id]: this.iso() },
       mutedBy: [],
       archived: false,
+      archivedBy: [],
     };
     this.commit({ threads: [thread, ...this.state.threads] });
     return thread.id;
   }
 
-  async sendMessage(threadId: string, text: string, lang: Lang = "es"): Promise<void> {
+  /** Cierra un mensaje directo para las dos personas. Los grupos no se cierran. */
+  async closeDirect(threadId: string): Promise<void> {
+    const user = this.requireUser();
+    const thread = this.state.threads.find((t) => t.id === threadId);
+    if (!thread || thread.kind !== "dm" || !thread.memberIds.includes(user.id)) throw new BackendError("not_allowed");
+    if (thread.archived) return;
+    this.commit({
+      threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, archived: true, closedBy: user.id } : t)),
+      messages: [...this.hideLocations((m) => m.threadId === threadId), this.makeMessage(threadId, "system", user, "closed")],
+    });
+  }
+
+  /**
+   * Mensajes con las ubicaciones de personas (actual y punto de encuentro) que cumplen el
+   * filtro ya ocultas: se borra el punto y queda "ya no visible". Las veterinarias siguen
+   * visibles porque son lugares públicos.
+   */
+  private hideLocations(match: (m: Message) => boolean): Message[] {
+    return this.state.messages.map((m) =>
+      m.location && m.location.kind !== "place" && !m.location.hidden && match(m) ? this.withoutLocation(m) : m,
+    );
+  }
+
+  private withoutLocation(m: Message): Message {
+    if (!m.location) return m;
+    const { location: _point, ...rest } = m.location;
+    return { ...m, location: { ...rest, hidden: true } };
+  }
+
+  /** Archiva o desarchiva un chat solo en la lista de quien lo pide. */
+  async toggleArchive(threadId: string): Promise<boolean> {
+    const user = this.requireUser();
+    const thread = this.state.threads.find((t) => t.id === threadId);
+    if (!thread || !thread.memberIds.includes(user.id)) throw new BackendError("not_allowed");
+    const archived = !thread.archivedBy.includes(user.id);
+    this.commit({
+      threads: this.state.threads.map((t) =>
+        t.id === threadId
+          ? { ...t, archivedBy: archived ? [...t.archivedBy, user.id] : t.archivedBy.filter((id) => id !== user.id) }
+          : t,
+      ),
+    });
+    return archived;
+  }
+
+  /** Quita el chat de la lista de quien lo pide; para las demás personas sigue igual. */
+  async leaveThread(threadId: string): Promise<void> {
+    const user = this.requireUser();
+    this.commit({
+      threads: this.state.threads.map((t) =>
+        t.id === threadId
+          ? {
+              ...t,
+              memberIds: t.memberIds.filter((id) => id !== user.id),
+              archivedBy: t.archivedBy.filter((id) => id !== user.id),
+            }
+          : t,
+      ),
+    });
+  }
+
+  async sendMessage(threadId: string, text: string, lang: Lang = "es", photo?: MessagePhoto): Promise<void> {
     const user = this.requireVerified();
     const thread = this.state.threads.find((t) => t.id === threadId);
     if (!thread || !thread.memberIds.includes(user.id) || thread.archived) throw new BackendError("not_allowed");
     const body = text.trim().slice(0, MESSAGE_MAX);
-    if (!body) return;
+    if (!body && !photo) return;
     if (user.mutedUntil && new Date(user.mutedUntil) > this.now()) {
       throw new BackendError("muted", { until: user.mutedUntil });
     }
-    // Antispam: límite por minuto (en la API, con Redis; docs/ARCHITECTURE.md).
-    const minuteAgo = new Date(this.now().getTime() - 60_000).toISOString();
-    const recent = this.state.messages.filter((m) => m.authorId === user.id && m.kind === "text" && m.at > minuteAgo);
-    if (recent.length >= MESSAGES_PER_MINUTE) throw new BackendError("rate_limited", {});
+    this.assertMessageRate(user.id);
     // Se traduce una vez hacia cada idioma que usan los miembros, no por cada lector.
     const targets = new Set(
       thread.memberIds.map((id) => this.state.users[id]?.lang).filter((l): l is Lang => Boolean(l) && l !== lang),
     );
     const translations: Partial<Record<Lang, string>> = {};
-    for (const to of targets) {
+    for (const to of body ? targets : []) {
       const translated = this.translator?.(body, lang, to);
       if (translated) translations[to] = translated;
     }
-    const message = { ...this.makeMessage(threadId, "text", user, body), lang, translations };
+    const message: Message = {
+      ...this.makeMessage(threadId, "text", user, body),
+      lang,
+      translations,
+      ...(photo ? { photo } : {}),
+    };
     this.commit({
       messages: [...this.state.messages, message],
       threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, readAt: { ...t.readAt, [user.id]: message.at } } : t)),
     });
+  }
+
+  /** Antispam: límite de mensajes por minuto (texto y ubicaciones), igual que la API. */
+  private assertMessageRate(userId: string) {
+    const minuteAgo = new Date(this.now().getTime() - 60_000).toISOString();
+    const recent = this.state.messages.filter(
+      (m) => m.authorId === userId && (m.kind === "text" || m.kind === "location") && m.at > minuteAgo,
+    );
+    if (recent.length >= MESSAGES_PER_MINUTE) throw new BackendError("rate_limited", {});
+  }
+
+  /**
+   * Comparte una ubicación en un chat. No es en vivo: se envía ese punto una vez. La de una
+   * persona (actual o punto de encuentro) solo va en mensajes directos; una veterinaria también
+   * en el grupo del caso, y su nombre y punto salen de la lista de lugares.
+   */
+  async shareLocation(threadId: string, share: LocationShare, lang: Lang = "es"): Promise<void> {
+    const user = this.requireVerified();
+    const thread = this.state.threads.find((t) => t.id === threadId);
+    if (!thread || !thread.memberIds.includes(user.id) || thread.archived) throw new BackendError("not_allowed");
+    if (user.mutedUntil && new Date(user.mutedUntil) > this.now()) {
+      throw new BackendError("muted", { until: user.mutedUntil });
+    }
+    let location: MessageLocation;
+    if (share.kind === "place") {
+      const place = this.state.places.find((p) => p.id === share.placeId);
+      if (!place) throw new BackendError("not_found");
+      location = {
+        kind: "place",
+        location: place.location,
+        label: place.name,
+        placeId: place.id,
+        ...(place.address ? { address: place.address } : {}),
+      };
+    } else {
+      if (thread.kind !== "dm") throw new BackendError("not_allowed");
+      const label = share.kind === "meeting" ? share.label?.trim().slice(0, LOCATION_LABEL_MAX) : undefined;
+      location = { kind: share.kind, location: share.location, ...(label ? { label } : {}) };
+    }
+    this.assertMessageRate(user.id);
+    const message: Message = { ...this.makeMessage(threadId, "location", user, ""), lang, location };
+    this.commit({
+      messages: [...this.state.messages, message],
+      threads: this.state.threads.map((t) => (t.id === threadId ? { ...t, readAt: { ...t.readAt, [user.id]: message.at } } : t)),
+    });
+  }
+
+  /** Quien compartió una ubicación la deja de mostrar cuando quiera. */
+  async stopSharingLocation(messageId: string): Promise<void> {
+    const user = this.requireUser();
+    const message = this.state.messages.find((m) => m.id === messageId);
+    if (!message) throw new BackendError("not_found");
+    if (message.authorId !== user.id || message.kind !== "location") throw new BackendError("not_allowed");
+    this.commit({ messages: this.state.messages.map((m) => (m.id === messageId ? this.withoutLocation(m) : m)) });
   }
 
   /** Idempotente: solo escribe si hay mensajes posteriores a la última lectura. */
@@ -697,6 +918,12 @@ export class MockBackend {
       patch = { ...patch, username };
     }
     if (patch.bio !== undefined) patch = { ...patch, bio: patch.bio.slice(0, 150) };
+    if (patch.phone !== undefined) {
+      // Opcional y sin verificar: solo se valida el formato.
+      const phone = patch.phone.trim() ? normalizeColombianMobile(patch.phone) : "";
+      if (phone === null) throw new BackendError("invalid_phone");
+      patch = { ...patch, phone: phone || undefined };
+    }
     this.commit({ users: { ...this.state.users, [user.id]: { ...user, ...patch } } });
   }
 
@@ -779,6 +1006,25 @@ export class MockBackend {
     const mutedUntil = new Date(this.now().getTime() + hours * 3_600_000).toISOString();
     this.commit({ users: { ...this.state.users, [userId]: { ...user, mutedUntil } } });
   }
+
+  // --- Cargadores ------------------------------------------------------------------
+  // Con la API (ApiBackend) completan la copia local cuando una pantalla los necesita; en la
+  // demostración todo el estado ya está en memoria, así que no hacen nada.
+
+  async loadNearby(_center: LatLng): Promise<void> {}
+
+  async loadPet(_petId: string): Promise<void> {}
+
+  async loadThread(_threadId: string): Promise<void> {}
+
+  async loadProfile(_userId: string): Promise<void> {}
+
+  async loadStories(_center: LatLng): Promise<void> {}
+
+  async loadPlaces(_center: LatLng): Promise<void> {}
+
+  /** Con la API registra el celular para recibir push; en demostración se usan avisos locales. */
+  async registerPushToken(_token: string, _platform: "android" | "ios"): Promise<void> {}
 
   /** Portabilidad (Ley 1581): todo lo que la cuenta generó, en JSON. */
   async exportData(): Promise<string> {

@@ -9,9 +9,11 @@ import { Banner, Checkbox } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
 import { TextField } from "@/components/ui/TextField";
 import { LEGAL_URLS } from "@/config";
-import { validateRegister, type RegisterForm } from "@/domain/validation";
+import { PASSWORD_MIN_LENGTH, validateRegister, type RegisterForm } from "@/domain/validation";
 import { safeNext } from "@/hooks/useAuthGate";
 import { useI18n } from "@/i18n/I18nProvider";
+import { useTheme } from "@/theme/ThemeProvider";
+import { Icon } from "@/components/ui/Icon";
 import { BackendError } from "@/services/backendTypes";
 import { useBackend } from "@/store/backend";
 
@@ -26,7 +28,7 @@ export default function RegisterScreen() {
   const [form, setForm] = useState<RegisterForm>({
     name: "",
     email: "",
-    phone: "",
+    username: "",
     password: "",
     confirm: "",
     acceptTerms: false,
@@ -58,8 +60,8 @@ export default function RegisterScreen() {
     } catch (e) {
       const code = e instanceof BackendError ? e.code : "network";
       if (code === "email_taken") setServerError({ field: "email", message: t("errors.email_taken") });
-      else if (code === "phone_taken" || code === "invalid_phone")
-        setServerError({ field: "phone", message: t(`errors.${code}`) });
+      else if (code === "username_taken" || code === "invalid_username")
+        setServerError({ field: "username", message: t(`errors.${code}`) });
       else setServerError({ message: t("errors.network") });
     } finally {
       setLoading(false);
@@ -94,18 +96,18 @@ export default function RegisterScreen() {
           testID="register-email"
         />
         <TextField
-          label={t("auth.phone")}
-          icon="call"
-          value={form.phone}
-          onChangeText={(v) => set("phone", v)}
-          onBlur={blur("phone")}
-          error={error("phone")}
-          hint={t("auth.phoneHint")}
-          keyboardType="phone-pad"
-          autoComplete="tel"
-          textContentType="telephoneNumber"
-          maxLength={16}
-          testID="register-phone"
+          label={t("auth.username")}
+          icon="at"
+          value={form.username}
+          onChangeText={(v) => set("username", v.replace(/\s/g, ""))}
+          onBlur={blur("username")}
+          error={error("username")}
+          hint={t("auth.usernameHint")}
+          autoCapitalize="none"
+          autoComplete="username-new"
+          textContentType="username"
+          maxLength={21}
+          testID="register-username"
         />
         <TextField
           label={t("auth.password")}
@@ -120,6 +122,7 @@ export default function RegisterScreen() {
           textContentType="newPassword"
           testID="register-password"
         />
+        <PasswordChecklist password={form.password} />
         <TextField
           label={t("auth.confirmPassword")}
           icon="lock-closed"
@@ -204,5 +207,38 @@ export default function RegisterScreen() {
         </Pressable>
       </View>
     </AuthLayout>
+  );
+}
+
+const RULES = [
+  { key: "auth.ruleLength", test: (p: string) => p.length >= PASSWORD_MIN_LENGTH },
+  { key: "auth.ruleUpper", test: (p: string) => /[A-ZÁÉÍÓÚÑ]/.test(p) },
+  { key: "auth.ruleLower", test: (p: string) => /[a-záéíóúñü]/.test(p) },
+  { key: "auth.ruleNumber", test: (p: string) => /\d/.test(p) },
+] as const;
+
+/** Requisitos de la contraseña a la vista, marcados a medida que se cumplen. */
+function PasswordChecklist({ password }: { password: string }) {
+  const { t } = useI18n();
+  const { colors } = useTheme();
+  return (
+    <View className="-mt-1 flex-row flex-wrap gap-x-4 gap-y-1 px-1" testID="password-checklist">
+      {RULES.map((rule) => {
+        const ok = rule.test(password);
+        return (
+          <View
+            key={rule.key}
+            className="flex-row items-center gap-1.5"
+            accessible
+            accessibilityLabel={`${t(rule.key)}: ${ok ? t("auth.ruleMet") : t("auth.ruleMissing")}`}
+          >
+            <Icon name={ok ? "checkmark-circle" : "ellipse-outline"} size={16} color={ok ? colors.primaryStrong : colors.muted} />
+            <Text variant="caption" tone={ok ? "primary" : "muted"}>
+              {t(rule.key)}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
   );
 }

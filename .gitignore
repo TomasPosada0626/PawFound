@@ -15,6 +15,8 @@ apps/api/*.exe
 apps/api/*.test
 apps/api/coverage.out
 apps/api/coverage.html
+# Fotos subidas en desarrollo (MEDIA_DIR)
+apps/api/data/
 
 # Coverage reports (any language)
 coverage/

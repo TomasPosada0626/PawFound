@@ -1,6 +1,6 @@
 import { badgeProgress, type BadgeFacts, type BadgeProgress } from "@/domain/badges";
 import { distanceMeters } from "@/domain/geo";
-import type { AppNotification, LatLng, Message, OwnedPet, PetCase, Species, Thread, User } from "@/domain/types";
+import type { AppNotification, LatLng, Message, OwnedPet, PetCase, Species, StoryItem, Thread, User } from "@/domain/types";
 
 import type { BackendState } from "./backendTypes";
 
@@ -114,7 +114,7 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
   const own = valid.filter((p) => p.ownerId === userId);
   const ownGroups = new Set(own.map((p) => p.groupId));
   return {
-    verified: user?.phoneVerified ? 1 : 0,
+    verified: user?.verified ? 1 : 0,
     reporter: own.length,
     rescuer: own.filter((p) => p.kind === "found").length,
     eyes: valid
@@ -129,6 +129,8 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
 
 /** Progreso de todas las insignias; en producción lo calcula y devuelve la API. */
 export function userBadgeProgress(state: BackendState, userId: string): BadgeProgress[] {
+  const remote = state.remoteBadges[userId];
+  if (remote) return remote;
   if (!state.users[userId]) return [];
   return badgeProgress(badgeFacts(state, userId));
 }
@@ -185,4 +187,39 @@ export function userActivity(state: BackendState, userId: string): ActivityItem[
       ...(pet.reunitedAt ? [{ pet, kind: "reunited" as const, at: pet.reunitedAt }] : []),
     ])
     .sort((a, b) => b.at.localeCompare(a.at));
+}
+
+export type StoryEntry = { pet: PetCase; items: StoryItem[]; updatedAt: string };
+
+/** Historias de los casos activos cerca (10 km), las que tienen novedades más recientes primero. */
+export function storyFeed(state: BackendState, center: LatLng, now: Date, radius = 10_000): StoryEntry[] {
+  return filterPets(state.pets, center, now, { ...DEFAULT_FILTERS, maxDistance: radius })
+    .filter(({ pet }) => !pet.moderationRemoved)
+    .map(({ pet }) => {
+      const items = state.stories.filter((s) => s.petId === pet.id).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      const updatedAt = [pet.createdAt, pet.lastSeenAt, ...items.map((i) => i.createdAt)].sort().at(-1) ?? pet.createdAt;
+      return { pet, items, updatedAt };
+    })
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+export type StorySlide =
+  | { id: string; type: "info" }
+  | { id: string; type: "photo"; uri: string }
+  | { id: string; type: "update"; uri?: string; text: string; at: string; authorId: string };
+
+/** Partes de la historia: la ficha del caso, sus fotos y las actualizaciones de la familia. */
+export function storySlides(pet: PetCase, stories: StoryItem[]): StorySlide[] {
+  return [
+    { id: `${pet.id}:info`, type: "info" as const },
+    ...pet.photos.map((uri, i) => ({ id: `${pet.id}:photo:${i}`, type: "photo" as const, uri })),
+    ...stories
+      .filter((s) => s.petId === pet.id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((s) => ({ id: s.id, type: "update" as const, uri: s.photo, text: s.text, at: s.createdAt, authorId: s.authorId })),
+  ];
+}
+
+export function storySlideIds(pet: PetCase, items: StoryItem[]): string[] {
+  return storySlides(pet, items).map((s) => s.id);
 }

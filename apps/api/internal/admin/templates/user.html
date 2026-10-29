@@ -1,0 +1,13 @@
+{{define "content"}}
+{{$u := .Data.User}}
+<p><a href="/admin/users" class="back">← Cuentas</a></p>
+<div class="grid-2 wide-left">
+  <div class="stack">
+    {{template "person" $u}}
+    {{template "history" .Data.History}}
+  </div>
+  <div class="stack">
+    {{template "actions" .Data.Decide}}
+  </div>
+</div>
+{{end}}

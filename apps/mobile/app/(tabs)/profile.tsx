@@ -89,7 +89,7 @@ export default function ProfileScreen() {
             <Text variant="title" className="shrink" numberOfLines={2}>
               {user.name}
             </Text>
-            {user.phoneVerified ? (
+            {user.verified ? (
               <View accessible accessibilityLabel={t("common.verified")}>
                 <Icon name="checkmark-circle" size={22} color={colors.verified} />
               </View>
@@ -124,7 +124,7 @@ export default function ProfileScreen() {
         />
       </View>
 
-      {!user.phoneVerified ? (
+      {!user.verified ? (
         <View className="mt-4">
           <Banner
             tone="warning"
@@ -134,9 +134,7 @@ export default function ProfileScreen() {
             action={
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  router.push({ pathname: user.phone ? "/auth/verify" : "/auth/phone", params: { next: "/profile" } })
-                }
+                onPress={() => router.push({ pathname: "/auth/verify", params: { next: "/profile" } })}
                 className="min-h-[40px] justify-center"
               >
                 <Text variant="captionStrong" tone="primary">

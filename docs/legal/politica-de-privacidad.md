@@ -16,27 +16,50 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
 
 ## 2. Qué datos recolectamos
 
-- **Cuenta**: nombre, correo, número de teléfono (para verificación SMS), contraseña
-  cifrada o proveedor de inicio de sesión (Google, Facebook, Apple).
+- **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
+  dígitos), contraseña cifrada o proveedor de inicio de sesión (Google, Apple). El número de
+  celular es opcional: no se verifica ni se muestra a otras personas.
 - **Perfil**: foto y datos que decidas agregar a tu perfil.
 - **Reportes de mascotas**: descripción, fotos, ubicación aproximada, fecha y estado del
   caso.
 - **Ubicación**: ubicación aproximada, solo si la activas, para mostrar reportes cercanos
-  y calcular el "círculo de vida" (radio de búsqueda) de cada caso.
-- **Mensajes**: contenido de tus conversaciones directas y de grupo dentro de la app.
+  y calcular el "círculo de vida" (radio de búsqueda) de cada caso. Para mostrarte las
+  veterinarias más cercanas, las distancias se calculan en tu celular; a nuestros servidores
+  solo llega una zona aproximada de 1 km.
+- **Ubicación para las Alertas Ángel** ("Alertas donde estés"), solo si la activas: el
+  celular envía su posición, también con la app cerrada, cuando te mueves unos 250 m.
+  Guardamos únicamente el último punto, aproximado a una celda de 250 m, sin historial de
+  recorridos; se descarta si no se actualiza en 24 horas y nunca se muestra a nadie. Puedes
+  desactivarla en cualquier momento y se borra.
+- **Mensajes**: contenido de tus conversaciones directas y de grupo dentro de la app,
+  incluidas las fotos que envíes. Las fotos se guardan sin metadatos (EXIF ni GPS) y solo
+  las ven quienes participan en esa conversación.
+- **Ubicación compartida en un mensaje directo**, solo cuando tú la envías y nunca en los
+  chats de grupo: tu ubicación exacta en ese momento o un punto de encuentro que eliges en
+  el mapa. No es en vivo: se envía ese punto una sola vez y no seguimos tus movimientos.
+  Solo la ve la otra persona de la conversación. Deja de verse, y borramos sus coordenadas,
+  cuando la quitas ("Dejar de compartir"), cuando cualquiera de las dos personas cierra la
+  conversación o cuando se cierra el caso; el mensaje queda como "ya no visible". Las
+  notificaciones nunca incluyen esas coordenadas y el equipo de moderación no las ve al
+  revisar un reporte.
+- **Veterinaria a la que llevas una mascota encontrada**: si eliges avisar en el grupo del
+  caso, se comparten el nombre y la dirección pública de la veterinaria, no tu ubicación.
+- **Historias de casos**: las actualizaciones (foto y texto) que la familia agrega a la
+  historia de su caso. Se quitan al cerrarse el caso o cuando la familia las borra.
 - **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push,
   registros de error y uso, con retención minimizada.
 - **Consentimientos**: registro auditable de qué autorizaste, cuándo y con qué versión de
   texto, según [consentimientos.md](consentimientos.md).
 
 No recolectamos direcciones exactas ni coordenadas precisas por defecto; el mapa y los
-reportes usan ubicación aproximada.
+reportes usan ubicación aproximada. La única excepción es la ubicación que tú decides
+compartir en un mensaje directo, con las reglas descritas arriba.
 
 ## 3. Para qué usamos tus datos
 
 - Prestar el servicio: mostrar reportes, calcular radios de búsqueda, generar los grupos
   de caso ("Encontremos a…") y habilitar la mensajería.
-- Verificar tu identidad por SMS y otorgar la insignia azul de verificado.
+- Verificar tu correo con un código y otorgar la insignia azul de verificado.
 - Enviarte notificaciones que consientas, incluida la Alerta Ángel.
 - Prevenir fraude, abuso y contenido que comprometa el bienestar animal.
 - Atender tus solicitudes y cumplir obligaciones legales.
@@ -54,10 +77,18 @@ notificaciones push, caché técnica y monitoreo de errores). Ningún proveedor 
 producción sin evaluación de seguridad y privacidad previa. No compartimos tus datos con
 terceros para fines comerciales ajenos al servicio.
 
+Cuando tocas "Vamos" o "Cómo llegar", se abre Google Maps, Waze o Mapas de Apple con el
+destino (una veterinaria o un punto compartido). PawFound no les envía tu ubicación; el uso
+de esas apps se rige por sus propias políticas. Los datos de las veterinarias provienen de
+OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
+
 ## 5. Cuánto tiempo conservamos tus datos
 
-Un reporte y su chat de caso se archivan al marcar la mascota como encontrada; no se
-eliminan automáticamente. Los plazos de retención y anonimización definitivos se fijan en
+Un reporte se archiva al marcar la mascota como encontrada o al retirarlo; no se elimina
+automáticamente. Los chats no se cierran ni se borran solos: cada persona decide archivarlos
+o eliminarlos de su lista, y un mensaje directo lo cierra cualquiera de las dos personas. Al
+cerrarse un caso se quitan sus historias y dejan de verse las ubicaciones compartidas en sus
+mensajes directos. Los plazos de retención y anonimización definitivos se fijan en
 la revisión legal previa a producción, según [tratamiento-de-datos.md](tratamiento-de-datos.md).
 
 ## 6. Tus derechos (ARCO)
@@ -95,5 +126,6 @@ fecha de la nueva versión.
 
 ## 11. Contacto
 
-Preguntas, solicitudes o quejas sobre el tratamiento de tus datos: canal descrito en
-[SUPPORT.md](../../SUPPORT.md).
+Preguntas, solicitudes o quejas sobre el tratamiento de tus datos (incluidos tus derechos de
+conocer, actualizar, rectificar y suprimir): **pawfoundoficial@gmail.com**, o desde la app en Ajustes › Soporte y
+ayuda. Más detalles en [SUPPORT.md](../../SUPPORT.md).

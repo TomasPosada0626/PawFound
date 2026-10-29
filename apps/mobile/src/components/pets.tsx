@@ -55,12 +55,15 @@ export function PetPhoto({
   className,
   rounded = "rounded-2xl",
   label,
+  onLoad,
 }: {
   /** Sin `kind` (perfil de "Mis mascotas") se usa el color de marca. */
   pet: Pick<PetCase, "photos" | "species"> & { kind?: PetCase["kind"] };
   className?: string;
   rounded?: string;
   label?: string;
+  /** Avisa cuando la foto ya se ve (los pines del mapa esperan esto para "congelarse"). */
+  onLoad?: () => void;
 }) {
   const { colors } = useTheme();
   const uri = pet.photos[0];
@@ -80,6 +83,7 @@ export function PetPhoto({
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
           transition={200}
+          onLoad={onLoad}
           accessible={false}
         />
       ) : null}
@@ -173,7 +177,20 @@ export function UserAvatar({
 }
 
 /** Tarjeta del carrusel "Mascotas cerca de ti" (Home y Mapa). */
-export function PetCard({ pet, distance, now, width = 172 }: { pet: PetCase; distance?: number; now: Date; width?: number }) {
+export function PetCard({
+  pet,
+  distance,
+  now,
+  width = 172,
+  onPress,
+}: {
+  pet: PetCase;
+  distance?: number;
+  now: Date;
+  width?: number;
+  /** Sin onPress abre el caso; en el mapa la usa para mostrar solo esa mascota. */
+  onPress?: () => void;
+}) {
   const { t, locale } = useI18n();
   const { colors } = useTheme();
   const { isFavorite, toggleFavorite } = useDevicePrefs();
@@ -189,7 +206,7 @@ export function PetCard({ pet, distance, now, width = 172 }: { pet: PetCase; dis
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={[name, subtitle, status, distanceText, time].filter(Boolean).join(", ")}
-        onPress={() => router.push(`/pet/${pet.id}`)}
+        onPress={onPress ?? (() => router.push(`/pet/${pet.id}`))}
         className="active:opacity-90"
         testID={`pet-card-${pet.id}`}
       >

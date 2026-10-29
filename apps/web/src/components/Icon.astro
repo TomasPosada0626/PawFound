@@ -1,0 +1,27 @@
+---
+/** Íconos de línea propios (sin librerías externas). */
+interface Props {
+  name: "paw" | "bell" | "pin" | "chat" | "camera" | "shield" | "qr" | "heart" | "stories" | "vet" | "star" | "search" | "home" | "lock";
+}
+const { name } = Astro.props;
+const paths: Record<Props["name"], string> = {
+  paw: "M7 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM10 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm4 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-2 4c-3 0-6 3.5-6 6.2C6 19 7.4 20 9 20c1.2 0 2-.6 3-.6s1.8.6 3 .6c1.6 0 3-1 3-2.8C18 14.5 15 11 12 11Z",
+  bell: "M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2Zm4 3a2 2 0 0 0 4 0",
+  pin: "M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
+  chat: "M4 5h16v11H9l-5 4V5Zm4 5h8m-8 3h5",
+  camera: "M4 8h3l2-3h6l2 3h3v11H4V8Zm8 9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+  shield: "M12 3 4 6v6c0 5 3.4 8 8 9 4.6-1 8-4 8-9V6l-8-3Zm-3 9 2 2 4-4",
+  qr: "M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h2v2h-2v-2Zm4 0h2v6h-4v-2h2v-4Z",
+  heart: "M12 20s-8-4.7-8-10.2A4.8 4.8 0 0 1 12 7a4.8 4.8 0 0 1 8 2.8C20 15.3 12 20 12 20Z",
+  stories: "M12 3a9 9 0 1 1-6.4 2.6M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z",
+  vet: "M9 4h6v5h5v6h-5v5H9v-5H4V9h5V4Z",
+  star: "m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2L12 17.3 6.5 20.2l1-6.2L3 9.6l6.2-.9L12 3Z",
+  search: "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Zm5-2 4 4",
+  home: "M4 11 12 4l8 7v9h-5v-6H9v6H4v-9Z",
+  lock: "M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6v-9Z",
+};
+---
+
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d={paths[name]}></path>
+</svg>

@@ -11,8 +11,8 @@ import { Text } from "./ui/Text";
 /** Catálogo visual: hexágono con degradado por insignia + ícono blanco (Pefil.png). */
 export const BADGES: Record<BadgeId, { icon: IconName; from: string; to: string }> = {
   verified: { icon: "shield-checkmark", from: "#1F8A6B", to: "#0B4F3C" },
-  reporter: { icon: "megaphone", from: "#2BC4A6", to: "#0E7C6B" },
-  rescuer: { icon: "paw", from: "#F06277", to: "#C8283D" },
+  reporter: { icon: "megaphone", from: "#2CCFC0", to: "#08807A" },
+  rescuer: { icon: "paw", from: "#F25555", to: "#C81E1E" },
   eyes: { icon: "eye", from: "#38B6E8", to: "#1572A8" },
   paw_angel: { icon: "heart", from: "#A98BF5", to: "#6D4AD6" },
   reunion: { icon: "home", from: "#8C6CF0", to: "#4B2FB0" },

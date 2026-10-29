@@ -5,48 +5,48 @@
 /* Generado a partir de src/theme/tokens.ts (tokens.test.ts verifica que coincidan). */
 @layer base {
   :root {
-    --color-bg: 244 249 248;
+    --color-bg: 243 248 249;
     --color-surface: 255 255 255;
-    --color-surface-alt: 238 246 244;
-    --color-border: 213 230 226;
-    --color-ink: 11 37 69;
-    --color-body: 36 54 75;
-    --color-muted: 91 107 127;
-    --color-primary: 31 169 143;
-    --color-primary-strong: 14 124 107;
-    --color-primary-soft: 227 245 241;
-    --color-lost: 214 58 78;
-    --color-lost-soft: 253 236 238;
-    --color-lost-ink: 180 35 53;
-    --color-found: 14 124 107;
-    --color-found-soft: 227 245 241;
-    --color-found-ink: 11 110 96;
+    --color-surface-alt: 233 245 245;
+    --color-border: 210 229 230;
+    --color-ink: 19 37 74;
+    --color-body: 42 59 85;
+    --color-muted: 93 108 128;
+    --color-primary: 18 179 166;
+    --color-primary-strong: 8 128 122;
+    --color-primary-soft: 224 246 243;
+    --color-lost: 224 36 36;
+    --color-lost-soft: 253 236 236;
+    --color-lost-ink: 185 28 28;
+    --color-found: 8 128 122;
+    --color-found-soft: 224 246 243;
+    --color-found-ink: 7 107 103;
     --color-warning: 180 83 9;
     --color-warning-soft: 254 243 226;
-    --color-danger: 200 40 61;
+    --color-danger: 200 30 30;
     --color-verified: 29 111 224;
   }
 
   .dark:root {
-    --color-bg: 11 22 34;
-    --color-surface: 19 33 47;
-    --color-surface-alt: 26 43 59;
-    --color-border: 38 57 75;
+    --color-bg: 10 21 32;
+    --color-surface: 18 32 45;
+    --color-surface-alt: 25 42 57;
+    --color-border: 37 57 74;
     --color-ink: 232 240 245;
     --color-body: 201 214 224;
     --color-muted: 157 176 192;
-    --color-primary: 43 196 166;
-    --color-primary-strong: 60 207 176;
-    --color-primary-soft: 18 58 54;
-    --color-lost: 214 58 78;
-    --color-lost-soft: 58 24 32;
-    --color-lost-ink: 255 138 152;
-    --color-found: 14 124 107;
-    --color-found-soft: 18 58 54;
-    --color-found-ink: 95 220 192;
+    --color-primary: 44 207 192;
+    --color-primary-strong: 60 213 196;
+    --color-primary-soft: 15 58 57;
+    --color-lost: 224 36 36;
+    --color-lost-soft: 58 20 22;
+    --color-lost-ink: 255 138 138;
+    --color-found: 8 128 122;
+    --color-found-soft: 15 58 57;
+    --color-found-ink: 94 227 211;
     --color-warning: 245 165 36;
     --color-warning-soft: 58 42 16;
-    --color-danger: 255 107 125;
+    --color-danger: 255 107 107;
     --color-verified: 90 162 255;
   }
 }
