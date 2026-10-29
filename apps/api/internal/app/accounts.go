@@ -330,10 +330,12 @@ func (a *App) issueCode(ctx context.Context, userID, email, lang string) error {
 		return err
 	}
 	if err := a.Mailer.SendVerificationCode(ctx, email, code, lang); err != nil {
-		if errors.Is(err, providers.ErrDisabled) {
-			return providerUnavailable("email")
+		// El detalle (SMTP bloqueado, clave inválida, remitente sin verificar) queda en el log; la
+		// app solo dice que no se pudo enviar el correo.
+		if !errors.Is(err, providers.ErrDisabled) {
+			a.Log.Error("no se pudo enviar el código de verificación", "err", err)
 		}
-		return err
+		return providerUnavailable("email")
 	}
 	return nil
 }
