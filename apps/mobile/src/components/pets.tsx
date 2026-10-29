@@ -55,12 +55,15 @@ export function PetPhoto({
   className,
   rounded = "rounded-2xl",
   label,
+  onLoad,
 }: {
   /** Sin `kind` (perfil de "Mis mascotas") se usa el color de marca. */
   pet: Pick<PetCase, "photos" | "species"> & { kind?: PetCase["kind"] };
   className?: string;
   rounded?: string;
   label?: string;
+  /** Avisa cuando la foto ya se ve (los pines del mapa esperan esto para "congelarse"). */
+  onLoad?: () => void;
 }) {
   const { colors } = useTheme();
   const uri = pet.photos[0];
@@ -80,6 +83,7 @@ export function PetPhoto({
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
           transition={200}
+          onLoad={onLoad}
           accessible={false}
         />
       ) : null}

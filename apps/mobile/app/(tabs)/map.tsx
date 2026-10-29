@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import { FlatList, Pressable, ScrollView, TextInput, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/layout";
 import { PetMap } from "@/components/map/PetMap";
@@ -56,7 +56,8 @@ export default function MapScreen() {
   const state = useBackendState();
   const now = useNow();
   const { location, hasRealLocation, status, request } = useUserLocation();
-  const { locationConsent, setLocationConsent } = useDevicePrefs();
+  const { locationConsent, prefsLoaded, setLocationConsent } = useDevicePrefs();
+  const insets = useSafeAreaInsets();
 
   const [filters, setFilters] = useState<PetFilters>(DEFAULT_FILTERS);
   // Al abrir se ven todas las mascotas activas.
@@ -110,10 +111,11 @@ export default function MapScreen() {
     [focused, results, visible],
   );
   const focusRadius = focused ? currentRadius(focused, now) : 0;
-  // Perdida: círculo vigente relleno + anillo de 2 km hasta donde crecerá. Encontrada: su radio fijo.
+  // Perdida: círculo vigente relleno + anillo de 2 km hasta donde crecerá. Encontrada: sin
+  // círculo, solo el pin donde la encontraron.
   const focusCircles = useMemo(
     () =>
-      focused
+      focused?.kind === "lost"
         ? [
             {
               id: `${focused.id}-now`,
@@ -140,8 +142,7 @@ export default function MapScreen() {
 
   const focusPet = (pet: PetCase) => {
     setFocusId(pet.id);
-    const reach = pet.kind === "lost" ? LIFE_CIRCLE_MAX : currentRadius(pet, now);
-    setTarget(regionAbove(pet.location, reach));
+    setTarget(regionAbove(pet.location, pet.kind === "lost" ? LIFE_CIRCLE_MAX : 500));
   };
   const showAll = () => {
     setFocusId(null);
@@ -168,6 +169,17 @@ export default function MapScreen() {
         : [],
     [showCircles, results, now],
   );
+
+  // La primera vez que se abre el mapa se pide la ubicación (primero el aviso de la app, luego
+  // el permiso del sistema). Si ya la autorizó, se actualiza en silencio.
+  useEffect(() => {
+    if (!prefsLoaded) return;
+    if (locationConsent === null) {
+      const timer = setTimeout(() => setConsentOpen(true), 500);
+      return () => clearTimeout(timer);
+    }
+    if (locationConsent === "granted" && !hasRealLocation) void request();
+  }, [prefsLoaded, locationConsent, hasRealLocation, request]);
 
   const locateMe = async () => {
     if (locationConsent !== "granted") {
@@ -272,7 +284,7 @@ export default function MapScreen() {
           onClusterPress={zoomInto}
           pinLabel={pinLabel}
           clusterLabel={(c) => t("map.clusterLabel", { count: c.pets.length })}
-          showsUserLocation={hasRealLocation}
+          userLocation={hasRealLocation ? location : undefined}
           satellite={satellite}
           places={showPlaces ? nearbyPlaces : []}
           onPlacePress={setPlace}
@@ -305,7 +317,9 @@ export default function MapScreen() {
         {/* Hoja inferior "Mascotas cerca de ti" */}
         <View
           className="absolute bottom-0 left-0 right-0 rounded-t-[28px] bg-surface pt-2 shadow-lg shadow-black/15"
-          style={{ paddingBottom: 104 }}
+          // Alto del menú inferior y del botón "+" que sobresale (~110) más la barra del sistema:
+          // las tarjetas quedan completas, sin nada encima.
+          style={{ paddingBottom: 112 + Math.max(insets.bottom, 10) }}
         >
           <View className="mb-2 h-1.5 w-12 self-center rounded-full bg-border" />
           {focused ? (
@@ -500,9 +514,7 @@ function FocusPanel({
         <View className="flex-row items-center gap-2">
           <View className="h-3 w-3 rounded-full" style={{ backgroundColor: color }} />
           <Text variant="bodyStrong" className="flex-1">
-            {lost
-              ? t("map.circleNow", { now: formatDistance(radius, locale) })
-              : t("map.foundArea", { radius: formatDistance(radius, locale) })}
+            {lost ? t("map.circleNow", { now: formatDistance(radius, locale) }) : t("map.foundHere")}
           </Text>
         </View>
         {lost ? (

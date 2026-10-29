@@ -554,7 +554,7 @@ export class MockBackend {
     this.commit({ stories: this.state.stories.filter((s) => s.id !== storyId) });
   }
 
-  /** Aviso de dato incorrecto en una veterinaria o refugio (cerró, otro teléfono…). */
+  /** Aviso de dato incorrecto en una veterinaria (cerró, otro teléfono…). */
   async reportPlace(placeId: string, note: string): Promise<void> {
     this.requireUser();
     if (!note.trim()) throw new BackendError("unknown");

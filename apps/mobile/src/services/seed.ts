@@ -660,7 +660,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
         u_laura: ["u_sofia"],
       },
       shareLog: { u_valentina: ["max", "collie"] },
-      // Veterinarias y refugios reales del Valle de Aburrá, importados de OpenStreetMap con
+      // Veterinarias reales del Valle de Aburrá, importados de OpenStreetMap con
       // `api import-places` (© colaboradores de OpenStreetMap, licencia ODbL).
       places: osmPlaces as Place[],
       remoteBadges: {},

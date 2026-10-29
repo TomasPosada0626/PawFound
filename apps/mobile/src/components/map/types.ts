@@ -70,6 +70,10 @@ export type PetMapProps = {
   /** Mapa estático y liviano (Android): para las tarjetas de ubicación dentro del chat. */
   lite?: boolean;
   showsUserLocation?: boolean;
+  /** Cambiarlo vuelve a centrar el mapa en `region` aunque la región sea la misma. */
+  recenterKey?: number;
+  /** Dónde está la persona: punto azul con un círculo azul alrededor ("estás aquí"). */
+  userLocation?: LatLng;
   satellite?: boolean;
   interactive?: boolean;
   height?: number;

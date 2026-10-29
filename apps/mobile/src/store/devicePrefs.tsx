@@ -10,6 +10,8 @@ type DevicePrefs = {
   toggleFavorite: (petId: string) => void;
   /** Consentimiento propio de la app (docs/legal/consentimientos.md), previo al permiso del SO. */
   locationConsent: LocationConsent;
+  /** true cuando ya se leyeron las preferencias guardadas (antes, locationConsent es null). */
+  prefsLoaded: boolean;
   setLocationConsent: (value: LocationConsent) => void;
   /** Traducción automática de chats (activa por defecto). */
   autoTranslate: boolean;
@@ -22,6 +24,7 @@ export function DevicePrefsProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [locationConsent, setConsentState] = useState<LocationConsent>(null);
   const [autoTranslate, setAutoTranslateState] = useState(true);
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -34,6 +37,7 @@ export function DevicePrefsProvider({ children }: { children: ReactNode }) {
       if (Array.isArray(favs)) setFavorites(favs);
       if (consent === "granted" || consent === "denied") setConsentState(consent);
       if (typeof translate === "boolean") setAutoTranslateState(translate);
+      setPrefsLoaded(true);
     });
     return () => {
       alive = false;
@@ -64,11 +68,12 @@ export function DevicePrefsProvider({ children }: { children: ReactNode }) {
       isFavorite: (petId) => favorites.includes(petId),
       toggleFavorite,
       locationConsent,
+      prefsLoaded,
       setLocationConsent,
       autoTranslate,
       setAutoTranslate,
     }),
-    [favorites, toggleFavorite, locationConsent, setLocationConsent, autoTranslate, setAutoTranslate],
+    [favorites, toggleFavorite, locationConsent, prefsLoaded, setLocationConsent, autoTranslate, setAutoTranslate],
   );
 
   return <DevicePrefsContext.Provider value={value}>{children}</DevicePrefsContext.Provider>;

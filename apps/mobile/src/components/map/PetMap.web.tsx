@@ -7,7 +7,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { statusColor } from "@/theme/tokens";
 
 import { Text } from "../ui/Text";
-import { ClusterBubble, PetPin, PlacePin, PointPin, SharePin } from "./pins";
+import { ClusterBubble, PetPin, PlacePin, PointPin, SharePin, USER_BLUE, USER_HALO_METERS, UserDot } from "./pins";
 import { CIRCLE_STYLE, type PetMapProps } from "./types";
 
 const TILE = 256;
@@ -45,6 +45,7 @@ export function PetMap({
   onPlacePress,
   selectedPlaceId,
   numberedPlaces = false,
+  userLocation,
   height,
   testID,
 }: PetMapProps) {
@@ -183,6 +184,33 @@ export function PetMap({
           </Pressable>
         );
       })}
+
+      {userLocation
+        ? (() => {
+            const p = project(userLocation);
+            const r = Math.max(14, metersToPx(USER_HALO_METERS));
+            return (
+              <View
+                pointerEvents="none"
+                style={{ position: "absolute", left: p.x - r, top: p.y - r, width: r * 2, height: r * 2 }}
+              >
+                <View
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: r,
+                    borderWidth: 1.5,
+                    borderColor: `${USER_BLUE}99`,
+                    backgroundColor: `${USER_BLUE}29`,
+                  }}
+                />
+                <View style={{ position: "absolute", left: r - 10, top: r - 10 }}>
+                  <UserDot />
+                </View>
+              </View>
+            );
+          })()
+        : null}
 
       {shareMarker
         ? (() => {

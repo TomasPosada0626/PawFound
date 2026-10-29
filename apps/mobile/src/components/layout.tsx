@@ -1,7 +1,7 @@
 import { router } from "expo-router";
 import type { ReactNode } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, View, type ScrollViewProps } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useI18n } from "@/i18n/I18nProvider";
 import { useTheme } from "@/theme/ThemeProvider";
@@ -79,7 +79,10 @@ export function Screen({
   testID,
 }: ScreenProps) {
   const { colors } = useTheme();
-  const bottomSpace = withTabBar ? 120 : 32;
+  const insets = useSafeAreaInsets();
+  // Con menú inferior: su alto y el del botón "+" (~110) más la barra del sistema, para que
+  // nada quede debajo.
+  const bottomSpace = withTabBar ? 120 + Math.max(insets.bottom, 10) : 32;
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: colors.bg }} testID={testID}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>

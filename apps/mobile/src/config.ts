@@ -12,6 +12,9 @@ export const SHARE_BASE_URL = `${PUBLIC_BASE_URL}/mascota/`;
  */
 export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "";
 
+/** Correo oficial de soporte y de solicitudes sobre datos personales. */
+export const SUPPORT_EMAIL = "pawfoundoficial@gmail.com";
+
 /** Documentos legales (fuente: docs/legal/ del repositorio público). */
 const LEGAL_BASE = "https://github.com/TomasPosada0626/PawFound/blob/main/docs/legal";
 export const LEGAL_URLS = {

@@ -12,7 +12,7 @@ Backend: API en Go (router Chi + contrato OpenAPI), PostgreSQL con PostGIS (bús
 
 ## Users
 
-Comunidad general en Colombia: cualquier persona (dueño/a de una mascota perdida, o vecino/a que encuentra una mascota) que necesita reportar o buscar por zona. Refugios, rescatistas y voluntariado participan como validadores durante el MVP (Fase 1), no como un tipo de cuenta con permisos propios dentro de la app.
+Comunidad general en Colombia: cualquier persona (dueño/a de una mascota perdida, o vecino/a que encuentra una mascota) que necesita reportar o buscar por zona. Rescatistas y voluntariado participan como validadores durante el MVP (Fase 1), no como un tipo de cuenta con permisos propios dentro de la app.
 
 Señal real de investigación (issues #7/#8, 6 entrevistas): veterinarias y un refugio
 mostraron interés concreto en un rol de cuenta institucional para publicar una vez y
@@ -90,7 +90,7 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
   - **Veterinarias** del Valle de Aburrá desde OpenStreetMap: capa del mapa y, al reportar una
     mascota encontrada, "¿Está herida? Busquemos la veterinaria más cercana" (antes del
     formulario y al publicar). "Vamos" abre la ruta en Waze o Google Maps y se puede avisar en
-    el grupo del caso a qué veterinaria va. Sin refugios: en Medellín no reciben mascotas.
+    el grupo del caso a qué veterinaria va.
   - **Ubicación en el mensaje directo**: ubicación actual o punto de encuentro, nunca en grupos
     ni en vivo. Se quita cuando quien la envió quiere y deja de verse al cerrar el chat o el
     caso.

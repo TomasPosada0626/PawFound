@@ -36,7 +36,7 @@ var (
 	Sizes      = set("small", "medium", "large")
 	CaseKinds  = set("lost", "found")
 	Conditions = set("good", "scared", "injured", "needs_vet")
-	Custodies  = set("with_me", "vet", "shelter", "left_there")
+	Custodies  = set("with_me", "vet", "left_there")
 	// LocationKinds: ubicación actual y punto de encuentro (solo DM) o una veterinaria.
 	LocationKinds = set("current", "meeting", "place")
 	Langs         = set("es", "en")

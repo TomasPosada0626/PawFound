@@ -18,8 +18,7 @@ import (
 // Veterinarias: la capa del mapa y "Está herida: busquemos una veterinaria" al reportar una
 // mascota encontrada. La fuente es OpenStreetMap, datos abiertos con licencia ODbL: la app
 // siempre muestra "© colaboradores de OpenStreetMap". Pueden estar incompletos o
-// desactualizados, por eso cada lugar se puede reportar. Los refugios no se incluyen: en
-// Medellín no reciben mascotas encontradas.
+// desactualizados, por eso cada lugar se puede reportar.
 
 // PlacesAttribution acompaña cada respuesta (obligatoria por la licencia ODbL).
 const PlacesAttribution = "© colaboradores de OpenStreetMap"

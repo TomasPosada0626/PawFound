@@ -23,7 +23,7 @@ export type CaseKind = "lost" | "found";
 export type CaseState = "active" | "reunited" | "archived";
 
 export type FoundCondition = "good" | "scared" | "injured" | "needs_vet";
-export type FoundCustody = "with_me" | "vet" | "shelter" | "left_there";
+export type FoundCustody = "with_me" | "vet" | "left_there";
 
 export type Sighting = {
   id: string;
@@ -158,8 +158,7 @@ export type StoryItem = {
 
 /**
  * Veterinaria (capa del mapa y "Está herida: busquemos una veterinaria"). Datos de
- * OpenStreetMap: pueden estar incompletos, por eso cada lugar se puede reportar. Los refugios
- * no se muestran: en Medellín no reciben mascotas encontradas.
+ * OpenStreetMap: pueden estar incompletos, por eso cada lugar se puede reportar.
  */
 export type Place = {
   id: string;

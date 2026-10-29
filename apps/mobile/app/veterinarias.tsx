@@ -100,7 +100,7 @@ export default function VetsScreen() {
           numberedPlaces
           selectedPlaceId={selected?.id}
           onPlacePress={setSelected}
-          showsUserLocation={hasRealLocation}
+          userLocation={hasRealLocation ? location : undefined}
           marker={!hasRealLocation && pet ? { coordinate: pet.location, kind: pet.kind } : undefined}
           testID="vets-map"
         />

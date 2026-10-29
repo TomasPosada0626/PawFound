@@ -192,7 +192,7 @@ export default function ReportScreen() {
     value: c,
     label: t(`conditions.${c}`),
   }));
-  const custodyOptions = (["with_me", "vet", "shelter", "left_there"] as FoundCustody[]).map((c) => ({
+  const custodyOptions = (["with_me", "vet", "left_there"] as FoundCustody[]).map((c) => ({
     value: c,
     label: t(`custodies.${c}`),
   }));
@@ -483,33 +483,36 @@ export default function ReportScreen() {
           height={220}
           region={region}
           marker={draft.point ? { coordinate: draft.point, kind: draft.kind } : undefined}
-          circles={draft.point ? [{ center: draft.point, radius: previewRadius, kind: draft.kind }] : []}
+          circles={draft.point && isLost ? [{ center: draft.point, radius: previewRadius, kind: draft.kind }] : []}
           onMapPress={(p) => void setPoint(p)}
           testID="report-map"
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${isLost ? t("report.lifeRadius") : t("report.searchRadius")}: ${formatDistance(previewRadius, locale)}`}
-          onPress={() => setRadiusSheet(true)}
-          className="absolute bottom-3 left-3 min-h-[52px] flex-row items-center gap-3 rounded-2xl bg-surface px-3 py-2 shadow-md shadow-black/15 active:opacity-80"
-          testID="radius-pill"
-        >
-          <Icon name="radio-button-off" size={26} color={colors.primaryStrong} />
-          <View>
-            <Text variant="label" tone="muted">
-              {isLost ? t("report.lifeRadius") : t("report.searchRadius")}
-            </Text>
-            <Text variant="subheading" tone="primary">
-              {formatDistance(previewRadius, locale)}
-            </Text>
-            {isLost ? (
+        {/* Solo las perdidas tienen círculo de vida; una encontrada es solo el punto donde se encontró. */}
+        {isLost ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("report.lifeRadius")}: ${formatDistance(previewRadius, locale)}`}
+            onPress={() => setRadiusSheet(true)}
+            className="absolute bottom-3 left-3 min-h-[52px] flex-row items-center gap-3 rounded-2xl bg-surface px-3 py-2 shadow-md shadow-black/15 active:opacity-80"
+            testID="radius-pill"
+          >
+            <Icon name="radio-button-off" size={26} color={colors.primaryStrong} />
+            <View>
               <Text variant="label" tone="muted">
-                {t("report.radiusGrows")}
+                {isLost ? t("report.lifeRadius") : t("report.searchRadius")}
               </Text>
-            ) : null}
-          </View>
-          <Icon name="chevron-down" size={18} color={colors.ink} />
-        </Pressable>
+              <Text variant="subheading" tone="primary">
+                {formatDistance(previewRadius, locale)}
+              </Text>
+              {isLost ? (
+                <Text variant="label" tone="muted">
+                  {t("report.radiusGrows")}
+                </Text>
+              ) : null}
+            </View>
+            <Icon name="chevron-down" size={18} color={colors.ink} />
+          </Pressable>
+        ) : null}
       </View>
       <Text
         variant="caption"

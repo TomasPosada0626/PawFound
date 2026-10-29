@@ -110,5 +110,5 @@ al consumidor y de datos personales aplicable.
 
 ## 13. Contacto
 
-Dudas o solicitudes sobre estos Términos: canal descrito en
-[SUPPORT.md](../../SUPPORT.md).
+Dudas o solicitudes sobre estos Términos: **pawfoundoficial@gmail.com**, o desde la app en Ajustes › Soporte y
+ayuda. Más detalles en [SUPPORT.md](../../SUPPORT.md).

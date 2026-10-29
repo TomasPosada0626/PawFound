@@ -39,7 +39,8 @@ La persona titular podrá consultar, actualizar, rectificar, solicitar eliminaci
 consentimientos y pedir exportación de sus datos por los canales publicados en la app. Estos
 son los derechos de acceso, rectificación, cancelación y oposición (ARCO) reconocidos por la
 Ley 1581 de 2012. Las solicitudes se registrarán, verificarán y atenderán dentro de los
-plazos legales aplicables, por el canal descrito en [SUPPORT.md](../../SUPPORT.md).
+plazos legales aplicables, por el correo pawfoundoficial@gmail.com o el canal descrito en
+[SUPPORT.md](../../SUPPORT.md).
 
 ## Transferencias y encargados
 

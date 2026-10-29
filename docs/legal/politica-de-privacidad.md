@@ -126,5 +126,6 @@ fecha de la nueva versión.
 
 ## 11. Contacto
 
-Preguntas, solicitudes o quejas sobre el tratamiento de tus datos: canal descrito en
-[SUPPORT.md](../../SUPPORT.md).
+Preguntas, solicitudes o quejas sobre el tratamiento de tus datos (incluidos tus derechos de
+conocer, actualizar, rectificar y suprimir): **pawfoundoficial@gmail.com**, o desde la app en Ajustes › Soporte y
+ayuda. Más detalles en [SUPPORT.md](../../SUPPORT.md).

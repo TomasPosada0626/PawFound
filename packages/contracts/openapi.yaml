@@ -812,7 +812,7 @@ components:
         foundSearchRadius: { type: integer, enum: [400, 1000, 2000, 5000] }
         reward: { type: boolean }
         foundCondition: { type: string, enum: [good, scared, injured, needs_vet] }
-        foundCustody: { type: string, enum: [with_me, vet, shelter, left_there] }
+        foundCustody: { type: string, enum: [with_me, vet, left_there] }
         ownerId: { type: string }
         ownerShortName: { type: string }
         owner: { $ref: "#/components/schemas/UserSummary" }

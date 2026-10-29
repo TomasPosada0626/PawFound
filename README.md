@@ -73,7 +73,7 @@ Detalle de arquitectura en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 1. Definir alcance, usuarios y criterios de éxito.
 2. Diseñar el flujo de reporte, búsqueda y verificación.
 3. Construir un MVP accesible y seguro.
-4. Validar con personas cuidadoras, refugios y voluntariado.
+4. Validar con personas cuidadoras, rescatistas y voluntariado.
 
 ## Documentación
 
