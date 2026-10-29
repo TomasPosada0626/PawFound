@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "America/Bogota",
+  "labels": ["type: chore", "dependency: external"],
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["apps/api/**"],
+      "groupName": "dependencias Go (apps/api)"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchFileNames": ["apps/mobile/**"],
+      "groupName": "dependencias mobile (apps/mobile)"
+    },
+    {
+      "matchDepTypes": ["engines"],
+      "enabled": false
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security", "priority: critical"]
+  }
+}

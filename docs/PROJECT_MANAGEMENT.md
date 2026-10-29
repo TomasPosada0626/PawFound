@@ -60,3 +60,13 @@ Un Issue está listo cuando tiene contexto, alcance, criterio de aceptación, ri
 ## Definición de terminado
 
 Una tarea está terminada cuando cumple sus criterios de aceptación, está revisada, documentada y validada de forma proporcional al riesgo.
+
+Para cualquier cambio de código (API o app; no aplica a documentación pura), además:
+
+- **Pruebas unitarias** de la lógica nueva o modificada.
+- **Análisis estático** sin hallazgos nuevos sin resolver (linter + escáner de seguridad del lenguaje correspondiente).
+- **Pruebas end-to-end** del flujo completo afectado, no solo de la unidad aislada, cuando el cambio toca un flujo de usuario.
+- **Pruebas de vulnerabilidades** (dependencias y, cuando aplique, el propio código) antes de fusionar a `develop`.
+- **Cobertura de pruebas ≥ 80 %** en el código nuevo o modificado del módulo tocado.
+
+El detalle de herramientas por capa está en [docs/ARCHITECTURE.md](ARCHITECTURE.md#estrategia-de-pruebas-y-seguridad).

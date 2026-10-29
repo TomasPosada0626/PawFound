@@ -21,11 +21,14 @@ emergencia de bienestar animal, contacta a las autoridades u organizaciones comp
 
 ## 3. Cuentas y verificación
 
-- Debes registrarte con datos veraces y un número de teléfono al que tengas acceso real,
-  para completar la verificación por SMS.
-- La insignia azul de verificado indica que el número de teléfono de la cuenta fue
-  confirmado por SMS; no es una certificación de identidad legal completa ni una garantía
-  de buena conducta.
+- Debes registrarte con datos veraces, declarar que cumples la edad mínima requerida, y un
+  correo al que tengas acceso real, para completar la verificación con un código de 6
+  dígitos.
+- Cada cuenta puede publicar hasta 2 reportes por día. Este límite existe para prevenir
+  spam y proteger la confiabilidad de la comunidad.
+- La insignia azul de verificado indica que el correo de la cuenta fue confirmado (con el
+  código o por Google o Apple); no es una certificación de identidad legal completa ni una
+  garantía de buena conducta.
 - Eres responsable de mantener la confidencialidad de tus credenciales y de la actividad
   de tu cuenta.
 - Podemos suspender o cerrar cuentas que incumplan estos Términos, con el proceso descrito
@@ -67,10 +70,16 @@ reportar o buscar una mascota, se rige por la
 [Política de privacidad](politica-de-privacidad.md). PawFound no muestra direcciones ni
 coordenadas exactas de forma predeterminada.
 
+En un mensaje directo puedes compartir tu ubicación actual o un punto de encuentro. Hazlo
+solo con quien confíes, prefiere lugares públicos y concurridos para entregar o recibir una
+mascota, y quita la ubicación cuando ya no la necesites. Las veterinarias que muestra la app
+provienen de OpenStreetMap y pueden estar incompletas o desactualizadas: llama antes de ir.
+PawFound no presta servicios veterinarios ni garantiza la atención de ningún lugar.
+
 ## 8. Alerta Ángel y notificaciones
 
 Al activarlo, PawFound puede enviarte notificaciones de mascotas perdidas cerca de tu
-ubicación aproximada ("Alerta Ángel"), por notificación push o SMS según lo que hayas
+ubicación aproximada ("Alerta Ángel"), por notificación de la app según lo que hayas
 consentido. Son avisos generados por la comunidad, no alertas gubernamentales ni
 oficiales, y puedes desactivarlos en cualquier momento desde Ajustes.
 
@@ -101,5 +110,5 @@ al consumidor y de datos personales aplicable.
 
 ## 13. Contacto
 
-Dudas o solicitudes sobre estos Términos: canal descrito en
-[SUPPORT.md](../../SUPPORT.md).
+Dudas o solicitudes sobre estos Términos: **pawfoundoficial@gmail.com**, o desde la app en Ajustes › Soporte y
+ayuda. Más detalles en [SUPPORT.md](../../SUPPORT.md).

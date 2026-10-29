@@ -1,0 +1,187 @@
+{
+  "description": "Vectores de prueba del círculo de vida: radio = min(inicial + tasa × √horas, tope), redondeado al metro. Todas las mascotas arrancan en 250 m y llegan a 2 km en unos 30 minutos. Fuente: PRODUCT.md (decisión del 2026-10-28). La app (apps/mobile) y la API (apps/api) validan contra este archivo para no desincronizarse.",
+  "profiles": {
+    "dog_panic": {
+      "initial": 250,
+      "rate": 2475,
+      "cap": 2000
+    },
+    "dog_calm": {
+      "initial": 250,
+      "rate": 2475,
+      "cap": 2000
+    },
+    "cat_or_shy": {
+      "initial": 250,
+      "rate": 2475,
+      "cap": 2000
+    },
+    "unknown": {
+      "initial": 250,
+      "rate": 2475,
+      "cap": 2000
+    }
+  },
+  "cases": [
+    {
+      "profile": "dog_panic",
+      "hours": 0,
+      "meters": 250
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 0.25,
+      "meters": 1488
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 1,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 4,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 6,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 24,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 72,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_panic",
+      "hours": 500,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 0,
+      "meters": 250
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 0.25,
+      "meters": 1488
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 1,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 4,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 6,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 24,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 72,
+      "meters": 2000
+    },
+    {
+      "profile": "dog_calm",
+      "hours": 500,
+      "meters": 2000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 0,
+      "meters": 250
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 0.25,
+      "meters": 1488
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 1,
+      "meters": 2000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 4,
+      "meters": 2000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 6,
+      "meters": 2000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 24,
+      "meters": 2000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 72,
+      "meters": 2000
+    },
+    {
+      "profile": "cat_or_shy",
+      "hours": 500,
+      "meters": 2000
+    },
+    {
+      "profile": "unknown",
+      "hours": 0,
+      "meters": 250
+    },
+    {
+      "profile": "unknown",
+      "hours": 0.25,
+      "meters": 1488
+    },
+    {
+      "profile": "unknown",
+      "hours": 1,
+      "meters": 2000
+    },
+    {
+      "profile": "unknown",
+      "hours": 4,
+      "meters": 2000
+    },
+    {
+      "profile": "unknown",
+      "hours": 6,
+      "meters": 2000
+    },
+    {
+      "profile": "unknown",
+      "hours": 24,
+      "meters": 2000
+    },
+    {
+      "profile": "unknown",
+      "hours": 72,
+      "meters": 2000
+    },
+    {
+      "profile": "unknown",
+      "hours": 500,
+      "meters": 2000
+    }
+  ]
+}

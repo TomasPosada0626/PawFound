@@ -1,0 +1,52 @@
+{{define "content"}}
+{{$a := .Data}}
+<h1>Actividad de la app</h1>
+<p class="muted">Solo conteos agregados: aquí no aparece ningún dato personal.</p>
+
+<section class="stats" aria-label="Indicador principal">
+  <div class="stat stat-hero">
+    <strong>{{if ge $a.ReunionRate14 0}}{{$a.ReunionRate14}} %{{else}}—{{end}}</strong>
+    <span>de las mascotas perdidas vuelven a casa en 14 días o menos{{if ge $a.ReunionRate14 0}} ({{$a.Reunited14}} de {{$a.Eligible14}}){{else}} · aún sin casos suficientes{{end}}</span>
+  </div>
+</section>
+
+<h2 class="section-title">Casos</h2>
+<section class="stats">
+  <div class="stat"><strong>{{$a.ActiveLost}}</strong><span>perdidas activas</span></div>
+  <div class="stat"><strong>{{$a.ActiveFound}}</strong><span>encontradas activas</span></div>
+  <div class="stat"><strong>{{$a.Reports7}}</strong><span>reportes en 7 días</span></div>
+  <div class="stat"><strong>{{$a.Reunited30}}</strong><span>reencuentros en 30 días</span></div>
+  <div class="stat"><strong>{{$a.Reunited}}</strong><span>reencuentros en total</span></div>
+</section>
+
+<h2 class="section-title">Comunidad</h2>
+<section class="stats">
+  <div class="stat"><strong>{{$a.Users}}</strong><span>cuentas ({{$a.VerifiedPct}} % con correo verificado)</span></div>
+  <div class="stat"><strong>{{$a.UsersNew7}}</strong><span>cuentas nuevas en 7 días</span></div>
+  <div class="stat"><strong>{{$a.Alerts24}}</strong><span>Alertas Ángel en 24 h ({{$a.Alerts7}} en 7 días)</span></div>
+  <div class="stat"><strong>{{$a.Messages7}}</strong><span>mensajes en 7 días, en {{$a.ActiveChats7}} chats</span></div>
+  <div class="stat"><strong>{{$a.StoryUpdates}}</strong><span>actualizaciones en historias</span></div>
+</section>
+
+<h2 class="section-title">Moderación</h2>
+<section class="stats">
+  <a class="stat{{if gt $a.OpenReports 0}} stat-alert{{end}}" href="/admin/reports"><strong>{{$a.OpenReports}}</strong><span>reportes abiertos</span></a>
+  <div class="stat"><strong>{{if $a.AvgResolutionH}}{{printf "%.0f" (deref_float $a.AvgResolutionH)}} h{{else}}—{{end}}</strong><span>tiempo medio de resolución (30 días)</span></div>
+</section>
+
+<section class="card">
+  <h2>Últimos 14 días</h2>
+  <p class="legend"><span class="dot dot-reports"></span> Reportes <span class="dot dot-reunions"></span> Reencuentros</p>
+  <div class="chart" role="img" aria-label="Reportes y reencuentros por día en los últimos 14 días">
+    {{range $a.Days}}
+    <div class="chart-day" title="{{date .Day}}: {{.Reports}} reportes, {{.Reunions}} reencuentros">
+      <div class="bars">
+        <span class="bar bar-reports h{{pct .Reports $a.MaxDay}}"></span>
+        <span class="bar bar-reunions h{{pct .Reunions $a.MaxDay}}"></span>
+      </div>
+      <span class="chart-label">{{dayLabel .Day}}</span>
+    </div>
+    {{end}}
+  </div>
+</section>
+{{end}}

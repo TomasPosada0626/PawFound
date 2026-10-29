@@ -11,14 +11,27 @@ Este borrador se orienta al marco colombiano de protección de datos personales:
 Estatutaria 1581 de 2012, su decreto reglamentario 1377 de 2013, y la Ley 1266 de 2008
 en lo que aplique a datos de contacto y verificación. La versión final debe confirmarse
 con asesoría legal antes de producción, incluyendo si aplica registro ante el Registro
-Nacional de Bases de Datos (RNBD) de la Superintendencia de Industria y Comercio (SIC).
+Nacional de Bases de Datos (RNBD) de la Superintendencia de Industria y Comercio (SIC) —
+verificar el umbral vigente; es recomendable registrar desde el inicio antes que asumir
+que no aplica.
+
+## Menores de edad
+
+PawFound probablemente tendrá personas usuarias menores de edad. El tratamiento de sus
+datos requiere un análisis reforzado (consentimiento de representante legal cuando
+corresponda, minimización adicional) que todavía no está definido — punto abierto
+explícito para la revisión legal, no asumir un tratamiento igual al de personas adultas.
 
 ## Datos y finalidades
 
 PawFound tratará datos de cuenta, publicaciones, mensajes, reportes de moderación,
 consentimientos, datos técnicos mínimos y ubicación aproximada. Se usarán para prestar el
 servicio, prevenir abuso, atender solicitudes, mejorar seguridad y cumplir obligaciones
-legales. No se mostrarán direcciones ni coordenadas exactas de forma predeterminada.
+legales. No se mostrarán direcciones ni coordenadas exactas de forma predeterminada. La
+excepción es la ubicación que la persona decide enviar en un mensaje directo (su ubicación
+actual o un punto de encuentro, nunca en grupos y nunca en vivo): solo la ve la otra persona
+y sus coordenadas se borran cuando quien la envió la quita, cuando se cierra la conversación
+o cuando se cierra el caso.
 
 ## Derechos y solicitudes
 
@@ -26,15 +39,21 @@ La persona titular podrá consultar, actualizar, rectificar, solicitar eliminaci
 consentimientos y pedir exportación de sus datos por los canales publicados en la app. Estos
 son los derechos de acceso, rectificación, cancelación y oposición (ARCO) reconocidos por la
 Ley 1581 de 2012. Las solicitudes se registrarán, verificarán y atenderán dentro de los
-plazos legales aplicables, por el canal descrito en [SUPPORT.md](../../SUPPORT.md).
+plazos legales aplicables, por el correo pawfoundoficial@gmail.com o el canal descrito en
+[SUPPORT.md](../../SUPPORT.md).
 
 ## Transferencias y encargados
 
 Los proveedores se documentarán en el inventario de datos antes de activarse. Cualquier
 transferencia internacional se evaluará con las salvaguardas legales correspondientes.
+Aplica en particular a los proveedores previstos con infraestructura fuera de Colombia:
+Supabase (base de datos), Cloudflare (imágenes), Firebase (notificaciones) — ver
+[incidentes-y-proveedores.md](incidentes-y-proveedores.md) para el inventario completo.
 
 ## Retención
 
 Los plazos de retención y anonimización se aprobarán legalmente antes de producción. Una
-publicación y su chat se archivarán al marcar la mascota como encontrada; no se eliminarán
-automáticamente.
+publicación se archivará al marcar la mascota como encontrada; no se eliminará
+automáticamente. Los chats no se cierran ni se borran solos: cada persona los archiva o los
+elimina de su lista. Las coordenadas de una ubicación compartida en el chat se borran en
+cuanto deja de ser visible.

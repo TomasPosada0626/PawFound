@@ -1,0 +1,117 @@
+{
+  "expo": {
+    "name": "PawFound",
+    "slug": "pawfound",
+    "version": "0.1.0",
+    "scheme": "pawfound",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F4F9F8",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.pawfound",
+      "associatedDomains": [
+        "applinks:pawfound.app"
+      ]
+    },
+    "android": {
+      "package": "app.pawfound",
+      "adaptiveIcon": {
+        "backgroundColor": "#04111A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "pawfound.app",
+              "pathPrefix": "/alerta"
+            },
+            {
+              "scheme": "https",
+              "host": "pawfound.app",
+              "pathPrefix": "/mascota"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "PawFound usa tu ubicación para mostrarte mascotas reportadas cerca y ubicar tus reportes. Tu ubicación exacta nunca se muestra a otras personas.",
+          "locationAlwaysAndWhenInUsePermission": "PawFound usa tu ubicación aproximada, también con la app cerrada, solo para avisarte cuando se pierde una mascota cerca de donde estás. Nunca se muestra a otras personas.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "PawFound necesita acceso a tus fotos para que puedas agregar imágenes de la mascota a tu reporte.",
+          "cameraPermission": "PawFound necesita la cámara para que puedas tomar una foto de la mascota.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-image",
+      "expo-localization",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "backgroundColor": "#F3F8F9",
+          "dark": {
+            "backgroundColor": "#0A1520"
+          }
+        }
+      ],
+      "expo-sharing",
+      [
+        "expo-notifications",
+        {
+          "color": "#0E7C6B",
+          "defaultChannel": "case-updates"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "af254568-a1a0-47c1-8cd3-f5b44f04cd0a"
+      }
+    },
+    "owner": "pawfounds-team"
+  }
+}

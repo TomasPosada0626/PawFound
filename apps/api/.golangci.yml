@@ -1,0 +1,16 @@
+version: "2"
+linters:
+  default: standard
+  enable:
+    - gosec
+    - unconvert
+    - unparam
+  exclusions:
+    rules:
+      # En las pruebas, gosec solo encuentra datos de ejemplo (contraseñas de prueba, píxeles
+      # sintéticos, fixtures con ruta fija), no riesgos reales.
+      - path: _test\.go
+        linters: [gosec]
+formatters:
+  enable:
+    - gofumpt

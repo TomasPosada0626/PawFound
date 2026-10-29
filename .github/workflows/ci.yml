@@ -1,0 +1,112 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API (Go)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    # Las pruebas de integración y de punta a punta corren contra PostGIS real (internal/testdb).
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: pawfound
+          POSTGRES_PASSWORD: pawfound
+          POSTGRES_DB: pawfound
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pawfound"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://pawfound:pawfound@localhost:5432/pawfound?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          # Último parche de 1.26: govulncheck falla con parches viejos de la librería estándar.
+          go-version: "1.26.x"
+          check-latest: true
+          cache-dependency-path: apps/api/go.sum
+      - run: go build ./...
+      - run: go vet ./...
+      - name: gofmt
+        run: |
+          fmt_out="$(gofmt -l .)"
+          if [ -n "$fmt_out" ]; then
+            echo "Archivos sin formatear:"
+            echo "$fmt_out"
+            exit 1
+          fi
+      - run: go test ./... -race -coverpkg=./internal/... -coverprofile=coverage.out
+      - name: Cobertura mínima (90 %)
+        run: |
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')"
+          echo "Cobertura total: ${total} %"
+          awk -v t="$total" 'BEGIN { exit (t + 0 >= 90) ? 0 : 1 }'
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          working-directory: apps/api
+          version: v2.13.1
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  web:
+    name: Web (Astro)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      # El sitio publicado es HTML estático: se audita la cadena de build completa.
+      - run: npm audit --audit-level=high
+
+  mobile:
+    name: Mobile (Expo)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - run: npm ci
+      - name: Versiones alineadas con el SDK de Expo
+        run: npx expo install --check
+      - run: npx tsc --noEmit
+      - run: npx eslint .
+      - name: Formato (Prettier)
+        run: npx prettier --check "app/**/*.{ts,tsx}" "src/**/*.{ts,tsx}" "__tests__/**/*.tsx"
+      # Unitarias + flujos completos (expo-router/testing-library). El umbral de cobertura
+      # (≥ 80 % líneas/sentencias) está en package.json → jest.coverageThreshold.
+      - name: Tests y cobertura
+        run: npm test -- --ci --watchAll=false --coverage
+      # Bloquea vulnerabilidades críticas en dependencias de runtime. Los "high" restantes
+      # son de la cadena de build de Expo CLI y están documentados en apps/mobile/README.md.
+      - name: npm audit
+        run: npm audit --omit=dev --audit-level=critical

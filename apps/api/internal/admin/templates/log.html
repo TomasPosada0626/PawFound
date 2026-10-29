@@ -1,0 +1,22 @@
+{{define "content"}}
+<h1>Bitácora</h1>
+<p class="muted">Todas las decisiones del equipo, de la más reciente a la más antigua. No se puede editar ni borrar.</p>
+{{if .Data}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Fecha</th><th>Quién</th><th>Decisión</th><th>Cuenta</th><th>Motivo</th></tr></thead>
+  <tbody>
+  {{range .Data}}
+  <tr>
+    <td>{{date .At}}</td>
+    <td>{{if .ModeratorName}}{{deref .ModeratorName}}{{else}}—{{end}}</td>
+    <td>{{action .Action}}{{if .Hours}} ({{deref_int .Hours}} h){{end}}{{if .ReportID}} · <a href="/admin/reports/{{deref .ReportID}}">reporte</a>{{end}}</td>
+    <td>{{if .TargetUserID}}<a href="/admin/users/{{deref .TargetUserID}}">{{if .TargetName}}{{deref .TargetName}}{{else}}cuenta eliminada{{end}}</a>{{end}}</td>
+    <td>{{.Note}}</td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}<p class="empty card">Todavía no hay decisiones.</p>{{end}}
+{{end}}

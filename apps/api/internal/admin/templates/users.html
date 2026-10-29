@@ -1,0 +1,23 @@
+{{define "content"}}
+<h1>Cuentas</h1>
+<form method="get" action="/admin/users" class="search card">
+  <label for="q">Buscar por nombre, usuario o correo</label>
+  <div class="row"><input id="q" name="q" value="{{.Data.Q}}" maxlength="80"><button type="submit" class="primary">Buscar</button></div>
+</form>
+{{if .Data.Users}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Nombre</th><th>Usuario</th><th>En PawFound</th><th>Avisos</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Users}}
+  <tr>
+    <td>{{.Name}}</td><td>@{{.Username}}</td><td>{{days .CreatedAt}} días</td><td>{{.Warnings}}</td>
+    <td>{{if .SuspendedAt}}<span class="chip chip-scam">Suspendida</span>{{else if active .MutedUntil}}<span class="chip chip-rude">Restringida</span>{{else}}Activa{{end}}</td>
+    <td><a class="button small" href="/admin/users/{{.ID}}">Abrir</a></td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else if .Data.Q}}<p class="empty card">Ninguna cuenta coincide con «{{.Data.Q}}».</p>{{end}}
+{{end}}
