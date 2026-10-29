@@ -17,9 +17,12 @@ import { useEffect } from "react";
 import { AppProviders } from "@/AppProviders";
 import { BackgroundServices } from "@/components/BackgroundServices";
 import { BadgeCelebration } from "@/components/BadgeCelebration";
+import { applyUpdateOnLaunch } from "@/services/otaUpdates";
 import { useTheme } from "@/theme/ThemeProvider";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// Busca una actualización publicada con EAS Update apenas abre la app.
+void applyUpdateOnLaunch();
 
 function RootStack() {
   const { colors, scheme } = useTheme();

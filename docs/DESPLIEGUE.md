@@ -111,3 +111,19 @@ La API key de Google Maps va en `app.json` → `android.config.googleMaps.apiKey
 Para "Continuar con Google" se crean los ID de cliente en Google Cloud Console (pantalla de
 consentimiento + ID de Android con el nombre del paquete y la huella SHA-1 del build) y se
 ponen en `GOOGLE_CLIENT_IDS` (API).
+
+### Actualizaciones sin reinstalar (EAS Update)
+
+La app instalada busca actualizaciones al abrirse (`expo-updates`, canal `preview` o
+`production` según el build). Los cambios de pantallas, textos y colores se publican sin
+compilar ni reinstalar:
+
+```bash
+cd apps/mobile
+npx eas-cli update --channel preview --environment preview --message "qué cambió"
+```
+
+Si la actualización llega en los primeros segundos, la app se reinicia con ella; si no, la usa
+la próxima vez que se abra. Los cambios nativos (permisos, librerías nuevas, ícono) cambian la
+huella (`runtimeVersion` por *fingerprint*) y necesitan un build nuevo: las actualizaciones
+nunca llegan a una app con una huella distinta.

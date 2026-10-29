@@ -38,6 +38,14 @@ jest.mock("expo-location", () => ({
 
 jest.mock("expo-task-manager", () => ({ defineTask: jest.fn() }));
 
+// EAS Update desactivado en las pruebas (como en desarrollo).
+jest.mock("expo-updates", () => ({
+  isEnabled: false,
+  checkForUpdateAsync: jest.fn(async () => ({ isAvailable: false })),
+  fetchUpdateAsync: jest.fn(async () => ({ isNew: false })),
+  reloadAsync: jest.fn(async () => {}),
+}));
+
 jest.mock("expo-image-picker", () => ({
   requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
   requestCameraPermissionsAsync: jest.fn(async () => ({ granted: true })),
