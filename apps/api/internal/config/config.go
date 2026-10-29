@@ -14,16 +14,19 @@ import (
 
 // Config es la configuración ya validada.
 type Config struct {
-	Env            string
-	Port           string
-	DatabaseURL    string
-	JWTSecret      string
-	AccessTTL      time.Duration
-	APIBaseURL     string
-	WebBaseURL     string
-	MediaDir       string
-	R2             R2
-	SMTP           SMTP
+	Env         string
+	Port        string
+	DatabaseURL string
+	JWTSecret   string
+	AccessTTL   time.Duration
+	APIBaseURL  string
+	WebBaseURL  string
+	MediaDir    string
+	R2          R2
+	SMTP        SMTP
+	// BrevoAPIKey envía los correos por la API web de Brevo (HTTPS). Tiene prioridad sobre SMTP:
+	// el plan gratis de Render bloquea los puertos SMTP. El remitente es SMTP_FROM.
+	BrevoAPIKey    string
 	PushProvider   string
 	ExpoToken      string
 	GoogleClients  []string
@@ -87,6 +90,7 @@ func Load(getenv func(string) string) (Config, error) {
 			Host: get("SMTP_HOST", ""), Port: get("SMTP_PORT", "587"), Username: get("SMTP_USERNAME", ""),
 			Password: get("SMTP_PASSWORD", ""), From: get("SMTP_FROM", ""),
 		},
+		BrevoAPIKey:    get("BREVO_API_KEY", ""),
 		PushProvider:   get("PUSH_PROVIDER", ""),
 		ExpoToken:      get("EXPO_ACCESS_TOKEN", ""),
 		GoogleClients:  list(get("GOOGLE_CLIENT_IDS", "")),
@@ -129,8 +133,8 @@ func Load(getenv func(string) string) (Config, error) {
 	if partialR2 && !c.R2.Enabled() {
 		errs = append(errs, errors.New("faltan datos de Cloudflare R2: define CLOUDFLARE_R2_ACCOUNT_ID, _BUCKET, _ACCESS_KEY_ID y _SECRET_ACCESS_KEY"))
 	}
-	if c.SMTP.Host != "" && c.SMTP.From == "" {
-		errs = append(errs, errors.New("SMTP_FROM es obligatorio si se define SMTP_HOST"))
+	if (c.SMTP.Host != "" || c.BrevoAPIKey != "") && c.SMTP.From == "" {
+		errs = append(errs, errors.New("SMTP_FROM (remitente verificado) es obligatorio si se define SMTP_HOST o BREVO_API_KEY"))
 	}
 	switch c.PushProvider {
 	case "log", "none", "expo":
