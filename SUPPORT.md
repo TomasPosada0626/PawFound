@@ -1,6 +1,6 @@
 # Soporte
 
-Para preguntas de uso de la app, solicitudes sobre tus datos personales o cualquier ayuda, escríbenos a **pawfoundoficial@gmail.com** (también desde la app, en Ajustes › Soporte y ayuda). Respondemos en menos de 24 horas.
+Para preguntas de uso de la app, solicitudes sobre tus datos personales o cualquier ayuda, escríbenos a **[pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com)** (también desde la app, en Ajustes › Soporte y ayuda). Respondemos en menos de 24 horas.
 
 Para ideas de producto o ayuda con el código, abre un Issue usando la plantilla más adecuada.
 
