@@ -11,9 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.pawfound",
-      "associatedDomains": [
-        "applinks:pawfound.pages.dev"
-      ]
+      "associatedDomains": ["applinks:pawfound.pages.dev"]
     },
     "android": {
       "package": "app.pawfound",
@@ -24,10 +22,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "blockedPermissions": [
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.RECORD_AUDIO"
-      ],
+      "blockedPermissions": ["android.permission.ACCESS_BACKGROUND_LOCATION", "android.permission.RECORD_AUDIO"],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -44,10 +39,7 @@
               "pathPrefix": "/mascota"
             }
           ],
-          "category": [
-            "BROWSABLE",
-            "DEFAULT"
-          ]
+          "category": ["BROWSABLE", "DEFAULT"]
         }
       ],
       "permissions": [
@@ -112,6 +104,14 @@
         "projectId": "af254568-a1a0-47c1-8cd3-f5b44f04cd0a"
       }
     },
-    "owner": "pawfounds-team"
+    "owner": "pawfounds-team",
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/af254568-a1a0-47c1-8cd3-f5b44f04cd0a",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
