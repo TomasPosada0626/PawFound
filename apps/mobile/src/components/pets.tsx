@@ -183,6 +183,7 @@ export function PetCard({
   now,
   width = 172,
   onPress,
+  compact = false,
 }: {
   pet: PetCase;
   distance?: number;
@@ -190,6 +191,8 @@ export function PetCard({
   width?: number;
   /** Sin onPress abre el caso; en el mapa la usa para mostrar solo esa mascota. */
   onPress?: () => void;
+  /** Versión baja para la hoja del mapa: deja más mapa a la vista. */
+  compact?: boolean;
 }) {
   const { t, locale } = useI18n();
   const { colors } = useTheme();
@@ -210,7 +213,7 @@ export function PetCard({
         className="active:opacity-90"
         testID={`pet-card-${pet.id}`}
       >
-        <PetPhoto pet={pet} rounded="rounded-none" className="h-32 w-full" />
+        <PetPhoto pet={pet} rounded="rounded-none" className={compact ? "h-24 w-full" : "h-32 w-full"} />
         <View className="absolute left-2 top-2">
           <StatusBadge kind={pet.kind} />
         </View>
@@ -218,10 +221,16 @@ export function PetCard({
           <Text variant="subheading" numberOfLines={1} className="pr-10">
             {name}
           </Text>
-          <Text variant="caption" numberOfLines={1}>
-            {subtitle}
-          </Text>
-          {distanceText ? (
+          {compact ? (
+            <Text variant="caption" tone="body" numberOfLines={1}>
+              {[distance !== undefined ? formatDistance(distance, locale) : null, time].filter(Boolean).join(" · ")}
+            </Text>
+          ) : (
+            <Text variant="caption" numberOfLines={1}>
+              {subtitle}
+            </Text>
+          )}
+          {!compact && distanceText ? (
             <View className="mt-1 flex-row items-center gap-1">
               <Icon name="location" size={13} color={colors.primaryStrong} />
               <Text variant="caption" tone="body" numberOfLines={1}>
@@ -229,12 +238,14 @@ export function PetCard({
               </Text>
             </View>
           ) : null}
-          <View className="flex-row items-center gap-1">
-            <Icon name="time-outline" size={13} color={colors.muted} />
-            <Text variant="caption" numberOfLines={1}>
-              {time}
-            </Text>
-          </View>
+          {!compact ? (
+            <View className="flex-row items-center gap-1">
+              <Icon name="time-outline" size={13} color={colors.muted} />
+              <Text variant="caption" numberOfLines={1}>
+                {time}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </Pressable>
       {/* Área táctil propia para el favorito: no dispara la navegación (docs/flujos/mapa-e-inicio.md §4). */}
@@ -243,7 +254,7 @@ export function PetCard({
         accessibilityLabel={favorite ? t("common.unfollowCase", { name }) : t("common.followCase", { name })}
         accessibilityState={{ selected: favorite }}
         onPress={() => toggleFavorite(pet.id)}
-        className="absolute right-0 top-[124px] h-12 w-12 items-center justify-center"
+        className={`absolute right-0 ${compact ? "top-[92px]" : "top-[124px]"} h-12 w-12 items-center justify-center`}
         testID={`favorite-${pet.id}`}
       >
         <Icon name={favorite ? "heart" : "heart-outline"} size={22} color={favorite ? colors.lost : colors.ink} />
