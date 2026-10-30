@@ -20,6 +20,8 @@ type User struct {
 	Phone        *string    `json:"phone,omitempty" db:"phone"`
 	Verified     bool       `json:"verified" db:"email_verified"`
 	Avatar       string     `json:"avatar" db:"avatar"`
+	PhotoID      *string    `json:"-" db:"photo_id"`
+	PhotoURL     *string    `json:"photoUrl,omitempty" db:"-"`
 	Title        string     `json:"title" db:"title"`
 	Bio          string     `json:"bio" db:"bio"`
 	City         string     `json:"city" db:"city"`
@@ -32,7 +34,7 @@ type User struct {
 	RatingCount  int        `json:"ratingCount" db:"-"`
 }
 
-const userCols = `id, name, username, email, phone, email_verified, avatar, title, bio, city, neighborhood, created_at, muted_until, lang, role`
+const userCols = `id, name, username, email, phone, email_verified, avatar, photo_id, title, bio, city, neighborhood, created_at, muted_until, lang, role`
 
 // PublicUser es lo que ven las demás personas: nombre corto, nunca correo ni celular.
 type PublicUser struct {
@@ -40,6 +42,7 @@ type PublicUser struct {
 	Name         string    `json:"name"`
 	Username     string    `json:"username"`
 	Avatar       string    `json:"avatar"`
+	PhotoURL     *string   `json:"photoUrl,omitempty"`
 	Title        string    `json:"title"`
 	Bio          string    `json:"bio"`
 	City         string    `json:"city"`
@@ -51,7 +54,7 @@ type PublicUser struct {
 
 func publicOf(u User) PublicUser {
 	return PublicUser{
-		ID: u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, Title: u.Title, Bio: u.Bio,
+		ID: u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, PhotoURL: u.PhotoURL, Title: u.Title, Bio: u.Bio,
 		City: u.City, Neighborhood: u.Neighborhood, Verified: u.Verified, CreatedAt: u.CreatedAt, Lang: u.Lang,
 	}
 }
@@ -107,6 +110,7 @@ type UserSummary struct {
 	ID        string    `json:"id"`
 	ShortName string    `json:"shortName"`
 	Avatar    string    `json:"avatar"`
+	PhotoURL  *string   `json:"photoUrl,omitempty"`
 	Verified  bool      `json:"verified"`
 	CreatedAt time.Time `json:"createdAt"`
 	Lang      string    `json:"lang"`

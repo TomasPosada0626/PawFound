@@ -143,7 +143,7 @@ func (a *App) DeleteAccount(ctx context.Context, ac Actor) error {
 				return err
 			}
 		}
-		rows, _ := tx.Query(ctx, `DELETE FROM media WHERE owner_id = $1 AND purpose IN ('chat', 'owned') RETURNING storage_key`, ac.ID)
+		rows, _ := tx.Query(ctx, `DELETE FROM media WHERE owner_id = $1 AND purpose IN ('chat', 'owned', 'avatar') RETURNING storage_key`, ac.ID)
 		var err error
 		keys, err = pgx.CollectRows(rows, pgx.RowTo[string])
 		if err != nil {
@@ -177,7 +177,7 @@ type UploadedMedia struct {
 // cuenta verificada, como publicar.
 func (a *App) Upload(ctx context.Context, ac Actor, purpose string, raw []byte) (UploadedMedia, error) {
 	switch purpose {
-	case "pet", "chat", "story":
+	case "pet", "chat", "story", "avatar":
 		if err := requireVerified(ac); err != nil {
 			return UploadedMedia{}, err
 		}

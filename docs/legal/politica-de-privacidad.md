@@ -19,7 +19,10 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
 - **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
   dígitos), contraseña cifrada o proveedor de inicio de sesión (Google, Apple). El número de
   celular es opcional: no se verifica ni se muestra a otras personas.
-- **Perfil**: foto y datos que decidas agregar a tu perfil.
+- **Perfil**: datos que decidas agregar a tu perfil y, si quieres, una foto propia en lugar
+  del avatar. La foto de perfil es pública: la ven las demás personas en tu perfil, en tus
+  reportes y en los chats. Se guarda sin metadatos (EXIF ni GPS); puedes cambiarla o
+  quitarla cuando quieras, y la anterior se borra.
 - **Reportes de mascotas**: descripción, fotos, ubicación aproximada, fecha y estado del
   caso.
 - **Ubicación**: ubicación aproximada, solo si la activas, para mostrar reportes cercanos

@@ -507,6 +507,9 @@ func (a *App) ResetPassword(ctx context.Context, token, password string) error {
 func (a *App) loadUser(ctx context.Context, q querier, userID string) (User, error) {
 	rows, _ := q.Query(ctx, `SELECT `+userCols+` FROM users WHERE id = $1`, userID)
 	u, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[User])
+	if u.PhotoID != nil {
+		u.PhotoURL = ptr(a.mediaURL(*u.PhotoID))
+	}
 	return u, notFoundIfNoRows(err)
 }
 
@@ -571,6 +574,8 @@ type ProfilePatch struct {
 	Neighborhood *string `json:"neighborhood"`
 	// Phone es opcional y nunca se muestra a otras personas. "" lo borra.
 	Phone *string `json:"phone"`
+	// PhotoID es una foto subida con purpose "avatar". "" la quita y vuelve el avatar.
+	PhotoID *string `json:"photoId"`
 }
 
 // UpdateProfile valida y guarda los cambios del perfil.
@@ -627,6 +632,25 @@ func (a *App) UpdateProfile(ctx context.Context, ac Actor, p ProfilePatch) (Me, 
 		}
 		add("phone", optional(phone))
 	}
+	var oldPhoto *string
+	newPhoto := ""
+	if p.PhotoID != nil {
+		if err := a.DB.QueryRow(ctx, `SELECT photo_id FROM users WHERE id = $1`, ac.ID).Scan(&oldPhoto); err != nil {
+			return Me{}, notFoundIfNoRows(err)
+		}
+		newPhoto = strings.TrimSpace(*p.PhotoID)
+		if newPhoto != "" {
+			var owned bool
+			if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM media WHERE id = $1 AND owner_id = $2 AND purpose = 'avatar')`,
+				newPhoto, ac.ID).Scan(&owned); err != nil {
+				return Me{}, err
+			}
+			if !owned {
+				return Me{}, invalid("photoId")
+			}
+		}
+		add("photo_id", optional(newPhoto))
+	}
 	if len(sets) > 0 {
 		if _, err := a.DB.Exec(ctx, `UPDATE users SET `+strings.Join(sets, ", ")+` WHERE id = $1`, args...); err != nil {
 			if isUniqueViolation(err) {
@@ -635,7 +659,26 @@ func (a *App) UpdateProfile(ctx context.Context, ac Actor, p ProfilePatch) (Me, 
 			return Me{}, err
 		}
 	}
+	// La foto anterior ya no se usa: se borra del almacenamiento.
+	if oldPhoto != nil && *oldPhoto != newPhoto {
+		a.deleteMedia(ctx, *oldPhoto)
+	}
 	return a.Me(ctx, ac.ID)
+}
+
+// deleteMedia borra una foto de la base y del almacenamiento (si falla el archivo, queda en el log).
+func (a *App) deleteMedia(ctx context.Context, id string) {
+	var key string
+	if err := a.DB.QueryRow(ctx, `DELETE FROM media WHERE id = $1 RETURNING storage_key`, id).Scan(&key); err != nil {
+		return
+	}
+	if remover, ok := a.Media.(interface {
+		Remove(context.Context, string) error
+	}); ok {
+		if err := remover.Remove(ctx, key); err != nil {
+			a.Log.Warn("no se pudo borrar la foto del almacenamiento", "media", id, "err", err)
+		}
+	}
 }
 
 // SetLanguage: los chats llegan traducidos a este idioma.

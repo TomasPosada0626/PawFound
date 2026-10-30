@@ -927,6 +927,12 @@ export class MockBackend {
     this.commit({ users: { ...this.state.users, [user.id]: { ...user, ...patch } } });
   }
 
+  /** Foto de perfil propia; null la quita y vuelve el avatar. */
+  async setProfilePhoto(uri: string | null): Promise<void> {
+    const user = this.requireVerified();
+    this.commit({ users: { ...this.state.users, [user.id]: { ...user, photoUrl: uri ?? undefined } } });
+  }
+
   /** La app informa el idioma elegido para que los chats lleguen traducidos a él. */
   async setLanguage(lang: Lang): Promise<void> {
     const user = this.currentUser;
