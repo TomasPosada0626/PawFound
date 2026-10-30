@@ -135,7 +135,7 @@ export function AngelAlertSettings({ prefs, userId }: { prefs: NotificationPrefs
             </Text>
             {zone.updatedAt ? (
               <Text variant="caption">
-                {t("notificationSettings.liveUpdated", { time: relativeTime(zone.updatedAt, new Date(), locale) })}
+                {t("notificationSettings.liveUpdated", { time: relativeTime(zone.updatedAt, new Date(), locale).toLowerCase() })}
               </Text>
             ) : null}
             <Text variant="caption">

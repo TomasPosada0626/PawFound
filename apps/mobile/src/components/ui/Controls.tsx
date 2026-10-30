@@ -184,6 +184,7 @@ export function Chip({
   dotColor,
   icon,
   testID,
+  className,
 }: {
   label: string;
   selected?: boolean;
@@ -191,6 +192,7 @@ export function Chip({
   dotColor?: string;
   icon?: IconName;
   testID?: string;
+  className?: string;
 }) {
   const { colors } = useTheme();
   return (
@@ -201,8 +203,9 @@ export function Chip({
       onPress={onPress}
       testID={testID}
       className={cn(
-        "min-h-[44px] flex-row items-center gap-2 rounded-full px-4 shadow-sm shadow-black/5 active:opacity-80",
+        "min-h-[44px] flex-row items-center justify-center gap-2 rounded-full px-4 shadow-sm shadow-black/5 active:opacity-80",
         selected ? "bg-primary-strong" : "border border-border bg-surface",
+        className,
       )}
     >
       {icon ? <Icon name={icon} size={16} color={selected ? "#FFFFFF" : colors.ink} /> : null}

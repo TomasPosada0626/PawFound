@@ -240,3 +240,30 @@ func firstNonEmpty(values ...string) string {
 	}
 	return ""
 }
+
+// EnsurePlaces carga las veterinarias si la tabla está vacía (primer despliegue o base nueva):
+// primero de OpenStreetMap, probando varios servidores con 40 s cada uno, y si ninguno responde,
+// de la copia guardada. Cada paso tiene su propio tiempo: que Overpass tarde no deja sin tiempo
+// a la copia. Devuelve cuántas cargó y de dónde (vacío si ya había).
+func (a *App) EnsurePlaces(ctx context.Context, overpassURL string) (int, string, error) {
+	if n, err := a.PlacesCount(ctx); err != nil || n > 0 {
+		return 0, "", err
+	}
+	importCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	n, err := a.ImportPlaces(importCtx, overpassURL, ValleDeAburra, &http.Client{Timeout: 40 * time.Second})
+	cancel()
+	if err == nil && n > 0 {
+		a.Log.Info("veterinarias cargadas", "count", n, "fuente", "OpenStreetMap")
+		return n, "OpenStreetMap", nil
+	}
+	if err != nil {
+		a.Log.Warn("OpenStreetMap no respondió; se cargan las veterinarias guardadas", "err", err)
+	}
+	seedCtx, cancelSeed := context.WithTimeout(context.WithoutCancel(ctx), time.Minute)
+	defer cancelSeed()
+	n, err = a.SeedPlacesSnapshot(seedCtx)
+	if err == nil {
+		a.Log.Info("veterinarias cargadas", "count", n, "fuente", "copia guardada de OpenStreetMap")
+	}
+	return n, "copia guardada de OpenStreetMap", err
+}

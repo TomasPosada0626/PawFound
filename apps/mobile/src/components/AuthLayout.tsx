@@ -32,14 +32,15 @@ export function AuthLayout({
         </View>
       }
     >
-      <PawDecoration size={110} className="absolute -left-6 top-24" />
-      <PawDecoration size={70} className="absolute -right-2 top-[420px]" />
+      {/* Huellas solo junto al logo: más abajo asomaban por detrás de la tarjeta. */}
+      <PawDecoration size={96} className="absolute -left-7 top-6" />
+      <PawDecoration size={64} className="absolute -right-3 top-0" />
       <View className="items-center">
-        <LogoMark size={92} />
-        <View className="mt-2">
-          <Wordmark size={40} />
+        <LogoMark size={64} />
+        <View className="mt-1">
+          <Wordmark size={34} />
         </View>
-        <View className="mt-1 flex-row items-center gap-2">
+        <View className="flex-row items-center gap-2">
           <View className="h-1.5 w-1.5 rounded-full bg-primary" />
           <Text variant="body" tone="body">
             {t("common.tagline")}
@@ -47,16 +48,16 @@ export function AuthLayout({
           <View className="h-1.5 w-1.5 rounded-full bg-primary" />
         </View>
       </View>
-      <View className="mt-6 rounded-[32px] border border-border/60 bg-surface px-5 py-6 shadow-lg shadow-black/10">
+      <View className="mt-5 rounded-[32px] border border-border/60 bg-surface px-5 py-6 shadow-lg shadow-black/10">
         <Text variant="title" className="text-center" accessibilityRole="header">
           {title}
         </Text>
         {subtitle ? (
-          <Text variant="body" tone="muted" className="mb-5 mt-1 text-center">
+          <Text variant="body" tone="muted" className="mb-4 mt-1 text-center">
             {subtitle}
           </Text>
         ) : (
-          <View className="mb-5" />
+          <View className="mb-4" />
         )}
         {children}
       </View>

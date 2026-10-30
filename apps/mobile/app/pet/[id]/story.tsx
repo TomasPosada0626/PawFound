@@ -60,6 +60,8 @@ export default function StoryScreen() {
   const url = `${SHARE_BASE_URL}${pet.id}`;
   const shortUrl = url.replace("https://", "");
   const canvasWidth = Math.min(width - 32, 340);
+  // La foto ocupa el 78 % del ancho útil: a lo ancho completo no cabían el nombre y la zona en 9:16.
+  const photoSize = canvasWidth * 0.88 * 0.78;
   const details = [pet.breed, pet.color].filter(Boolean).join(" · ");
 
   const copyLink = async () => {
@@ -126,14 +128,22 @@ export default function StoryScreen() {
           {pet.photos[0] ? (
             <Image
               source={{ uri: pet.photos[0] }}
-              style={{ width: "100%", aspectRatio: 1, borderRadius: 22, borderWidth: 5, borderColor: "#FFFFFF", marginTop: 12 }}
+              style={{
+                width: photoSize,
+                height: photoSize,
+                alignSelf: "center",
+                borderRadius: 22,
+                borderWidth: 5,
+                borderColor: "#FFFFFF",
+                marginTop: 12,
+              }}
               contentFit="cover"
               accessible={false}
             />
           ) : (
             <View
-              className="mt-3 aspect-square w-full items-center justify-center rounded-3xl"
-              style={{ backgroundColor: "#FFFFFF26" }}
+              className="mt-3 items-center justify-center self-center rounded-3xl"
+              style={{ width: photoSize, height: photoSize, backgroundColor: "#FFFFFF26" }}
             >
               <Icon name="paw" size={canvasWidth * 0.3} color="#FFFFFF" />
             </View>

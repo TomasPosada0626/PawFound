@@ -150,7 +150,7 @@ export default function LoginScreen() {
         testID="fill-demo"
       >
         <Text variant="caption" className="text-center">
-          {t("auth.demoAccount", { identifier: DEMO_EMAIL, password: DEMO_PASSWORD })}
+          {t("auth.demoAccount", { email: DEMO_EMAIL, password: DEMO_PASSWORD })}
         </Text>
       </Pressable>
     </AuthLayout>

@@ -118,100 +118,111 @@ export default function StoryViewer() {
         />
       </View>
 
-      <SafeAreaView edges={["top"]} className="absolute left-0 right-0 top-0 px-3 pt-2" pointerEvents="box-none">
-        <View
-          className="flex-row gap-1"
-          accessible
-          accessibilityLabel={t("stories.position", { current: index + 1, total: slides.length })}
-        >
-          {slides.map((s, i) => (
-            <View key={s.id} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/35">
-              <Animated.View
-                style={{
-                  height: 3,
-                  backgroundColor: "#FFFFFF",
-                  width:
-                    i < index
-                      ? "100%"
-                      : i === index
-                        ? progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] })
-                        : "0%",
-                }}
-              />
-            </View>
-          ))}
-        </View>
-        <View className="mt-3 flex-row items-center gap-3">
-          {pet.photos[0] ? (
-            <Image source={{ uri: pet.photos[0] }} style={{ width: 36, height: 36, borderRadius: 18 }} accessible={false} />
-          ) : null}
-          <View className="flex-1">
-            <Text variant="bodyStrong" tone="white" numberOfLines={1}>
-              {name}
-            </Text>
-            <Text variant="caption" tone="white" className="opacity-80" numberOfLines={1}>
-              {`${pet.kind === "lost" ? t("stories.lost") : t("stories.found")} · ${pet.zone}`}
-            </Text>
+      {/* El relleno va en una vista interna: SafeAreaView reemplaza el suyo por el del área segura. */}
+      <SafeAreaView edges={["top"]} className="absolute left-0 right-0 top-0" pointerEvents="box-none">
+        <View className="px-4 pt-2" pointerEvents="box-none">
+          <View
+            className="flex-row gap-1"
+            accessible
+            accessibilityLabel={t("stories.position", { current: index + 1, total: slides.length })}
+          >
+            {slides.map((s, i) => (
+              <View key={s.id} className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/35">
+                <Animated.View
+                  style={{
+                    height: 3,
+                    backgroundColor: "#FFFFFF",
+                    width:
+                      i < index
+                        ? "100%"
+                        : i === index
+                          ? progress.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] })
+                          : "0%",
+                  }}
+                />
+              </View>
+            ))}
           </View>
-          <IconButton icon="close" label={t("common.close")} color="#FFFFFF" onPress={() => router.back()} testID="story-close" />
+          <View className="mt-3 flex-row items-center gap-3">
+            {pet.photos[0] ? (
+              <Image source={{ uri: pet.photos[0] }} style={{ width: 36, height: 36, borderRadius: 18 }} accessible={false} />
+            ) : null}
+            <View className="flex-1">
+              <Text variant="bodyStrong" tone="white" numberOfLines={1}>
+                {name}
+              </Text>
+              <Text variant="caption" tone="white" className="opacity-80" numberOfLines={1}>
+                {`${pet.kind === "lost" ? t("stories.lost") : t("stories.found")} · ${pet.zone}`}
+              </Text>
+            </View>
+            <IconButton
+              icon="close"
+              label={t("common.close")}
+              color="#FFFFFF"
+              onPress={() => router.back()}
+              testID="story-close"
+            />
+          </View>
         </View>
       </SafeAreaView>
 
-      <SafeAreaView edges={["bottom"]} className="absolute bottom-0 left-0 right-0 gap-2 px-4 pb-3" pointerEvents="box-none">
-        <View className="flex-row gap-2">
-          <View className="flex-1">
-            <Button
-              label={t("stories.viewCase")}
-              icon="paw"
-              variant="soft"
-              compact
-              onPress={() => router.replace(`/pet/${pet.id}`)}
-              testID="story-view-case"
+      <SafeAreaView edges={["bottom"]} className="absolute bottom-0 left-0 right-0" pointerEvents="box-none">
+        <View className="gap-2 px-4 pb-3" pointerEvents="box-none">
+          <View className="flex-row items-center gap-2">
+            <View className="flex-1">
+              <Button
+                label={t("stories.viewCase")}
+                icon="paw"
+                variant="soft"
+                compact
+                onPress={() => router.replace(`/pet/${pet.id}`)}
+                testID="story-view-case"
+              />
+            </View>
+            {pet.kind === "lost" && !isOwner ? (
+              <View className="flex-1">
+                <Button
+                  label={t("stories.sawIt")}
+                  icon="eye"
+                  compact
+                  onPress={() => router.replace(`/pet/${pet.id}/sighting`)}
+                  testID="story-saw-it"
+                />
+              </View>
+            ) : null}
+            <IconButton
+              icon="share-social"
+              label={t("common.share")}
+              color="#FFFFFF"
+              onPress={() => void sharePet(pet)}
+              testID="story-share"
             />
           </View>
-          {pet.kind === "lost" && !isOwner ? (
-            <View className="flex-1">
-              <Button
-                label={t("stories.sawIt")}
-                icon="eye"
-                compact
-                onPress={() => router.replace(`/pet/${pet.id}/sighting`)}
-                testID="story-saw-it"
-              />
+          {isOwner ? (
+            <View className="flex-row gap-2">
+              <View className="flex-1">
+                <Button
+                  label={t("stories.add")}
+                  icon="add-circle-outline"
+                  variant="ghost"
+                  compact
+                  onPress={() => setAdding(true)}
+                  testID="story-add"
+                />
+              </View>
+              {slide.type === "update" ? (
+                <Button
+                  label={t("stories.remove")}
+                  icon="trash-outline"
+                  variant="ghost"
+                  compact
+                  onPress={() => void removeCurrent()}
+                  testID="story-remove"
+                />
+              ) : null}
             </View>
           ) : null}
-          <IconButton
-            icon="share-social"
-            label={t("common.share")}
-            color="#FFFFFF"
-            onPress={() => void sharePet(pet)}
-            testID="story-share"
-          />
         </View>
-        {isOwner ? (
-          <View className="flex-row gap-2">
-            <View className="flex-1">
-              <Button
-                label={t("stories.add")}
-                icon="add-circle-outline"
-                variant="ghost"
-                compact
-                onPress={() => setAdding(true)}
-                testID="story-add"
-              />
-            </View>
-            {slide.type === "update" ? (
-              <Button
-                label={t("stories.remove")}
-                icon="trash-outline"
-                variant="ghost"
-                compact
-                onPress={() => void removeCurrent()}
-                testID="story-remove"
-              />
-            ) : null}
-          </View>
-        ) : null}
       </SafeAreaView>
 
       <AddUpdateSheet

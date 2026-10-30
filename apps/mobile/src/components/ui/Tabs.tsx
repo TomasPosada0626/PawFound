@@ -49,10 +49,13 @@ export function SegmentedControl<K extends string>({
   items,
   value,
   onChange,
+  fit = false,
 }: {
   items: TabItem<K>[];
   value: K;
   onChange: (key: K) => void;
+  /** Cada opción toma el ancho de su texto (para etiquetas de largo muy distinto). */
+  fit?: boolean;
 }) {
   return (
     <View accessibilityRole="tablist" className="flex-row rounded-full bg-surface p-1 shadow-sm shadow-black/10">
@@ -65,13 +68,20 @@ export function SegmentedControl<K extends string>({
             accessibilityLabel={item.label}
             accessibilityState={{ selected }}
             onPress={() => onChange(item.key)}
+            style={fit ? { flexGrow: 1, flexBasis: "auto" } : undefined}
             className={cn(
-              "min-h-[52px] flex-1 flex-row items-center justify-center gap-2 rounded-full active:opacity-80",
+              "min-h-[52px] flex-row items-center justify-center gap-2 rounded-full px-3 active:opacity-80",
+              !fit && "flex-1",
               selected && "border-[1.5px] border-primary-strong bg-surface",
             )}
           >
             {item.icon ? <Icon name={item.icon} size={20} color={item.iconColor ?? "#08807A"} /> : null}
-            <Text variant="subheading" tone={selected ? (item.key === "lost" ? "lost" : "primary") : "ink"}>
+            <Text
+              variant="subheading"
+              tone={selected ? (item.key === "lost" ? "lost" : "primary") : "ink"}
+              numberOfLines={1}
+              className="shrink"
+            >
               {item.label}
             </Text>
           </Pressable>

@@ -222,19 +222,23 @@ export default function MessagesScreen() {
             )}
           </View>
 
-          <View className="mt-5 flex-row items-center gap-3 rounded-3xl border border-border/60 bg-surface p-4">
+          {/* Toda la tarjeta abre soporte: con un botón al lado, el texto quedaba en una columna angosta. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("messages.contactSupport")}
+            onPress={() => router.push("/settings/support")}
+            className="mt-5 min-h-[72px] flex-row items-center gap-3 rounded-3xl border border-border/60 bg-surface p-4 active:opacity-80"
+          >
             <IconBubble icon="chatbubbles-outline" />
             <View className="flex-1">
               <Text variant="bodyStrong">{t("messages.needHelp")}</Text>
               <Text variant="caption">{t("messages.helpBody")}</Text>
+              <Text variant="captionStrong" tone="primary" className="mt-1">
+                {t("messages.contactSupport")}
+              </Text>
             </View>
-            <Button
-              label={t("messages.contactSupport")}
-              variant="outline"
-              compact
-              onPress={() => router.push("/settings/support")}
-            />
-          </View>
+            <Icon name="chevron-forward" size={18} color={colors.muted} />
+          </Pressable>
         </>
       )}
     </Screen>
