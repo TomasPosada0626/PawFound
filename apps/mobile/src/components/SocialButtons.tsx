@@ -3,7 +3,7 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, View } from "react-native";
 
 import { useI18n } from "@/i18n/I18nProvider";
-import type { SocialProvider } from "@/services/backendTypes";
+import { BackendError, type SocialProvider } from "@/services/backendTypes";
 import { useBackend } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -15,15 +15,13 @@ const PROVIDERS: {
   key: SocialProvider;
   icon: IconName;
   color: string | null;
-  label: "auth.google" | "auth.apple";
-}[] = [
-  { key: "google", icon: "logo-google", color: "#4285F4", label: "auth.google" },
-  { key: "apple", icon: "logo-apple", color: null, label: "auth.apple" },
-];
+  label: "auth.google";
+}[] = [{ key: "google", icon: "logo-google", color: "#4285F4", label: "auth.google" }];
 
 /**
- * Google y Apple. El proveedor ya confirmó el correo, así que la cuenta llega verificada
- * (insignia azul) sin pedir el código de 6 dígitos.
+ * Entrar con Google: el proveedor ya confirmó el correo, así que la cuenta llega verificada
+ * (insignia azul) sin pedir el código de 6 dígitos. Mientras no esté configurado, avisa que
+ * llega pronto (antes decía "sin conexión").
  */
 export function SocialButtons({ next }: { next: string }) {
   const { t } = useI18n();
@@ -37,8 +35,9 @@ export function SocialButtons({ next }: { next: string }) {
     try {
       await backend.loginWithProvider(provider);
       router.replace(next as never);
-    } catch {
-      toast(t("errors.network"), "error");
+    } catch (e) {
+      if (e instanceof BackendError && e.code === "provider_unavailable") toast(t("auth.googleSoon"), "info");
+      else toast(t("errors.network"), "error");
     } finally {
       setBusy(null);
     }

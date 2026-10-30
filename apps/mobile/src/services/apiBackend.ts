@@ -99,6 +99,7 @@ type ApiMe = {
   privacyPrefs: PrivacyPrefs;
   alertZone: AlertZone | null;
   allowance: { allowed: boolean; retryAt?: string };
+  activeSessions?: number;
 };
 type ApiSession = { accessToken: string; refreshToken: string; me: ApiMe; needsVerification: boolean };
 type ApiPet = Omit<PetCase, "sightings"> & {
@@ -136,6 +137,9 @@ function emptyState(): BackendState {
     stories: [],
     places: [],
     remoteBadges: {},
+    nearbyLoaded: false,
+    threadsLoaded: false,
+    activeSessions: 0,
   };
 }
 
@@ -422,6 +426,7 @@ export class ApiBackend {
       notificationPrefs: { ...this.state.notificationPrefs, [user.id]: me.notificationPrefs },
       privacyPrefs: { ...this.state.privacyPrefs, [user.id]: me.privacyPrefs },
       alertZones,
+      activeSessions: Math.max(1, me.activeSessions ?? 1),
     });
   }
 
@@ -449,6 +454,8 @@ export class ApiBackend {
       this.connectRealtime();
     } catch {
       // Sin red: se reintenta en la próxima sincronización periódica.
+    } finally {
+      if (!this.state.threadsLoaded) this.commit({ threadsLoaded: true });
     }
   }
 
@@ -836,11 +843,16 @@ export class ApiBackend {
   // --- Cargadores: completan la copia local cuando una pantalla los necesita -----------------
 
   async loadNearby(center: LatLng): Promise<void> {
-    const list = await this.request<ApiPet[]>(
-      "GET",
-      `/v1/pets?lat=${center.latitude}&lng=${center.longitude}&radius=${NEARBY_RADIUS}`,
-    );
-    this.mergePets(list);
+    try {
+      const list = await this.request<ApiPet[]>(
+        "GET",
+        `/v1/pets?lat=${center.latitude}&lng=${center.longitude}&radius=${NEARBY_RADIUS}`,
+      );
+      this.mergePets(list);
+    } finally {
+      // Con o sin éxito termina la espera: sin red se muestra el estado vacío, no esqueletos eternos.
+      if (!this.state.nearbyLoaded) this.commit({ nearbyLoaded: true });
+    }
   }
 
   async loadPet(petId: string): Promise<void> {

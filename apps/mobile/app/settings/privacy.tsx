@@ -25,6 +25,7 @@ export default function PrivacyScreen() {
   const toast = useToast();
   const [whoOpen, setWhoOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [sendingReset, setSendingReset] = useState(false);
 
   if (!user) return <Redirect href={{ pathname: "/auth/login", params: { next: "/settings/privacy" } }} />;
   const prefs = state.privacyPrefs[user.id] ?? DEFAULT_PRIVACY_PREFS;
@@ -38,6 +39,19 @@ export default function PrivacyScreen() {
       toast(t("privacy.exportReady"), "info");
     } catch {
       toast(t("errors.unknown"), "error");
+    }
+  };
+
+  // Cambiar la contraseña: llega al correo el mismo enlace de "¿Olvidaste tu contraseña?".
+  const sendPasswordLink = async () => {
+    setSendingReset(true);
+    try {
+      await backend.requestPasswordReset(user.email);
+      toast(t("privacy.passwordSent", { email: maskEmail(user.email) }), "info");
+    } catch {
+      toast(t("errors.network"), "error");
+    } finally {
+      setSendingReset(false);
     }
   };
 
@@ -70,14 +84,15 @@ export default function PrivacyScreen() {
         <ListRow
           icon="lock-closed-outline"
           title={t("privacy.password")}
-          description="••••••••••"
-          onPress={() => toast(t("privacy.passwordChange"), "info")}
+          description={sendingReset ? t("privacy.passwordSending") : t("privacy.passwordChange")}
+          onPress={sendingReset ? undefined : () => void sendPasswordLink()}
+          testID="change-password"
         />
         <Divider />
         <ListRow
           icon="phone-portrait-outline"
           title={t("privacy.devices")}
-          description={t("privacy.devicesCount", { count: 1 })}
+          description={t("privacy.devicesCount", { count: state.activeSessions || 1 })}
         />
       </SettingsCard>
 

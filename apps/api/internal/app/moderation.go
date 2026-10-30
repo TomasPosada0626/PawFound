@@ -27,9 +27,10 @@ type UserBrief struct {
 	MutedUntil  *time.Time `db:"muted_until"`
 	SuspendedAt *time.Time `db:"suspended_at"`
 	Warnings    int        `db:"warnings"`
+	PhotoID     *string    `db:"photo_id"`
 }
 
-const briefCols = `id, name, username, email, role, email_verified, created_at, muted_until, suspended_at, warnings`
+const briefCols = `id, name, username, email, role, email_verified, created_at, muted_until, suspended_at, warnings, photo_id`
 
 // QueueItem es un reporte de la cola.
 type QueueItem struct {
@@ -250,7 +251,7 @@ type ModerationInput struct {
 // Acciones del panel.
 var moderationActions = map[string]bool{
 	"dismiss": true, "warn": true, "mute": true, "unmute": true, "remove_message": true, "restore_message": true,
-	"remove_pet": true, "restore_pet": true, "suspend": true, "unsuspend": true,
+	"remove_pet": true, "restore_pet": true, "suspend": true, "unsuspend": true, "remove_photo": true,
 }
 
 // Moderate aplica una decisión, la registra y resuelve el reporte asociado.
@@ -304,9 +305,15 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 			}
 		}
 	}
-	return a.withTx(ctx, func(tx pgx.Tx) error {
+	var removedPhoto string
+	err := a.withTx(ctx, func(tx pgx.Tx) error {
 		var err error
 		switch in.Action {
+		case "remove_photo":
+			// La foto vuelve al avatar; el archivo se borra después de guardar la decisión.
+			err = tx.QueryRow(ctx, `UPDATE users u SET photo_id = NULL FROM (SELECT id, photo_id FROM users WHERE id = $1 FOR UPDATE) old
+				WHERE u.id = old.id AND old.photo_id IS NOT NULL RETURNING old.photo_id`, in.UserID).Scan(&removedPhoto)
+			err = notFoundIfNoRows(err)
 		case "warn":
 			_, err = tx.Exec(ctx, `UPDATE users SET warnings = warnings + 1 WHERE id = $1`, in.UserID)
 		case "mute":
@@ -364,6 +371,10 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 		}
 		return err
 	})
+	if err == nil && removedPhoto != "" {
+		a.deleteMedia(ctx, removedPhoto)
+	}
+	return err
 }
 
 // GrantRole da o quita el rol de moderación (comando de administración, no hay pantalla).

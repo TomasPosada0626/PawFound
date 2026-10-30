@@ -539,6 +539,11 @@ func (a *App) Me(ctx context.Context, userID string) (Me, error) {
 	if !allowed {
 		me.Allowance.RetryAt = &retry
 	}
+	// Dispositivos con la sesión abierta: familias de tokens con algún token vigente.
+	if err := a.DB.QueryRow(ctx, `SELECT count(DISTINCT family) FROM refresh_tokens WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > $2`,
+		userID, a.now()).Scan(&me.ActiveSessions); err != nil {
+		return Me{}, err
+	}
 	return me, nil
 }
 

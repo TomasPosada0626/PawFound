@@ -11,6 +11,7 @@
     <label class="option"><input type="radio" name="action" value="mute168" {{if eq .Suggest "mute168"}}checked{{end}}> <span><strong>Restringir 7 días</strong> Reincidencia.</span></label>
     {{if .HasMessage}}<label class="option"><input type="radio" name="action" value="remove_message"> <span><strong>Retirar el mensaje</strong> Deja de verse en el chat.</span></label>{{end}}
     {{if .HasPet}}<label class="option"><input type="radio" name="action" value="remove_pet"> <span><strong>Retirar la publicación</strong> Sale del mapa y deja de contar para insignias.</span></label>{{end}}
+    {{if .HasPhoto}}<label class="option"><input type="radio" name="action" value="remove_photo"> <span><strong>Quitar la foto de perfil</strong> Se borra y vuelve su avatar.</span></label>{{end}}
     {{if .Muted}}<label class="option"><input type="radio" name="action" value="unmute"> <span><strong>Levantar la restricción</strong> Puede volver a escribir.</span></label>{{end}}
     {{if .Suspended}}<label class="option"><input type="radio" name="action" value="unsuspend"> <span><strong>Reactivar la cuenta</strong> Por apelación aceptada.</span></label>
     {{else}}<label class="option danger"><input type="radio" name="action" value="suspend" {{if eq .Suggest "suspend"}}checked{{end}}> <span><strong>Suspender la cuenta</strong> Cierra todas sus sesiones.</span></label>{{end}}
@@ -39,6 +40,7 @@
 
 {{define "person"}}
 <section class="card person">
+  {{if .PhotoID}}<img class="person-photo" src="/admin/media/{{deref .PhotoID}}" alt="Foto de perfil de {{.Name}}" width="72" height="72">{{end}}
   <h2>{{.Name}}</h2>
   <p class="muted">@{{.Username}} · {{.Email}}</p>
   <dl>

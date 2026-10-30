@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/layout";
 import { PetMap } from "@/components/map/PetMap";
 import { PlaceSheet } from "@/components/PlaceSheet";
 import { PetCard, PetPhoto, petDisplayName, StatusBadge } from "@/components/pets";
+import { PetCardSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Banner, Chip, ToggleRow } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -26,6 +27,8 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { statusColor } from "@/theme/tokens";
 
 const DEFAULT_RADIUS = 2500;
+/** "Mi ubicación": unos 500 m a la redonda, con la persona en el centro de lo visible. */
+const MY_LOCATION_RADIUS = 500;
 /** La hoja "Mascotas cerca de ti" tapa cerca de la mitad inferior del mapa. */
 const SHEET_SHARE = 0.45;
 /** Más celdas = los pines solo se agrupan cuando de verdad se tocan. */
@@ -61,6 +64,7 @@ export default function MapScreen() {
 
   const [filters, setFilters] = useState<PetFilters>(DEFAULT_FILTERS);
   // Al abrir se ven todas las mascotas activas.
+  const [recenterKey, setRecenterKey] = useState(0);
   const [target, setTarget] = useState<Region>(() =>
     regionForAll(
       filterPets(state.pets, location, now, DEFAULT_FILTERS).map((r) => r.pet.location),
@@ -183,13 +187,21 @@ export default function MapScreen() {
     if (locationConsent === "granted" && !hasRealLocation) void request();
   }, [prefsLoaded, locationConsent, hasRealLocation, request]);
 
+  // Cada toque recentra aunque la región pedida sea la misma de antes (el mapa pudo moverse).
+  const centerOn = (point: LatLng) => {
+    setTarget(regionAbove(point, MY_LOCATION_RADIUS));
+    setRecenterKey((k) => k + 1);
+  };
+
   const locateMe = async () => {
     if (locationConsent !== "granted") {
       setConsentOpen(true);
       return;
     }
+    // Primero la última ubicación conocida (respuesta inmediata) y luego la del GPS, más precisa.
+    if (hasRealLocation) centerOn(location);
     const point = await request();
-    setTarget(regionForRadius(point ?? location, DEFAULT_RADIUS));
+    if (point) centerOn(point);
   };
 
   const pinLabel = (pet: PetCase) =>
@@ -290,6 +302,7 @@ export default function MapScreen() {
           pinLabel={pinLabel}
           clusterLabel={(c) => t("map.clusterLabel", { count: c.pets.length })}
           userLocation={hasRealLocation ? location : undefined}
+          recenterKey={recenterKey}
           satellite={satellite}
           places={showPlaces ? nearbyPlaces : []}
           onPlacePress={setPlace}
@@ -362,7 +375,13 @@ export default function MapScreen() {
                   <Banner tone="warning" icon="location-outline" body={t("map.locationDenied")} />
                 </View>
               ) : null}
-              {!listOpen ? null : results.length === 0 ? (
+              {!listOpen ? null : results.length === 0 && !state.nearbyLoaded ? (
+                <View className="flex-row gap-3 overflow-hidden px-4 pt-3">
+                  {[0, 1, 2].map((i) => (
+                    <PetCardSkeleton key={i} width={150} compact />
+                  ))}
+                </View>
+              ) : results.length === 0 ? (
                 <View className="items-center gap-3 px-6 py-6" testID="map-empty">
                   <Text variant="subheading" className="text-center">
                     {t("map.empty")}
@@ -465,7 +484,7 @@ export default function MapScreen() {
               setLocationConsent("granted");
               setConsentOpen(false);
               const point = await request();
-              setTarget(regionForRadius(point ?? location, DEFAULT_RADIUS));
+              if (point) centerOn(point);
             }}
           />
           <Button
