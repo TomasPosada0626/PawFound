@@ -10,6 +10,20 @@ function imageSize(uri: string): Promise<{ width: number; height: number }> {
 }
 
 /**
+ * true si la foto todavía se puede leer. Un borrador guardado puede apuntar a una foto de la
+ * caché que Android ya borró: subirla falla como si no hubiera internet.
+ */
+export async function photoExists(uri: string): Promise<boolean> {
+  if (/^https?:\/\//.test(uri)) return true;
+  try {
+    await imageSize(uri);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Achica la foto antes de subirla: lado mayor de 1600 px y JPEG al 80 %, unos 300 KB en vez de
  * los 3 a 8 MB de una foto de cámara. Así sube en segundos con datos móviles y el servidor no
  * corta la conexión. Si el módulo no está (Expo Go o una app instalada antes de este cambio),
