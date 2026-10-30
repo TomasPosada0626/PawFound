@@ -7,6 +7,7 @@ import { NotificationRow } from "@/components/notifications";
 import { KindTag, PetAvatar, StatusBadge, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, IconBubble } from "@/components/ui/Controls";
+import { RowSkeleton } from "@/components/ui/Skeleton";
 import { Icon } from "@/components/ui/Icon";
 import { UnderlineTabs } from "@/components/ui/Tabs";
 import { cn, Text } from "@/components/ui/Text";
@@ -193,7 +194,13 @@ export default function MessagesScreen() {
                 </Text>
               </Pressable>
             ) : null}
-            {tab === "notifications" ? null : rows.length === 0 ? (
+            {tab === "notifications" ? null : rows.length === 0 && !query && !state.threadsLoaded ? (
+              <View className="gap-3">
+                {[0, 1, 2].map((i) => (
+                  <RowSkeleton key={i} round />
+                ))}
+              </View>
+            ) : rows.length === 0 ? (
               <EmptyState
                 icon={tab === "chats" ? "chatbubble-ellipses-outline" : "people-outline"}
                 title={

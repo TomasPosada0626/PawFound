@@ -17,7 +17,7 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
 ## 2. Qué datos recolectamos
 
 - **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
-  dígitos), contraseña cifrada o proveedor de inicio de sesión (Google, Apple). El número de
+  dígitos), contraseña cifrada o, si entras con Google, ese proveedor. El número de
   celular es opcional: no se verifica ni se muestra a otras personas.
 - **Perfil**: datos que decidas agregar a tu perfil y, si quieres, una foto propia en lugar
   del avatar. La foto de perfil es pública: la ven las demás personas en tu perfil, en tus

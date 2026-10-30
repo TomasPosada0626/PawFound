@@ -9,7 +9,8 @@ import { HomeMenu } from "@/components/HomeMenu";
 import { AppHeader, Screen } from "@/components/layout";
 import { NotificationRow } from "@/components/notifications";
 import { PetCard, PetPhoto, UserAvatar } from "@/components/pets";
-import { Banner, Card, EmptyState, SectionHeader } from "@/components/ui/Controls";
+import { Card, EmptyState, SectionHeader } from "@/components/ui/Controls";
+import { PetCardSkeleton } from "@/components/ui/Skeleton";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { OptionList, Sheet } from "@/components/ui/Sheet";
@@ -196,7 +197,13 @@ export default function HomeScreen() {
           onAction={() => router.navigate("/map")}
         />
       </View>
-      {nearby.length === 0 ? (
+      {nearby.length === 0 && !state.nearbyLoaded ? (
+        <View className="flex-row gap-3 overflow-hidden">
+          {[0, 1, 2].map((i) => (
+            <PetCardSkeleton key={i} />
+          ))}
+        </View>
+      ) : nearby.length === 0 ? (
         <EmptyState icon="paw-outline" title={t("home.emptyNearby")} />
       ) : (
         <FlatList
@@ -261,10 +268,6 @@ export default function HomeScreen() {
           </View>
         </View>
       ) : null}
-
-      <View className="mt-6">
-        <Banner icon="flask-outline" body={t("common.demoBanner")} />
-      </View>
 
       <HomeMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
       <Sheet visible={pickPetOpen} onClose={() => setPickPetOpen(false)} title={t("myPets.whichLost")} testID="pick-owned-pet">

@@ -6,8 +6,10 @@ interface Props {
   title: string;
   description: string;
   section?: "inicio" | "guia" | "ayuda" | "legal";
+  /** Páginas con datos en la URL (p. ej. el token de /restablecer): sin indexar ni referer. */
+  isPrivate?: boolean;
 }
-const { title, description, section = "inicio" } = Astro.props;
+const { title, description, section = "inicio", isPrivate = false } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const nav = [
   { href: "/#como-funciona", label: "Cómo funciona", key: "inicio" },
@@ -24,6 +26,8 @@ const nav = [
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    {isPrivate ? <meta name="robots" content="noindex, nofollow" /> : null}
+    {isPrivate ? <meta name="referrer" content="no-referrer" /> : null}
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.png" type="image/png" />
     <meta name="theme-color" content="#0B2239" />

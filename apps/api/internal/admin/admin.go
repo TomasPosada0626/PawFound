@@ -100,7 +100,7 @@ var actionLabels = map[string]string{
 	"dismiss": "Descartó el reporte", "warn": "Envió un aviso", "mute": "Restringió los mensajes",
 	"unmute": "Levantó la restricción", "remove_message": "Retiró un mensaje", "restore_message": "Restauró un mensaje",
 	"remove_pet": "Retiró una publicación", "restore_pet": "Restauró una publicación", "suspend": "Suspendió la cuenta",
-	"unsuspend": "Reactivó la cuenta",
+	"unsuspend": "Reactivó la cuenta", "remove_photo": "Quitó la foto de perfil",
 }
 
 var suggestLabels = map[string]string{
@@ -141,6 +141,7 @@ var funcs = template.FuncMap{
 			Action: "/admin/reports/" + d.Item.ID,
 		}
 		if d.Reported != nil {
+			v.HasPhoto = d.Reported.PhotoID != nil
 			v.Muted = d.Reported.MutedUntil != nil && d.Reported.MutedUntil.After(time.Now())
 			v.Suspended = d.Reported.SuspendedAt != nil
 		}
@@ -178,6 +179,7 @@ type decideView struct {
 	Suggest    string
 	HasMessage bool
 	HasPet     bool
+	HasPhoto   bool
 	IsReport   bool
 	Muted      bool
 	Suspended  bool
@@ -404,6 +406,7 @@ func (p *Panel) user(w http.ResponseWriter, r *http.Request) {
 	decide := decideView{
 		Suggest: app.SuggestSanction(&u, history), CSRF: s.csrf, Action: "/admin/users/" + u.ID,
 		Muted: u.MutedUntil != nil && u.MutedUntil.After(p.App.Now()), Suspended: u.SuspendedAt != nil,
+		HasPhoto: u.PhotoID != nil,
 	}
 	p.render(w, r, http.StatusOK, "user", view{
 		Title: u.Name, Section: "users", Error: r.URL.Query().Get("error"),

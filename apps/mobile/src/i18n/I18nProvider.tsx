@@ -1,9 +1,8 @@
-import { getLocales } from "expo-localization";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { readJSON, STORAGE_KEYS, writeJSON } from "@/services/storage";
 
-import { resolveLocale, translate, translateList, type Locale, type TKey, type TParams } from "./core";
+import { translate, translateList, type Locale, type TKey, type TParams } from "./core";
 
 type I18n = {
   locale: Locale;
@@ -14,16 +13,10 @@ type I18n = {
 
 const I18nContext = createContext<I18n | null>(null);
 
-function deviceLocale(): Locale {
-  try {
-    return resolveLocale(getLocales()[0]?.languageCode);
-  } catch {
-    return "es";
-  }
-}
-
 export function I18nProvider({ children, initialLocale }: { children: ReactNode; initialLocale?: Locale }) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? deviceLocale());
+  // Español siempre por defecto, aunque el celular esté en otro idioma. El inglés queda como
+  // opción del menú y se recuerda si la persona lo elige.
+  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? "es");
 
   useEffect(() => {
     if (initialLocale) return;

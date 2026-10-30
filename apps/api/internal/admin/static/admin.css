@@ -144,6 +144,7 @@ input[type="email"], input[type="password"], input:not([type]), textarea {
 .confirm { flex-direction: row; align-items: center; gap: 0.5rem; font-weight: 400; margin: 0.75rem 0; }
 .suggest { background: var(--surface-alt); padding: 0.6rem 0.8rem; border-radius: 10px; }
 
+.person-photo { display: block; width: 72px; height: 72px; border-radius: 50%; object-fit: cover; margin-bottom: 0.5rem; }
 .person dl { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; margin: 1rem 0 0; }
 .person dt { font-size: 0.8rem; color: var(--muted); }
 .person dd { margin: 0; font-weight: 700; color: var(--ink); }

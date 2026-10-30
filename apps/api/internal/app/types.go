@@ -83,6 +83,8 @@ type Me struct {
 	PrivacyPrefs      PrivacyPrefs             `json:"privacyPrefs"`
 	AlertZone         *AlertZone               `json:"alertZone"`
 	Allowance         Allowance                `json:"allowance"`
+	// ActiveSessions son los dispositivos con la sesión abierta (familias de tokens vigentes).
+	ActiveSessions int `json:"activeSessions"`
 }
 
 // Session es la respuesta de registro, login, OAuth y refresh.

@@ -5,6 +5,7 @@ import { View } from "react-native";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { PetRow } from "@/components/pets";
 import { EmptyState } from "@/components/ui/Controls";
+import { RowSkeleton } from "@/components/ui/Skeleton";
 import { Text } from "@/components/ui/Text";
 import { distanceMeters } from "@/domain/geo";
 import { useNow } from "@/hooks/useNow";
@@ -45,7 +46,13 @@ export default function PetListScreen() {
       <Text variant="title" className="mb-4 text-center" accessibilityRole="header">
         {title}
       </Text>
-      {rows.length === 0 ? (
+      {rows.length === 0 && filter === "nearby" && !state.nearbyLoaded ? (
+        <View className="gap-3">
+          {[0, 1, 2, 3].map((i) => (
+            <RowSkeleton key={i} />
+          ))}
+        </View>
+      ) : rows.length === 0 ? (
         <EmptyState icon={filter === "following" ? "heart-outline" : "paw-outline"} title={empty} />
       ) : (
         <View className="gap-3">
