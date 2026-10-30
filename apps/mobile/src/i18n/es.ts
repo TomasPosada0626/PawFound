@@ -453,6 +453,8 @@ export const es = {
     rate_limited: "Demasiados intentos seguidos. Espera un momento e intenta de nuevo.",
     suspended: "Esta cuenta está suspendida por incumplir las normas de la comunidad.",
     invalid_input: "Revisa los datos e intenta de nuevo.",
+    storage_unavailable: "No pudimos subir las fotos. Intenta de nuevo en unos minutos.",
+    invalid_image: "No pudimos leer una de las fotos. Prueba con otra (JPG o PNG, máximo 8 MB).",
     photo_required: "Agrega al menos una foto: es lo que más ayuda a reconocerla.",
     location_required: "Marca en el mapa dónde fue vista.",
     too_long: "Máximo {max} caracteres",

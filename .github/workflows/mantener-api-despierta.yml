@@ -1,0 +1,24 @@
+# Mantiene despierta la API de Render (plan gratis) durante el día, para que crear cuenta,
+# iniciar sesión y publicar respondan en menos de un segundo. Render duerme el servicio tras
+# 15 minutos sin tráfico y despertarlo tarda cerca de un minuto.
+#
+# /health no toca la base de datos: Neon sigue durmiéndose entre las tareas periódicas
+# (JOBS_INTERVAL=10m), así el plan gratis (100 horas de cómputo al mes) alcanza. De noche no
+# se visita: la primera persona de la mañana espera ese minuto.
+name: Mantener la API despierta
+
+on:
+  schedule:
+    # Cada 10 minutos de 6:00 a 22:59 hora de Colombia (UTC-5).
+    - cron: "*/10 11-23,0-3 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  visitar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Visitar /health
+        run: curl -fsS --max-time 120 --retry 2 https://pawfound-api.onrender.com/health

@@ -65,8 +65,12 @@ CLOUDFLARE_R2_SECRET_ACCESS_KEY=...
 PUSH_PROVIDER=expo
 ```
 
-Después del primer arranque, desde un computador con el repositorio y la cadena de Neon (el
-segundo comando, después de registrarse en la app):
+Después del primer arranque no hace falta correr nada: si la tabla de veterinarias está vacía,
+la API las importa sola de OpenStreetMap, y las cuentas de `ADMIN_EMAILS` reciben el rol de
+administrador en cuanto verifican su correo (agrega `ADMIN_EMAILS=tu-correo@ejemplo.com`).
+
+Para volver a importarlas o dar otros roles, desde un computador con el repositorio y la
+cadena de Neon:
 
 ```powershell
 cd apps/api

@@ -11,7 +11,7 @@ import { TextField } from "@/components/ui/TextField";
 import { LEGAL_URLS } from "@/config";
 import { PASSWORD_MIN_LENGTH, validateRegister, type RegisterForm } from "@/domain/validation";
 import { safeNext } from "@/hooks/useAuthGate";
-import { authErrorMessage } from "@/features/authErrors";
+import { errorMessage } from "@/features/errorMessages";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useTheme } from "@/theme/ThemeProvider";
 import { Icon } from "@/components/ui/Icon";
@@ -63,7 +63,7 @@ export default function RegisterScreen() {
       if (code === "email_taken") setServerError({ field: "email", message: t("errors.email_taken") });
       else if (code === "username_taken" || code === "invalid_username")
         setServerError({ field: "username", message: t(`errors.${code}`) });
-      else setServerError({ message: authErrorMessage(code, t) });
+      else setServerError({ message: errorMessage(code, t) });
     } finally {
       setLoading(false);
     }

@@ -67,7 +67,7 @@ func resetMessage(link string) (subject, body string) {
 }
 
 // SendVerificationCode envía el código de 6 dígitos.
-func (m SMTPMailer) SendVerificationCode(_ context.Context, email, code, lang string) error {
+func (m SMTPMailer) SendVerificationCode(_ context.Context, email, _, code, lang string) error {
 	subject, body := verificationMessage(code, lang)
 	return m.send(email, subject, body)
 }

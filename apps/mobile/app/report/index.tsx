@@ -32,6 +32,7 @@ import {
   type DraftErrors,
   type ReportDraft,
 } from "@/features/reportDraft";
+import { errorMessage } from "@/features/errorMessages";
 import { usePlacePicker, zoneFromPoint } from "@/hooks/usePlacePicker";
 import { clockTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -169,7 +170,7 @@ export default function ReportScreen() {
           "error",
         );
       } else {
-        toast(t("errors.unknown"), "error");
+        toast(errorMessage(error instanceof BackendError ? error.code : "unknown", t), "error");
       }
     } finally {
       setSubmitting(false);

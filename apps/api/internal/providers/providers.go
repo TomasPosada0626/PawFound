@@ -44,7 +44,8 @@ type Translator interface {
 // Mailer envía el código de verificación (insignia azul) y el enlace para restablecer la
 // contraseña. Es la única verificación de PawFound: gratis, sin SMS.
 type Mailer interface {
-	SendVerificationCode(ctx context.Context, email, code, lang string) error
+	// name es el nombre de la cuenta, para saludar ("¡Hola, Valentina!").
+	SendVerificationCode(ctx context.Context, email, name, code, lang string) error
 	SendPasswordReset(ctx context.Context, email, link string) error
 }
 
@@ -116,7 +117,7 @@ func (p ExpoPush) Send(ctx context.Context, messages []PushMessage) error {
 type LogMailer struct{ Log *slog.Logger }
 
 // SendVerificationCode registra el código para poder probar el registro en local.
-func (m LogMailer) SendVerificationCode(_ context.Context, email, code, _ string) error {
+func (m LogMailer) SendVerificationCode(_ context.Context, email, _, code, _ string) error {
 	m.Log.Info("correo de desarrollo (no se envió)", "to_domain", domainOf(email), "code", code)
 	return nil
 }

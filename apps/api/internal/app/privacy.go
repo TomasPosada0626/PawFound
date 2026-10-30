@@ -198,7 +198,10 @@ func (a *App) Upload(ctx context.Context, ac Actor, purpose string, raw []byte) 
 	id := domain.NewID("med")
 	key := id + ".jpg"
 	if err := a.Media.Put(ctx, key, processed.Data); err != nil {
-		return UploadedMedia{}, err
+		// El detalle (R2 sin configurar, credenciales, permisos) queda en el log; la app dice que
+		// no se pudo subir la foto.
+		a.Log.Error("no se pudo guardar la foto", "err", err)
+		return UploadedMedia{}, newErr(http.StatusServiceUnavailable, "storage_unavailable", nil)
 	}
 	if _, err := a.DB.Exec(ctx, `INSERT INTO media (id, owner_id, purpose, content_type, width, height, bytes, phash, storage_key, created_at)
 		VALUES ($1, $2, $3, 'image/jpeg', $4, $5, $6, $7, $8, $9)`, id, ac.ID, purpose, processed.Width, processed.Height,

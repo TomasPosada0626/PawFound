@@ -132,6 +132,8 @@ const KNOWN_CODES = new Set<ErrorCode>([
   "invalid_input",
   "suspended",
   "unauthorized",
+  "storage_unavailable",
+  "invalid_image",
 ]);
 
 export class ApiBackend {
