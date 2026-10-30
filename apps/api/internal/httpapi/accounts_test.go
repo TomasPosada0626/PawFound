@@ -353,3 +353,81 @@ func TestProfilePhoto(t *testing.T) {
 		t.Fatalf("sin foto: %+v", cleared.User)
 	}
 }
+
+// La página /restablecer de la web llama a la API desde el navegador: solo ese origen.
+func TestPasswordResetCORSOnlyForWeb(t *testing.T) {
+	h := newHarness(t)
+	preflight := func(origin string) *http.Response {
+		t.Helper()
+		req, _ := http.NewRequest(http.MethodOptions, h.srv.URL+"/v1/auth/password-reset/confirm", nil)
+		req.Header.Set("Origin", origin)
+		req.Header.Set("Access-Control-Request-Method", "POST")
+		res, err := h.srv.Client().Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = res.Body.Close()
+		return res
+	}
+	if res := preflight("https://pawfound.test"); res.StatusCode != http.StatusNoContent ||
+		res.Header.Get("Access-Control-Allow-Origin") != "https://pawfound.test" || !strings.Contains(res.Header.Get("Access-Control-Allow-Headers"), "Content-Type") {
+		t.Fatalf("preflight de la web = %d %v", res.StatusCode, res.Header)
+	}
+	if res := preflight("https://otro-sitio.example"); res.Header.Get("Access-Control-Allow-Origin") != "" {
+		t.Fatal("otro origen no recibe permiso CORS")
+	}
+	body := strings.NewReader(`{"token":"inventado","password":"NuevaClave2027"}`)
+	req, _ := http.NewRequest(http.MethodPost, h.srv.URL+"/v1/auth/password-reset/confirm", body)
+	req.Header.Set("Origin", "https://pawfound.test")
+	req.Header.Set("Content-Type", "application/json")
+	res, err := h.srv.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = res.Body.Close()
+	if res.StatusCode != http.StatusGone || res.Header.Get("Access-Control-Allow-Origin") != "https://pawfound.test" {
+		t.Fatalf("confirmación desde la web = %d %v", res.StatusCode, res.Header)
+	}
+}
+
+func TestActiveSessionsCount(t *testing.T) {
+	h := newHarness(t)
+	var first, second app.Session
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("disp@pawfound.app", "disp"), &first)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "disp", "password": "Patitas2026"}, &second)
+	if second.Me.ActiveSessions != 2 {
+		t.Fatalf("dos dispositivos con la sesión abierta, contó %d", second.Me.ActiveSessions)
+	}
+	h.must(http.StatusNoContent, http.MethodPost, "/v1/auth/logout", "", map[string]string{"refreshToken": first.RefreshToken}, nil)
+	var me app.Me
+	h.must(http.StatusOK, http.MethodGet, "/v1/me", second.AccessToken, nil, &me)
+	if me.ActiveSessions != 1 {
+		t.Fatalf("tras cerrar sesión en uno, contó %d", me.ActiveSessions)
+	}
+}
+
+func TestModeratorRemovesProfilePhoto(t *testing.T) {
+	h := newHarness(t)
+	ana := h.user("Ana Restrepo", true)
+	mod := h.user("Moderadora", true)
+	_, _ = h.app.DB.Exec(context.Background(), `UPDATE users SET role = 'moderator' WHERE id = $1`, mod.ID)
+	photo, _ := h.upload(ana, "avatar", jpegBytes(7))
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", ana.Token, map[string]string{"photoId": photo.ID}, nil)
+
+	actor := app.Actor{ID: mod.ID, Name: "Moderadora", Verified: true, Role: "moderator"}
+	if err := h.app.Moderate(context.Background(), actor, app.ModerationInput{UserID: ana.ID, Action: "remove_photo", Note: "foto inapropiada"}); err != nil {
+		t.Fatal(err)
+	}
+	var me app.Me
+	h.must(http.StatusOK, http.MethodGet, "/v1/me", ana.Token, nil, &me)
+	if me.User.PhotoURL != nil || h.count(`SELECT count(*) FROM media WHERE id = $1`, photo.ID) != 0 {
+		t.Fatalf("la foto debía quitarse y borrarse: %+v", me.User)
+	}
+	if h.count(`SELECT count(*) FROM moderation_actions WHERE action = 'remove_photo' AND target_user_id = $1`, ana.ID) != 1 {
+		t.Fatal("la decisión queda en la bitácora")
+	}
+	// Sin foto ya no hay nada que quitar.
+	if err := h.app.Moderate(context.Background(), actor, app.ModerationInput{UserID: ana.ID, Action: "remove_photo"}); err == nil {
+		t.Fatal("quitar una foto que no existe debe fallar")
+	}
+}

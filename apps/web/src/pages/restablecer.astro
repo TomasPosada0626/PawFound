@@ -1,0 +1,141 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Destino del enlace del correo "Restablecer contraseña" (pawfound.pages.dev/restablecer?token=…).
+// La página no guarda nada: envía la nueva contraseña a la API, que acepta esta página por CORS.
+const api = (import.meta.env.PUBLIC_API_URL || "https://pawfound-api.onrender.com").replace(/\/+$/, "");
+---
+
+<Base title="Nueva contraseña · PawFound" description="Elige una nueva contraseña para tu cuenta de PawFound." isPrivate>
+  <section class="page-hero">
+    <div class="wrap">
+      <h1>Elige una nueva contraseña</h1>
+      <p>Después vuelve a la app e inicia sesión con ella. Por seguridad, se cerrarán las sesiones abiertas en otros celulares.</p>
+    </div>
+  </section>
+  <section class="reset-wrap">
+    <div class="wrap">
+      <form class="card reset" id="reset-form" data-api={api} novalidate>
+        <label for="password">Nueva contraseña</label>
+        <div class="field">
+          <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="256" required />
+          <button type="button" class="toggle" id="toggle" aria-controls="password" aria-pressed="false">Ver</button>
+        </div>
+        <ul class="rules" id="rules" aria-live="polite">
+          <li data-rule="length">Al menos 8 caracteres</li>
+          <li data-rule="upper">Una letra mayúscula</li>
+          <li data-rule="lower">Una letra minúscula</li>
+          <li data-rule="number">Un número</li>
+        </ul>
+        <label for="confirm">Repite la contraseña</label>
+        <input id="confirm" name="confirm" type="password" autocomplete="new-password" maxlength="256" required />
+        <p class="message" id="message" role="status" aria-live="polite"></p>
+        <button type="submit" class="btn btn-primary" id="submit">Guardar contraseña</button>
+      </form>
+      <div class="card reset done" id="done" hidden>
+        <h2>¡Listo! Tu contraseña cambió</h2>
+        <p>Abre PawFound e inicia sesión con tu nueva contraseña.</p>
+        <a class="btn btn-primary" href="pawfound://auth/login">Abrir PawFound</a>
+      </div>
+    </div>
+  </section>
+
+  <style>
+    .reset-wrap { padding: 2.5rem 0 4rem; }
+    /* .card usa display: grid, que le gana al atributo hidden. */
+    .reset[hidden] { display: none; }
+    .reset { max-width: 30rem; margin: 0 auto; gap: 0.5rem; }
+    .reset label { font-weight: 800; color: var(--ink); margin-top: 0.4rem; }
+    .reset input { font: inherit; width: 100%; min-height: 48px; padding: 0.7rem 0.9rem; border: 1.5px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--ink); }
+    .reset input:focus { outline: 3px solid var(--teal-soft); border-color: var(--teal); }
+    .field { position: relative; }
+    .field input { padding-right: 4.5rem; }
+    .toggle { position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%); font: inherit; font-weight: 800; color: var(--teal); background: var(--teal-soft); border: 0; border-radius: 999px; padding: 0.4rem 0.8rem; cursor: pointer; }
+    .rules { list-style: none; margin: 0.2rem 0 0.4rem; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.8rem; font-size: 0.9rem; color: var(--muted); }
+    .rules li::before { content: "○ "; }
+    .rules li.ok { color: var(--teal); }
+    .rules li.ok::before { content: "✓ "; }
+    .message { min-height: 1.4rem; margin: 0.3rem 0 0; font-weight: 700; }
+    .message.error { color: var(--lost); }
+    .message.info { color: var(--muted); }
+    .reset .btn { width: 100%; margin-top: 0.3rem; }
+    .reset .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+    .done { text-align: center; justify-items: center; }
+    .done .btn { width: auto; }
+  </style>
+
+  <script is:inline>
+    (() => {
+      const form = document.getElementById("reset-form");
+      const done = document.getElementById("done");
+      const password = document.getElementById("password");
+      const confirm = document.getElementById("confirm");
+      const message = document.getElementById("message");
+      const submit = document.getElementById("submit");
+      const toggle = document.getElementById("toggle");
+      // El token se lee y se quita de la barra de direcciones (no queda en el historial).
+      const token = new URLSearchParams(location.search).get("token") || "";
+      if (token) history.replaceState(null, "", location.pathname);
+
+      const say = (text, kind) => {
+        message.textContent = text;
+        message.className = "message " + (kind || "");
+      };
+      const rules = {
+        length: (v) => v.length >= 8,
+        upper: (v) => /\p{Lu}/u.test(v),
+        lower: (v) => /\p{Ll}/u.test(v),
+        number: (v) => /\p{Nd}/u.test(v),
+      };
+      const check = () => {
+        let ok = true;
+        for (const li of document.querySelectorAll("#rules li")) {
+          const pass = rules[li.dataset.rule](password.value);
+          li.classList.toggle("ok", pass);
+          ok = ok && pass;
+        }
+        return ok;
+      };
+      password.addEventListener("input", check);
+      toggle.addEventListener("click", () => {
+        const show = password.type === "password";
+        password.type = show ? "text" : "password";
+        toggle.textContent = show ? "Ocultar" : "Ver";
+        toggle.setAttribute("aria-pressed", String(show));
+      });
+
+      if (!/^[A-Za-z0-9_-]{16,128}$/.test(token)) {
+        say("Este enlace no es válido. Pide uno nuevo desde la app con «¿Olvidaste tu contraseña?».", "error");
+        submit.disabled = true;
+        return;
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (!check()) return say("La contraseña todavía no cumple todos los requisitos.", "error");
+        if (password.value !== confirm.value) return say("Las contraseñas no coinciden.", "error");
+        submit.disabled = true;
+        say("Guardando… si el servidor estaba dormido puede tardar hasta un minuto.", "info");
+        try {
+          const res = await fetch(form.dataset.api + "/v1/auth/password-reset/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, password: password.value }),
+          });
+          if (res.ok) {
+            form.hidden = true;
+            done.hidden = false;
+            return;
+          }
+          if (res.status === 410) say("El enlace venció o ya se usó. Pide uno nuevo desde la app.", "error");
+          else if (res.status === 422) say("La contraseña no cumple los requisitos.", "error");
+          else if (res.status === 429) say("Demasiados intentos. Espera un rato e inténtalo de nuevo.", "error");
+          else say("No pudimos guardar la contraseña. Inténtalo de nuevo.", "error");
+        } catch {
+          say("No pudimos conectar. Revisa tu internet e inténtalo de nuevo.", "error");
+        }
+        submit.disabled = false;
+      });
+    })();
+  </script>
+</Base>

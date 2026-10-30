@@ -98,6 +98,12 @@ export type BackendState = {
   places: Place[];
   /** Insignias de otras cuentas calculadas por la API (en demostración se calculan aquí). */
   remoteBadges: Record<string, BadgeProgress[]>;
+  /** Ya llegó la primera carga de mascotas cercanas (mientras tanto se muestran esqueletos). */
+  nearbyLoaded: boolean;
+  /** Ya llegaron los chats de la cuenta. */
+  threadsLoaded: boolean;
+  /** Dispositivos con la sesión abierta en esta cuenta. */
+  activeSessions: number;
 };
 
 export type OwnedPetInput = Omit<OwnedPet, "id" | "ownerId" | "createdAt" | "lastCaseId">;

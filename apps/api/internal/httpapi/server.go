@@ -91,7 +91,8 @@ func (s *Server) routes(r chi.Router) {
 		r.Post("/auth/refresh", s.limited("refresh", s.refresh))
 		r.Post("/auth/logout", s.logout)
 		r.Post("/auth/password-reset", s.limited("reset", s.passwordReset))
-		r.Post("/auth/password-reset/confirm", s.limited("reset", s.passwordResetConfirm))
+		r.Post("/auth/password-reset/confirm", s.webCORS(s.limited("reset", s.passwordResetConfirm)))
+		r.Options("/auth/password-reset/confirm", s.webCORS(nil))
 	})
 
 	// Lectura pública: el mapa, un caso y los perfiles se ven sin sesión (los enlaces
@@ -249,6 +250,27 @@ func (s *Server) limited(name string, h http.HandlerFunc) http.HandlerFunc {
 }
 
 // securityHeaders aplica a toda respuesta; el panel agrega su propia CSP.
+// webCORS deja que la página /restablecer de la web (WebBaseURL) llame a este endpoint desde el
+// navegador. Solo ese origen y solo aquí: el resto de la API no acepta peticiones de páginas web.
+func (s *Server) webCORS(next http.HandlerFunc) http.HandlerFunc {
+	allowed := strings.TrimRight(s.App.WebBaseURL, "/")
+	return func(w http.ResponseWriter, r *http.Request) {
+		if origin := r.Header.Get("Origin"); origin != "" && origin == allowed {
+			h := w.Header()
+			h.Set("Access-Control-Allow-Origin", origin)
+			h.Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Content-Type")
+			h.Set("Access-Control-Max-Age", "600")
+			h.Add("Vary", "Origin")
+		}
+		if r.Method == http.MethodOptions || next == nil {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		next(w, r)
+	}
+}
+
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
