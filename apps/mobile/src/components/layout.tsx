@@ -81,8 +81,8 @@ export function Screen({
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   // Con menú inferior: su alto y el del botón "+" (~110) más la barra del sistema, para que
-  // nada quede debajo.
-  const bottomSpace = withTabBar ? 120 + Math.max(insets.bottom, 10) : 32;
+  // nada quede debajo. Sin menú, igual se deja la barra de navegación de Android.
+  const bottomSpace = withTabBar ? 120 + Math.max(insets.bottom, 10) : 32 + insets.bottom;
   return (
     <SafeAreaView edges={["top", "left", "right"]} style={{ flex: 1, backgroundColor: colors.bg }} testID={testID}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>

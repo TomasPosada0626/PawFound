@@ -279,6 +279,12 @@ func (a *App) Refresh(ctx context.Context, token string) (Session, error) {
 		return Session{}, err
 	}
 	if revoked != nil {
+		// Reintento legítimo: la respuesta de la rotación se perdió (datos móviles) o la app se
+		// cerró antes de guardar el token nuevo. Si fue hace poco y la sesión sigue abierta (no se
+		// cerró ni se cambió la contraseña), se entrega otro token de la misma familia.
+		if a.now().Sub(*revoked) <= refreshReuseGrace && a.familyActive(ctx, family) {
+			return a.rotateWithin(ctx, userID, family)
+		}
 		_, _ = a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2) WHERE family = $1`, family, a.now())
 		a.Log.Warn("reuso de refresh token: familia revocada", "user", userID)
 		return Session{}, ErrUnauthorized
@@ -286,15 +292,29 @@ func (a *App) Refresh(ctx context.Context, token string) (Session, error) {
 	if a.now().After(expires) {
 		return Session{}, ErrUnauthorized
 	}
+	if _, err := a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = $2 WHERE id = $1 AND revoked_at IS NULL`, id, a.now()); err != nil {
+		return Session{}, err
+	}
+	// Si otra petición lo rotó al mismo tiempo, esta también recibe un token de la familia.
+	return a.rotateWithin(ctx, userID, family)
+}
+
+// refreshReuseGrace es el margen en que reusar un refresh token recién rotado se toma como un
+// reintento y no como robo.
+const refreshReuseGrace = 2 * time.Minute
+
+// familyActive indica si la sesión (familia de tokens) sigue abierta en algún dispositivo.
+func (a *App) familyActive(ctx context.Context, family string) bool {
+	var active bool
+	_ = a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM refresh_tokens WHERE family = $1 AND revoked_at IS NULL AND expires_at > $2)`,
+		family, a.now()).Scan(&active)
+	return active
+}
+
+// rotateWithin emite un refresh token nuevo en la misma familia y arma la sesión.
+func (a *App) rotateWithin(ctx context.Context, userID, family string) (Session, error) {
 	if err := a.ensureNotSuspended(ctx, userID); err != nil {
 		return Session{}, err
-	}
-	tag, err := a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = $2 WHERE id = $1 AND revoked_at IS NULL`, id, a.now())
-	if err != nil {
-		return Session{}, err
-	}
-	if tag.RowsAffected() == 0 { // otra petición lo rotó al mismo tiempo
-		return Session{}, ErrUnauthorized
 	}
 	next, err := a.storeRefresh(ctx, userID, family)
 	if err != nil {

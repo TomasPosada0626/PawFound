@@ -37,9 +37,11 @@ export default function ProfileScreen() {
   const ownedPets = useMemo(() => (user ? ownedPetsOf(state, user.id) : []), [state, user]);
   const activity = useMemo(() => (user ? userActivity(state, user.id).slice(0, 4) : []), [state, user]);
 
+  // Cada pantalla lleva su propia key: la pestaña sigue montada al cerrar sesión y, en Android,
+  // la vista conservaba el desplazamiento del perfil largo y mostraba vacío el contenido corto.
   if (!user || !stats) {
     return (
-      <Screen withTabBar header={<AppHeader />} testID="profile-screen">
+      <Screen key="guest" withTabBar header={<AppHeader />} testID="profile-screen">
         <EmptyState
           icon="person-circle-outline"
           title={t("profile.guestTitle")}
@@ -71,7 +73,7 @@ export default function ProfileScreen() {
   };
 
   return (
-    <Screen withTabBar header={<AppHeader />} testID="profile-screen">
+    <Screen key={user.id} withTabBar header={<AppHeader />} testID="profile-screen">
       {/* Identidad */}
       <View className="mt-2 flex-row gap-4">
         <Pressable

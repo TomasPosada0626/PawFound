@@ -5,7 +5,7 @@ import { Pressable, View } from "react-native";
 import { AuthLayout, OrDivider } from "@/components/AuthLayout";
 import { SocialButtons } from "@/components/SocialButtons";
 import { Button } from "@/components/ui/Button";
-import { Banner, Checkbox } from "@/components/ui/Controls";
+import { Banner } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
@@ -27,7 +27,6 @@ export default function LoginScreen() {
   const toast = useToast();
 
   const [form, setForm] = useState<LoginForm>({ identifier: "", password: "" });
-  const [remember, setRemember] = useState(true);
   const [touched, setTouched] = useState<Partial<Record<keyof LoginForm, boolean>>>({});
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -44,7 +43,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const { needsVerification } = await backend.login(form.identifier, form.password);
-      await writeJSON(STORAGE_KEYS.session, remember ? backend.getSnapshot().sessionUserId : null);
+      await writeJSON(STORAGE_KEYS.session, backend.getSnapshot().sessionUserId);
       if (needsVerification) router.replace({ pathname: "/auth/verify", params: { next } });
       else router.replace(next as never);
     } catch (error) {
@@ -94,12 +93,7 @@ export default function LoginScreen() {
           testID="login-password"
         />
       </View>
-      <View className="mt-2 flex-row flex-wrap items-center justify-between">
-        <Checkbox checked={remember} onChange={setRemember} label={t("auth.remember")}>
-          <Text variant="captionStrong" tone="primary">
-            {t("auth.remember")}
-          </Text>
-        </Checkbox>
+      <View className="mt-1 flex-row items-center justify-end">
         <Pressable
           accessibilityRole="link"
           onPress={async () => {
