@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/xml"
 	"fmt"
 	"io"
 	"net/http"
@@ -32,15 +33,49 @@ type S3Store struct {
 	Now    func() time.Time
 }
 
-// R2 arma el S3Store de Cloudflare R2 a partir del id de la cuenta.
+// R2 arma el S3Store de Cloudflare R2 a partir del id de la cuenta. También acepta la URL
+// "S3 API" que muestra Cloudflare en el bucket (https://<id>.r2.cloudflarestorage.com/<bucket>),
+// que es fácil pegar por error en lugar del id.
 func R2(accountID, bucket, accessKey, secretKey string) S3Store {
+	account := strings.TrimSpace(accountID)
+	account = strings.TrimPrefix(strings.TrimPrefix(account, "https://"), "http://")
+	if i := strings.IndexAny(account, "./"); i >= 0 {
+		account = account[:i]
+	}
 	return S3Store{
-		Endpoint: "https://" + accountID + ".r2.cloudflarestorage.com", Bucket: bucket, AccessKey: accessKey,
-		SecretKey: secretKey, Region: "auto",
+		Endpoint: "https://" + account + ".r2.cloudflarestorage.com", Bucket: strings.Trim(strings.TrimSpace(bucket), "/"),
+		AccessKey: accessKey, SecretKey: secretKey, Region: "auto",
 	}
 }
 
+// statusError describe una respuesta fallida con el código que da el almacenamiento
+// (AccessDenied, NoSuchBucket, SignatureDoesNotMatch, InvalidAccessKeyId...): con solo el número
+// HTTP no se sabe si falla la clave, el permiso o el nombre del bucket. Nunca incluye secretos.
+func statusError(res *http.Response, action string) error {
+	var body struct {
+		Code    string `xml:"Code"`
+		Message string `xml:"Message"`
+	}
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 4<<10))
+	if xml.Unmarshal(raw, &body) == nil && body.Code != "" {
+		return fmt.Errorf("almacenamiento respondió %d al %s: %s (%s)", res.StatusCode, action, body.Code, body.Message)
+	}
+	return fmt.Errorf("almacenamiento respondió %d al %s", res.StatusCode, action)
+}
+
 const unsignedPayload = "UNSIGNED-PAYLOAD"
+
+// checkKey es el archivo de prueba que Check sube y borra.
+const checkKey = "pawfound-verificacion.jpg"
+
+// Check sube y borra un archivo pequeño: confirma al arrancar que la clave, el permiso de
+// escritura y el bucket sirven, en lugar de enterarse cuando alguien publica una foto.
+func (s S3Store) Check(ctx context.Context) error {
+	if err := s.Put(ctx, checkKey, []byte("ok")); err != nil {
+		return err
+	}
+	return s.Remove(ctx, checkKey)
+}
 
 // Put sube el archivo (siempre JPEG re-codificado, ver Process).
 func (s S3Store) Put(ctx context.Context, key string, data []byte) error {
@@ -50,7 +85,7 @@ func (s S3Store) Put(ctx context.Context, key string, data []byte) error {
 	}
 	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 300 {
-		return fmt.Errorf("almacenamiento respondió %d al subir", res.StatusCode)
+		return statusError(res, "subir")
 	}
 	return nil
 }
@@ -62,8 +97,8 @@ func (s S3Store) Open(ctx context.Context, key string) (io.ReadCloser, error) {
 		return nil, err
 	}
 	if res.StatusCode >= 300 {
-		_ = res.Body.Close()
-		return nil, fmt.Errorf("almacenamiento respondió %d al leer", res.StatusCode)
+		defer func() { _ = res.Body.Close() }()
+		return nil, statusError(res, "leer")
 	}
 	return res.Body, nil
 }
@@ -74,9 +109,9 @@ func (s S3Store) Remove(ctx context.Context, key string) error {
 	if err != nil {
 		return err
 	}
-	_ = res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 	if res.StatusCode >= 300 && res.StatusCode != http.StatusNotFound {
-		return fmt.Errorf("almacenamiento respondió %d al borrar", res.StatusCode)
+		return statusError(res, "borrar")
 	}
 	return nil
 }
