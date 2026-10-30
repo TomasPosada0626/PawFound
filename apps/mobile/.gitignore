@@ -33,6 +33,9 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase (notificaciones push): se sube a EAS como variable de tipo archivo, nunca al repo.
+google-services.json
+
 # typescript
 *.tsbuildinfo
 

@@ -175,6 +175,8 @@ export class ApiBackend {
   private codeSentAt = 0;
   private socket: WebSocket | null = null;
   private refreshing: Promise<RenewResult> | null = null;
+  /** Token push registrado por este celular, para darlo de baja al cerrar sesión. */
+  private pushToken: string | null = null;
 
   constructor(private readonly baseUrl: string) {}
 
@@ -541,7 +543,13 @@ export class ApiBackend {
   }
 
   async logout(): Promise<void> {
+    // Primero se da de baja este celular: tras cerrar sesión no debe recibir las alertas de la
+    // cuenta (importa en celulares compartidos).
+    if (this.tokens && this.pushToken) {
+      await this.request("DELETE", "/v1/me/devices", { token: this.pushToken }).catch(() => {});
+    }
     if (this.tokens) await this.request("POST", "/v1/auth/logout", { refreshToken: this.tokens.refresh }).catch(() => {});
+    this.pushToken = null;
     await this.clearSession();
   }
 
@@ -913,7 +921,9 @@ export class ApiBackend {
   }
 
   async registerPushToken(token: string, platform: "android" | "ios"): Promise<void> {
-    if (this.tokens) await this.request("POST", "/v1/me/devices", { token, platform });
+    if (!this.tokens) return;
+    await this.request("POST", "/v1/me/devices", { token, platform });
+    this.pushToken = token;
   }
 
   async loadPlaces(center: LatLng): Promise<void> {

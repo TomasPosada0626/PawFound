@@ -75,9 +75,12 @@ No usamos tus datos para publicidad ni los vendemos a terceros.
 Con otras personas usuarias, solo lo necesario para coordinar un caso (por ejemplo, tu
 nombre de perfil y tu mensaje dentro de un chat de caso). Con proveedores que nos ayudan a
 operar el servicio, únicamente los datos mínimos necesarios para su función, listados en
-[incidentes-y-proveedores.md](incidentes-y-proveedores.md) (almacenamiento de imágenes,
-notificaciones push, caché técnica y monitoreo de errores). Ningún proveedor se activa en
-producción sin evaluación de seguridad y privacidad previa. No compartimos tus datos con
+[incidentes-y-proveedores.md](incidentes-y-proveedores.md): alojamiento y base de datos,
+almacenamiento de fotos, envío de correos y notificaciones push. Las notificaciones viajan
+por Expo y, en Android, por Firebase Cloud Messaging de Google: reciben el identificador
+técnico de tu celular y el texto del aviso (por ejemplo, el nombre de la mascota), nunca tu
+ubicación, teléfono ni correo. Ningún proveedor se activa en producción sin evaluación de
+seguridad y privacidad previa. No compartimos tus datos con
 terceros para fines comerciales ajenos al servicio.
 
 Cuando tocas "Vamos" o "Cómo llegar", se abre Google Maps, Waze o Mapas de Apple con el
