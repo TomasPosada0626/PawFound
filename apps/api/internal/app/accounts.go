@@ -279,6 +279,12 @@ func (a *App) Refresh(ctx context.Context, token string) (Session, error) {
 		return Session{}, err
 	}
 	if revoked != nil {
+		// Reintento legítimo: la respuesta de la rotación se perdió (datos móviles) o la app se
+		// cerró antes de guardar el token nuevo. Si fue hace poco y la sesión sigue abierta (no se
+		// cerró ni se cambió la contraseña), se entrega otro token de la misma familia.
+		if a.now().Sub(*revoked) <= refreshReuseGrace && a.familyActive(ctx, family) {
+			return a.rotateWithin(ctx, userID, family)
+		}
 		_, _ = a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2) WHERE family = $1`, family, a.now())
 		a.Log.Warn("reuso de refresh token: familia revocada", "user", userID)
 		return Session{}, ErrUnauthorized
@@ -286,15 +292,29 @@ func (a *App) Refresh(ctx context.Context, token string) (Session, error) {
 	if a.now().After(expires) {
 		return Session{}, ErrUnauthorized
 	}
+	if _, err := a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = $2 WHERE id = $1 AND revoked_at IS NULL`, id, a.now()); err != nil {
+		return Session{}, err
+	}
+	// Si otra petición lo rotó al mismo tiempo, esta también recibe un token de la familia.
+	return a.rotateWithin(ctx, userID, family)
+}
+
+// refreshReuseGrace es el margen en que reusar un refresh token recién rotado se toma como un
+// reintento y no como robo.
+const refreshReuseGrace = 2 * time.Minute
+
+// familyActive indica si la sesión (familia de tokens) sigue abierta en algún dispositivo.
+func (a *App) familyActive(ctx context.Context, family string) bool {
+	var active bool
+	_ = a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM refresh_tokens WHERE family = $1 AND revoked_at IS NULL AND expires_at > $2)`,
+		family, a.now()).Scan(&active)
+	return active
+}
+
+// rotateWithin emite un refresh token nuevo en la misma familia y arma la sesión.
+func (a *App) rotateWithin(ctx context.Context, userID, family string) (Session, error) {
 	if err := a.ensureNotSuspended(ctx, userID); err != nil {
 		return Session{}, err
-	}
-	tag, err := a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = $2 WHERE id = $1 AND revoked_at IS NULL`, id, a.now())
-	if err != nil {
-		return Session{}, err
-	}
-	if tag.RowsAffected() == 0 { // otra petición lo rotó al mismo tiempo
-		return Session{}, ErrUnauthorized
 	}
 	next, err := a.storeRefresh(ctx, userID, family)
 	if err != nil {
@@ -487,6 +507,9 @@ func (a *App) ResetPassword(ctx context.Context, token, password string) error {
 func (a *App) loadUser(ctx context.Context, q querier, userID string) (User, error) {
 	rows, _ := q.Query(ctx, `SELECT `+userCols+` FROM users WHERE id = $1`, userID)
 	u, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[User])
+	if u.PhotoID != nil {
+		u.PhotoURL = ptr(a.mediaURL(*u.PhotoID))
+	}
 	return u, notFoundIfNoRows(err)
 }
 
@@ -551,6 +574,8 @@ type ProfilePatch struct {
 	Neighborhood *string `json:"neighborhood"`
 	// Phone es opcional y nunca se muestra a otras personas. "" lo borra.
 	Phone *string `json:"phone"`
+	// PhotoID es una foto subida con purpose "avatar". "" la quita y vuelve el avatar.
+	PhotoID *string `json:"photoId"`
 }
 
 // UpdateProfile valida y guarda los cambios del perfil.
@@ -607,6 +632,25 @@ func (a *App) UpdateProfile(ctx context.Context, ac Actor, p ProfilePatch) (Me, 
 		}
 		add("phone", optional(phone))
 	}
+	var oldPhoto *string
+	newPhoto := ""
+	if p.PhotoID != nil {
+		if err := a.DB.QueryRow(ctx, `SELECT photo_id FROM users WHERE id = $1`, ac.ID).Scan(&oldPhoto); err != nil {
+			return Me{}, notFoundIfNoRows(err)
+		}
+		newPhoto = strings.TrimSpace(*p.PhotoID)
+		if newPhoto != "" {
+			var owned bool
+			if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM media WHERE id = $1 AND owner_id = $2 AND purpose = 'avatar')`,
+				newPhoto, ac.ID).Scan(&owned); err != nil {
+				return Me{}, err
+			}
+			if !owned {
+				return Me{}, invalid("photoId")
+			}
+		}
+		add("photo_id", optional(newPhoto))
+	}
 	if len(sets) > 0 {
 		if _, err := a.DB.Exec(ctx, `UPDATE users SET `+strings.Join(sets, ", ")+` WHERE id = $1`, args...); err != nil {
 			if isUniqueViolation(err) {
@@ -615,7 +659,26 @@ func (a *App) UpdateProfile(ctx context.Context, ac Actor, p ProfilePatch) (Me, 
 			return Me{}, err
 		}
 	}
+	// La foto anterior ya no se usa: se borra del almacenamiento.
+	if oldPhoto != nil && *oldPhoto != newPhoto {
+		a.deleteMedia(ctx, *oldPhoto)
+	}
 	return a.Me(ctx, ac.ID)
+}
+
+// deleteMedia borra una foto de la base y del almacenamiento (si falla el archivo, queda en el log).
+func (a *App) deleteMedia(ctx context.Context, id string) {
+	var key string
+	if err := a.DB.QueryRow(ctx, `DELETE FROM media WHERE id = $1 RETURNING storage_key`, id).Scan(&key); err != nil {
+		return
+	}
+	if remover, ok := a.Media.(interface {
+		Remove(context.Context, string) error
+	}); ok {
+		if err := remover.Remove(ctx, key); err != nil {
+			a.Log.Warn("no se pudo borrar la foto del almacenamiento", "media", id, "err", err)
+		}
+	}
 }
 
 // SetLanguage: los chats llegan traducidos a este idioma.

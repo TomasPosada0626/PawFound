@@ -596,7 +596,7 @@ paths:
               required: [file, purpose]
               properties:
                 file: { type: string, format: binary }
-                purpose: { type: string, enum: [pet, owned, chat, story] }
+                purpose: { type: string, enum: [pet, owned, chat, story, avatar] }
       responses:
         "201": { description: Subida, content: { application/json: { schema: { $ref: "#/components/schemas/UploadedMedia" } } } }
         "422": { $ref: "#/components/responses/Error" }
@@ -697,7 +697,10 @@ components:
         phone: { type: string }
         verified: { type: boolean, description: Correo verificado (insignia azul) }
         avatar: { type: string, enum: [dog, cat, fox, panda, bunny, bear] }
-        title: { type: string, enum: [animal_lover, rescuer, neighbor, volunteer, foster] }
+        photoUrl: { type: string, description: Foto de perfil propia (pública); sin ella se muestra el avatar }
+        title:
+          type: string
+          enum: [animal_lover, rescuer, neighbor, volunteer, foster, dog_family, cat_family, paw_angel, treat_fan, furry_heart]
         bio: { type: string, maxLength: 150 }
         city: { type: string }
         neighborhood: { type: string }
@@ -713,6 +716,7 @@ components:
         name: { type: string }
         username: { type: string }
         avatar: { type: string }
+        photoUrl: { type: string }
         title: { type: string }
         bio: { type: string }
         city: { type: string }
@@ -726,6 +730,7 @@ components:
         id: { type: string }
         shortName: { type: string }
         avatar: { type: string }
+        photoUrl: { type: string }
         verified: { type: boolean, description: Correo verificado (insignia azul) }
         createdAt: { type: string, format: date-time }
         lang: { $ref: "#/components/schemas/Lang" }
@@ -739,6 +744,8 @@ components:
         bio: { type: string }
         city: { type: string }
         neighborhood: { type: string }
+        phone: { type: string, description: Opcional; "" lo borra }
+        photoId: { type: string, description: Foto subida con purpose=avatar; "" la quita y vuelve el avatar }
     NotificationPrefs:
       type: object
       properties:

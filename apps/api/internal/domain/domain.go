@@ -41,11 +41,13 @@ var (
 	LocationKinds = set("current", "meeting", "place")
 	Langs         = set("es", "en")
 	Avatars       = set("dog", "cat", "fox", "panda", "bunny", "bear")
-	Titles        = set("animal_lover", "rescuer", "neighbor", "volunteer", "foster")
-	WhoMessage    = set("everyone", "verified", "nobody")
-	Reasons       = set("spam", "rude", "scam", "inappropriate", "other")
-	Platforms     = set("android", "ios")
-	FoundRadius   = map[int]bool{400: true, 1000: true, 2000: true, 5000: true}
+	// Títulos del perfil (con emoji en la app). Los cinco primeros son los originales.
+	Titles = set("animal_lover", "rescuer", "neighbor", "volunteer", "foster",
+		"dog_family", "cat_family", "paw_angel", "treat_fan", "furry_heart")
+	WhoMessage  = set("everyone", "verified", "nobody")
+	Reasons     = set("spam", "rude", "scam", "inappropriate", "other")
+	Platforms   = set("android", "ios")
+	FoundRadius = map[int]bool{400: true, 1000: true, 2000: true, 5000: true}
 )
 
 func set(values ...string) map[string]bool {

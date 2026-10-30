@@ -35,12 +35,14 @@ module.exports = {
         danger: token("danger"),
         verified: token("verified"),
       },
+      // Nombres propios (no "bold", "black"...): esos chocan con los grosores de Tailwind y
+      // `font-bold` agregaba fontWeight 700; en Android eso cambia Nunito por Roboto.
       fontFamily: {
         regular: ["Nunito_400Regular"],
-        semibold: ["Nunito_600SemiBold"],
-        bold: ["Nunito_700Bold"],
-        extrabold: ["Nunito_800ExtraBold"],
-        black: ["Nunito_900Black"],
+        "nunito-semibold": ["Nunito_600SemiBold"],
+        "nunito-bold": ["Nunito_700Bold"],
+        "nunito-extrabold": ["Nunito_800ExtraBold"],
+        "nunito-black": ["Nunito_900Black"],
       },
     },
   },

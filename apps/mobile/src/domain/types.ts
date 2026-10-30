@@ -118,7 +118,17 @@ export type AlertZone = {
 
 export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear";
 
-export type ProfileTitle = "animal_lover" | "rescuer" | "neighbor" | "volunteer" | "foster";
+export type ProfileTitle =
+  | "animal_lover"
+  | "rescuer"
+  | "neighbor"
+  | "volunteer"
+  | "foster"
+  | "dog_family"
+  | "cat_family"
+  | "paw_angel"
+  | "treat_fan"
+  | "furry_heart";
 
 export type User = {
   id: string;
@@ -130,6 +140,8 @@ export type User = {
   /** Correo verificado con el código de 6 dígitos (o por Google/Apple): insignia azul. */
   verified: boolean;
   avatar: AvatarId;
+  /** Foto de perfil propia (la ven todas las personas). Sin foto se muestra el avatar. */
+  photoUrl?: string;
   title: ProfileTitle;
   bio: string;
   city: string;

@@ -40,7 +40,9 @@ export function Checkbox({
         >
           {checked ? <Icon name="checkmark" size={16} color="#FFFFFF" /> : null}
         </View>
-        <View className="flex-1">{children ?? <Text variant="body">{label}</Text>}</View>
+        {/* shrink y no flex-1: en una fila sin ancho fijo (login), flex-1 deja el texto con ancho
+            cero en Android, partido letra por letra en una columna invisible y muy alta. */}
+        <View className="shrink">{children ?? <Text variant="body">{label}</Text>}</View>
       </Pressable>
       {error ? (
         <Text variant="caption" tone="danger" className="ml-9" accessibilityLiveRegion="polite">

@@ -298,8 +298,8 @@ export class MockBackend {
     // Respuesta idéntica exista o no la cuenta (sin enumeración de correos).
   }
 
-  /** "Recordar sesión": restaura solo si la cuenta sigue existiendo. */
-  restoreSession(userId: string): boolean {
+  /** Restaura la sesión guardada solo si la cuenta sigue existiendo. */
+  async restoreSession(userId: string): Promise<boolean> {
     if (!this.state.users[userId]) return false;
     this.commit({ sessionUserId: userId });
     return true;
@@ -925,6 +925,12 @@ export class MockBackend {
       patch = { ...patch, phone: phone || undefined };
     }
     this.commit({ users: { ...this.state.users, [user.id]: { ...user, ...patch } } });
+  }
+
+  /** Foto de perfil propia; null la quita y vuelve el avatar. */
+  async setProfilePhoto(uri: string | null): Promise<void> {
+    const user = this.requireVerified();
+    this.commit({ users: { ...this.state.users, [user.id]: { ...user, photoUrl: uri ?? undefined } } });
   }
 
   /** La app informa el idioma elegido para que los chats lleguen traducidos a él. */
