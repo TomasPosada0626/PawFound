@@ -459,9 +459,7 @@ export default function MapScreen() {
           onChange={setShowPlaces}
           testID="toggle-places"
         />
-        {showPlaces && nearbyPlaces.length === 0 ? (
-          <Banner icon="information-circle-outline" body={t("places.demoEmpty")} />
-        ) : null}
+        {showPlaces && nearbyPlaces.length === 0 ? <Banner icon="information-circle-outline" body={t("vets.empty")} /> : null}
       </Sheet>
 
       <PlaceSheet
