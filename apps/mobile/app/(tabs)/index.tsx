@@ -9,9 +9,8 @@ import { HomeMenu } from "@/components/HomeMenu";
 import { AppHeader, Screen } from "@/components/layout";
 import { NotificationRow } from "@/components/notifications";
 import { PetCard, PetPhoto, UserAvatar } from "@/components/pets";
-import { Banner, Card, EmptyState, SectionHeader } from "@/components/ui/Controls";
+import { Card, EmptyState, SectionHeader } from "@/components/ui/Controls";
 import { PetCardSkeleton } from "@/components/ui/Skeleton";
-import { API_URL } from "@/config";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { OptionList, Sheet } from "@/components/ui/Sheet";
@@ -269,13 +268,6 @@ export default function HomeScreen() {
           </View>
         </View>
       ) : null}
-
-      {/* Solo en el modo demostración (sin API): con el servidor real los datos sí se guardan. */}
-      {API_URL ? null : (
-        <View className="mt-6">
-          <Banner icon="flask-outline" body={t("common.demoBanner")} />
-        </View>
-      )}
 
       <HomeMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
       <Sheet visible={pickPetOpen} onClose={() => setPickPetOpen(false)} title={t("myPets.whichLost")} testID="pick-owned-pet">

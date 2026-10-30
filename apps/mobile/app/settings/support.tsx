@@ -111,15 +111,6 @@ export default function SupportScreen() {
               tone={c.tone}
               title={t(`support.${c.kind}`)}
               description={t(`support.${c.kind}Desc`)}
-              right={
-                c.kind === "contactSupport" ? (
-                  <View className="rounded-full bg-primary-soft px-2 py-1">
-                    <Text variant="label" tone="primary">
-                      {t("support.response24")}
-                    </Text>
-                  </View>
-                ) : undefined
-              }
               onPress={() => setContact(c.kind)}
               testID={`contact-${c.kind}`}
             />

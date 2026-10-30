@@ -10,7 +10,6 @@ import { EmptyState, IconBubble } from "@/components/ui/Controls";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { cn, Text } from "@/components/ui/Text";
-import { API_URL } from "@/config";
 import { distanceMeters, formatDistance, regionForRadius } from "@/domain/geo";
 import type { Place } from "@/domain/types";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -113,7 +112,7 @@ export default function VetsScreen() {
       </View>
 
       {vets.length === 0 ? (
-        <EmptyState icon="medkit-outline" title={t("vets.empty")} body={API_URL ? undefined : t("places.demoEmpty")} />
+        <EmptyState icon="medkit-outline" title={t("vets.empty")} />
       ) : (
         <View className="mt-4 gap-3" testID="vets-list">
           {vets.map(({ place, distance }, index) => {

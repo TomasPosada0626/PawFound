@@ -5,7 +5,6 @@ import { Pressable, TextInput, View } from "react-native";
 
 import { AuthLayout } from "@/components/AuthLayout";
 import { Button } from "@/components/ui/Button";
-import { Banner } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { maskEmail } from "@/domain/privacy";
@@ -15,7 +14,6 @@ import { countdown } from "@/i18n/format";
 import { errorMessage } from "@/features/errorMessages";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
-import { DEMO_CODE } from "@/services/mockBackend";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -189,10 +187,6 @@ export default function VerifyScreen() {
             </Text>
           </Pressable>
         ) : null}
-      </View>
-
-      <View className="mt-3">
-        <Banner icon="flask-outline" body={t("auth.demoCode", { code: DEMO_CODE })} />
       </View>
     </AuthLayout>
   );

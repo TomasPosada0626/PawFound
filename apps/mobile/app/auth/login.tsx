@@ -14,7 +14,6 @@ import { safeNext } from "@/hooks/useAuthGate";
 import { errorMessage } from "@/features/errorMessages";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
-import { DEMO_EMAIL, DEMO_PASSWORD } from "@/services/seed";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend } from "@/store/backend";
 
@@ -136,17 +135,6 @@ export default function LoginScreen() {
           </Text>
         </Pressable>
       </View>
-
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => setForm({ identifier: DEMO_EMAIL, password: DEMO_PASSWORD })}
-        className="mt-2 rounded-2xl bg-surface-alt p-3 active:opacity-80"
-        testID="fill-demo"
-      >
-        <Text variant="caption" className="text-center">
-          {t("auth.demoAccount", { email: DEMO_EMAIL, password: DEMO_PASSWORD })}
-        </Text>
-      </Pressable>
     </AuthLayout>
   );
 }
