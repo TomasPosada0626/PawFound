@@ -8,6 +8,7 @@ package jobs
 import (
 	"context"
 	"log/slog"
+	"os"
 	"time"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
@@ -53,7 +54,12 @@ func Tick(ctx context.Context, a *app.App) error {
 	if _, err := a.PromoteAdmins(ctx, ""); err != nil {
 		return err
 	}
-	return Cleanup(ctx, a)
+	if err := Cleanup(ctx, a); err != nil {
+		return err
+	}
+	// Si al arrancar no se pudieron cargar las veterinarias, se reintenta en cada ronda.
+	_, _, err = a.EnsurePlaces(ctx, os.Getenv("OVERPASS_URL"))
+	return err
 }
 
 // Cleanup borra lo que ya no sirve: sesiones y enlaces vencidos, códigos de verificación viejos y fotos
