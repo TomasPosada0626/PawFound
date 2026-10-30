@@ -5,7 +5,6 @@ import { FlatList, Pressable, View } from "react-native";
 
 import { StoriesBar } from "@/components/StoriesBar";
 import { AlertsOffBanner } from "@/components/AlertsOffBanner";
-import { PawDecoration } from "@/components/brand";
 import { HomeMenu } from "@/components/HomeMenu";
 import { AppHeader, Screen } from "@/components/layout";
 import { NotificationRow } from "@/components/notifications";
@@ -147,14 +146,12 @@ export default function HomeScreen() {
         className="mt-5 overflow-hidden rounded-[28px] border border-border/60 bg-surface p-4 shadow-md shadow-black/10 active:opacity-90"
         testID="home-report-cta"
       >
-        <PawDecoration size={70} className="absolute -right-2 -top-2" opacity={0.1} />
-        <PawDecoration size={40} className="absolute bottom-1 left-24" opacity={0.07} />
         <View className="flex-row items-center gap-4">
           <LinearGradient
             colors={primaryGradient}
-            style={{ width: 84, height: 84, borderRadius: 42, alignItems: "center", justifyContent: "center" }}
+            style={{ width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" }}
           >
-            <Icon name="camera" size={38} color="#FFFFFF" />
+            <Icon name="camera" size={32} color="#FFFFFF" />
           </LinearGradient>
           <View className="flex-1">
             <Text variant="heading">{t("home.reportTitle")}</Text>

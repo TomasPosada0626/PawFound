@@ -81,9 +81,9 @@ export default function VetsScreen() {
   return (
     <Screen testID="vets-screen" header={<AppHeader left={<BackButton />} />}>
       <View className="mt-1 flex-row items-center gap-3">
-        <IconBubble icon="medkit" tone="lost" size={52} />
+        <IconBubble icon="medkit" tone="lost" size={48} />
         <View className="flex-1">
-          <Text variant="title" accessibilityRole="header">
+          <Text variant="heading" accessibilityRole="header">
             {t("vets.title")}
           </Text>
           <Text variant="caption" tone="body">

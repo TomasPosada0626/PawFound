@@ -178,15 +178,6 @@ export default function VerifyScreen() {
             </Text>
           </Pressable>
         )}
-        <Pressable
-          accessibilityRole="link"
-          onPress={() => router.replace({ pathname: "/auth/phone", params: { next } })}
-          className="min-h-[48px] justify-center"
-        >
-          <Text variant="captionStrong" tone="primary">
-            {t("auth.changeNumber")}
-          </Text>
-        </Pressable>
         {resends >= 2 ? (
           <Pressable
             accessibilityRole="link"

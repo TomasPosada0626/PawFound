@@ -78,6 +78,7 @@ export default function ProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel={t("profile.changePhoto")}
           onPress={() => router.push("/settings/edit-profile")}
+          className="self-start"
         >
           <UserAvatar user={user} size={104} ring />
           <View className="absolute bottom-0 right-0 h-9 w-9 items-center justify-center rounded-full border-2 border-surface bg-primary-strong">
@@ -211,7 +212,7 @@ export default function ProfileScreen() {
                 <Icon name="add" size={26} color={colors.primaryStrong} />
               </View>
               <Text variant="label" numberOfLines={1}>
-                {t("myPets.add")}
+                {t("myPets.addShort")}
               </Text>
             </Pressable>
           </ScrollView>
@@ -249,10 +250,9 @@ export default function ProfileScreen() {
                     {`${item.pet.name ?? t("common.unnamed")}${item.pet.breed ? ` (${item.pet.breed})` : ""}`}
                   </Text>
                   <Text variant="caption" numberOfLines={1}>
-                    {item.pet.zone}
+                    {`${item.pet.zone} · ${relativeTime(item.at, now, locale)}`}
                   </Text>
                 </View>
-                <Text variant="caption">{relativeTime(item.at, now, locale)}</Text>
                 <Icon name="chevron-forward" size={18} color={colors.muted} />
               </Pressable>
             </View>

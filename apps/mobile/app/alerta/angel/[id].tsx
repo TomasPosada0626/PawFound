@@ -129,7 +129,10 @@ export default function AngelAlertScreen() {
               ) : null}
               <View className="mt-1 gap-2">
                 <Fact icon="location-outline" label={`${pet.zone} · ${t("common.approxLocation")}`} />
-                <Fact icon="time-outline" label={t("angel.lostAgo", { time: relativeTime(pet.lastSeenAt, now, locale) })} />
+                <Fact
+                  icon="time-outline"
+                  label={t("angel.lostAgo", { time: relativeTime(pet.lastSeenAt, now, locale).toLowerCase() })}
+                />
                 {distance !== null ? (
                   <Fact icon="navigate-outline" label={t("angel.distance", { distance: formatDistance(distance, locale) })} />
                 ) : null}
