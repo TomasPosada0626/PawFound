@@ -154,15 +154,26 @@ export function UserAvatar({
   ring = false,
   online,
 }: {
-  user: Pick<User, "avatar">;
+  user: Pick<User, "avatar" | "photoUrl">;
   size?: number;
   ring?: boolean;
   online?: boolean;
 }) {
+  const inner = ring ? size - 8 : size;
   return (
     <View style={{ width: size, height: size }}>
       <View className={cn("h-full w-full items-center justify-center rounded-full", ring && "border-[3px] border-primary")}>
-        <AvatarGlyph avatar={user.avatar} size={ring ? size - 8 : size} />
+        {user.photoUrl ? (
+          <Image
+            source={{ uri: user.photoUrl }}
+            style={{ width: inner, height: inner, borderRadius: inner / 2 }}
+            contentFit="cover"
+            transition={150}
+            accessible={false}
+          />
+        ) : (
+          <AvatarGlyph avatar={user.avatar} size={inner} />
+        )}
       </View>
       {online !== undefined ? (
         <View

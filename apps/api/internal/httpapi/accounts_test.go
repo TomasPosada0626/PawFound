@@ -302,3 +302,54 @@ func TestHealthAndSecurityHeaders(t *testing.T) {
 	}
 	_ = context.Background()
 }
+
+func TestProfilePhoto(t *testing.T) {
+	h := newHarness(t)
+	ana := h.user("Ana Restrepo", true)
+	other := h.user("Otra Persona", true)
+	unverified := h.user("Sin Verificar", false)
+
+	// Sin insignia azul no se sube foto de perfil.
+	if _, res := h.upload(unverified, "avatar", jpegBytes(1)); res.Status != http.StatusForbidden {
+		t.Fatalf("foto sin verificar = %d", res.Status)
+	}
+	photo, res := h.upload(ana, "avatar", jpegBytes(2))
+	if res.Status != http.StatusCreated {
+		t.Fatalf("subir foto = %d %s", res.Status, res.Body)
+	}
+	// Solo se acepta una foto propia subida como avatar.
+	foreign, _ := h.upload(other, "avatar", jpegBytes(3))
+	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPatch, "/v1/me", ana.Token, map[string]string{"photoId": foreign.ID})
+	petPhoto, _ := h.upload(ana, "pet", jpegBytes(4))
+	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPatch, "/v1/me", ana.Token, map[string]string{"photoId": petPhoto.ID})
+
+	var me app.Me
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", ana.Token, map[string]string{"photoId": photo.ID, "title": "paw_angel"}, &me)
+	if me.User.PhotoURL == nil || !strings.HasSuffix(*me.User.PhotoURL, "/v1/media/"+photo.ID) || me.User.Title != "paw_angel" {
+		t.Fatalf("perfil con foto: %+v", me.User)
+	}
+	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPatch, "/v1/me", ana.Token, map[string]string{"title": "inventado"})
+
+	// La ven las demás personas: perfil público y resumen en los reportes.
+	var profile app.PublicProfile
+	h.must(http.StatusOK, http.MethodGet, "/v1/users/"+ana.ID, "", nil, &profile)
+	if profile.User.PhotoURL == nil || *profile.User.PhotoURL != *me.User.PhotoURL {
+		t.Fatalf("perfil público: %+v", profile.User)
+	}
+	pet := h.report(ana, lostReport("Max", laureles, nil))
+	if pet.Owner == nil || pet.Owner.PhotoURL == nil {
+		t.Fatalf("resumen de la familia: %+v", pet.Owner)
+	}
+
+	// Cambiar la foto borra la anterior; quitarla vuelve al avatar.
+	second, _ := h.upload(ana, "avatar", jpegBytes(5))
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", ana.Token, map[string]string{"photoId": second.ID}, &me)
+	if n := h.count(`SELECT count(*) FROM media WHERE id = $1`, photo.ID); n != 0 {
+		t.Fatal("la foto anterior debe borrarse")
+	}
+	var cleared app.Me
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", ana.Token, map[string]string{"photoId": ""}, &cleared)
+	if cleared.User.PhotoURL != nil || h.count(`SELECT count(*) FROM media WHERE id = $1`, second.ID) != 0 {
+		t.Fatalf("sin foto: %+v", cleared.User)
+	}
+}

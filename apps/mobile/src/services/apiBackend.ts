@@ -75,6 +75,7 @@ type ApiUser = {
   phone?: string;
   verified: boolean;
   avatar: User["avatar"];
+  photoUrl?: string;
   title: User["title"];
   bio: string;
   city: string;
@@ -83,7 +84,15 @@ type ApiUser = {
   mutedUntil?: string;
   lang: Lang;
 };
-type ApiSummary = { id: string; shortName: string; avatar: User["avatar"]; verified: boolean; createdAt: string; lang: Lang };
+type ApiSummary = {
+  id: string;
+  shortName: string;
+  avatar: User["avatar"];
+  photoUrl?: string;
+  verified: boolean;
+  createdAt: string;
+  lang: Lang;
+};
 type ApiMe = {
   user: ApiUser;
   notificationPrefs: NotificationPrefs;
@@ -271,7 +280,7 @@ export class ApiBackend {
     this.listeners.forEach((l) => l());
   }
 
-  private async upload(uri: string, purpose: "pet" | "owned" | "chat" | "story"): Promise<string> {
+  private async upload(uri: string, purpose: "pet" | "owned" | "chat" | "story" | "avatar"): Promise<string> {
     if (/^https?:\/\//.test(uri)) return uri; // ya está en el servidor
     // Una foto que ya no existe (borrador viejo) se reporta como tal, no como falta de internet.
     if (!(await photoExists(uri))) throw new BackendError("invalid_image");
@@ -335,6 +344,7 @@ export class ApiBackend {
       phone: "phone" in u ? u.phone : undefined,
       verified: u.verified,
       avatar: u.avatar,
+      photoUrl: u.photoUrl,
       title: u.title,
       bio: u.bio,
       city: u.city,
@@ -354,7 +364,7 @@ export class ApiBackend {
       if (!s || s.id === this.state.sessionUserId) continue;
       const known = users[s.id];
       users[s.id] = known
-        ? { ...known, avatar: s.avatar, verified: s.verified }
+        ? { ...known, avatar: s.avatar, photoUrl: s.photoUrl, verified: s.verified }
         : {
             id: s.id,
             name: s.shortName,
@@ -362,6 +372,7 @@ export class ApiBackend {
             email: "",
             verified: s.verified,
             avatar: s.avatar,
+            photoUrl: s.photoUrl,
             title: "animal_lover",
             bio: "",
             city: "",
@@ -755,6 +766,12 @@ export class ApiBackend {
 
   async updateProfile(patch: ProfilePatch): Promise<void> {
     this.applyMe(await this.request<ApiMe>("PATCH", "/v1/me", patch));
+  }
+
+  /** Sube la foto de perfil (achicada, sin datos de ubicación) o la quita con null. */
+  async setProfilePhoto(uri: string | null): Promise<void> {
+    const photoId = uri ? await this.upload(uri, "avatar") : "";
+    this.applyMe(await this.request<ApiMe>("PATCH", "/v1/me", { photoId }));
   }
 
   async setLanguage(lang: Lang): Promise<void> {

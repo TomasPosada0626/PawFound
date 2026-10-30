@@ -80,8 +80,11 @@ func Cleanup(ctx context.Context, a *app.App) error {
 			return err
 		}
 	}
+	// Fotos subidas que nunca se usaron: de chat sin enviar y de perfil que no se guardaron.
 	rows, err := a.DB.Query(ctx, `DELETE FROM media m WHERE m.created_at < $1::timestamptz - interval '1 day'
-		AND m.purpose = 'chat' AND m.thread_id IS NULL RETURNING storage_key`, now)
+		AND ((m.purpose = 'chat' AND m.thread_id IS NULL)
+		  OR (m.purpose = 'avatar' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.photo_id = m.id)))
+		RETURNING storage_key`, now)
 	if err != nil {
 		return err
 	}
