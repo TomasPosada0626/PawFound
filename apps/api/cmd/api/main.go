@@ -142,11 +142,16 @@ func run(args []string, logger *slog.Logger) error {
 		importCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 		defer cancel()
 		n, err := a.ImportPlaces(importCtx, os.Getenv("OVERPASS_URL"), app.ValleDeAburra, nil)
-		if err != nil {
-			logger.Error("no se pudieron importar las veterinarias", "err", err)
+		if err == nil {
+			logger.Info("veterinarias importadas de OpenStreetMap", "count", n)
 			return
 		}
-		logger.Info("veterinarias importadas de OpenStreetMap", "count", n)
+		logger.Warn("OpenStreetMap no respondió; se cargan las veterinarias guardadas", "err", err)
+		if n, err = a.SeedPlacesSnapshot(importCtx); err != nil {
+			logger.Error("no se pudieron cargar las veterinarias guardadas", "err", err)
+			return
+		}
+		logger.Info("veterinarias cargadas de la copia guardada de OpenStreetMap", "count", n)
 	}()
 	if cfg.JobsEnabled {
 		go jobs.Run(ctx, a, cfg.JobsInterval, logger)
@@ -156,10 +161,12 @@ func run(args []string, logger *slog.Logger) error {
 		Addr:              ":" + resolvePort(cfg.Port),
 		Handler:           server.Handler(),
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    32 << 10,
+		// Las fotos tienen hasta 2 minutos para subir (datos móviles); el resto de rutas corta a
+		// los 30 s con su propio límite.
+		ReadTimeout:    2 * time.Minute,
+		WriteTimeout:   2*time.Minute + 10*time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 32 << 10,
 	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()

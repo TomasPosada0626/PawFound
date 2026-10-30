@@ -33,6 +33,7 @@ import {
   type SocialProvider,
 } from "./backendTypes";
 import { DEFAULT_NOTIFICATION_PREFS, DEFAULT_PRIVACY_PREFS } from "./mockBackend";
+import { shrinkPhoto } from "./photoShrink";
 
 /**
  * Backend real: la misma interfaz que MockBackend, sobre la API de PawFound
@@ -245,9 +246,10 @@ export class ApiBackend {
 
   private async upload(uri: string, purpose: "pet" | "owned" | "chat" | "story"): Promise<string> {
     if (/^https?:\/\//.test(uri)) return uri; // ya está en el servidor
+    const small = await shrinkPhoto(uri);
     const form = new FormData();
     form.append("purpose", purpose);
-    form.append("file", { uri, name: "foto.jpg", type: "image/jpeg" } as unknown as Blob);
+    form.append("file", { uri: small, name: "foto.jpg", type: "image/jpeg" } as unknown as Blob);
     const media = await this.request<{ id: string; url: string }>("POST", "/v1/media", form);
     return media.id;
   }
