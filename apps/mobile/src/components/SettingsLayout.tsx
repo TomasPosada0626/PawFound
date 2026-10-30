@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useState, type ReactNode } from "react";
-import { Pressable, ScrollView, useWindowDimensions, View } from "react-native";
+import { Pressable, useWindowDimensions, View } from "react-native";
 
 import { useI18n } from "@/i18n/I18nProvider";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
@@ -23,8 +23,9 @@ const SECTIONS: { key: SettingsSection; icon: IconName; href: string }[] = [
 ];
 
 /**
- * Ajustes con la navegación lateral de los mockups. En teléfonos angostos o con texto
- * ampliado (accesibilidad), la misma navegación pasa arriba como pestañas desplazables.
+ * Ajustes con la navegación lateral de los mockups en tabletas. En teléfonos (o con texto
+ * ampliado) la misma navegación pasa arriba como pestañas desplazables: al lado, el contenido
+ * quedaba en una columna tan angosta que partía las palabras.
  */
 export function SettingsLayout({
   section,
@@ -44,7 +45,7 @@ export function SettingsLayout({
   const { width, fontScale } = useWindowDimensions();
   const backend = useBackend();
   const [logoutOpen, setLogoutOpen] = useState(false);
-  const sidebar = width >= 380 && fontScale <= 1.15;
+  const sidebar = width >= 700 && fontScale <= 1.15;
 
   const go = (href: string, key: SettingsSection) => {
     if (key !== section) router.replace(href as never);
@@ -58,6 +59,7 @@ export function SettingsLayout({
 
   const navItem = (s: (typeof SECTIONS)[number], compact: boolean) => {
     const active = s.key === section;
+    // En el teléfono: cuatro columnas iguales con ícono y nombre corto, todas visibles a la vez.
     return (
       <Pressable
         key={s.key}
@@ -66,19 +68,21 @@ export function SettingsLayout({
         accessibilityLabel={t(`settings.${s.key}`)}
         onPress={() => go(s.href, s.key)}
         className={cn(
-          "min-h-[48px] flex-row items-center gap-2 rounded-2xl active:opacity-70",
-          compact ? "px-4" : "px-2 py-3",
-          active ? "bg-primary-soft" : compact ? "border border-border bg-surface" : "",
+          "min-h-[48px] rounded-2xl active:opacity-70",
+          compact ? "flex-1 items-center justify-center gap-1 border px-1 py-2" : "flex-row items-center gap-2 px-2 py-3",
+          active ? "bg-primary-soft" : "",
+          compact && (active ? "border-primary-strong/40" : "border-border bg-surface"),
         )}
         testID={`settings-nav-${s.key}`}
       >
-        <Icon name={s.icon} size={compact ? 18 : 22} color={active ? colors.primaryStrong : colors.muted} />
+        <Icon name={s.icon} size={compact ? 20 : 22} color={active ? colors.primaryStrong : colors.muted} />
         <Text
-          variant={compact ? "captionStrong" : "caption"}
+          variant={compact ? "label" : "caption"}
           tone={active ? "primary" : "body"}
-          className={compact ? "" : "flex-1"}
+          className={compact ? "text-center" : "flex-1"}
+          numberOfLines={1}
         >
-          {t(`settings.${s.key}`)}
+          {t(compact ? `settings.${s.key}Short` : `settings.${s.key}`)}
         </Text>
       </Pressable>
     );
@@ -112,7 +116,7 @@ export function SettingsLayout({
           </Text>
         </View>
       }
-      contentClassName="px-3"
+      contentClassName={sidebar ? "px-3" : undefined}
     >
       {sidebar ? (
         <View className="flex-row gap-3">
@@ -128,14 +132,9 @@ export function SettingsLayout({
         </View>
       ) : (
         <>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            accessibilityRole="tablist"
-            contentContainerStyle={{ gap: 8, paddingBottom: 12 }}
-          >
+          <View accessibilityRole="tablist" accessibilityLabel={t("settings.sections")} className="mb-3 flex-row gap-2">
             {SECTIONS.map((s) => navItem(s, true))}
-          </ScrollView>
+          </View>
           <View className="gap-3">{children}</View>
           {showLogout ? <View className="mt-3">{logoutItem}</View> : null}
         </>

@@ -122,6 +122,7 @@ export default function ShareLocationScreen() {
           { key: "current", label: t("chatLocation.tabCurrent"), icon: "person" },
           { key: "meeting", label: t("chatLocation.tabMeeting"), icon: "flag" },
         ]}
+        fit
         value={mode}
         onChange={(next) => {
           setMode(next);

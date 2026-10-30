@@ -128,7 +128,25 @@ export default function EditOwnedPetScreen() {
             </View>
           </Pressable>
         ))}
-        {form.photos.length < MAX_PROFILE_PHOTOS ? (
+        {form.photos.length === 0 ? (
+          // Sin fotos, el botón ocupa todo el ancho: un cuadro pequeño dejaba un hueco vacío al lado.
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("report.addPhoto")}
+            onPress={() => void addPhoto()}
+            className="min-h-[88px] flex-1 flex-row items-center gap-4 rounded-2xl border-2 border-dashed border-border bg-surface px-4 active:opacity-80"
+          >
+            <View className="h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
+              <Icon name="camera-outline" size={26} color={colors.primaryStrong} />
+            </View>
+            <View className="flex-1">
+              <Text variant="bodyStrong" tone="primary">
+                {t("report.addPhoto")}
+              </Text>
+              <Text variant="caption">{t("myPets.photosHint", { count: MAX_PROFILE_PHOTOS })}</Text>
+            </View>
+          </Pressable>
+        ) : form.photos.length < MAX_PROFILE_PHOTOS ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("report.addPhoto")}

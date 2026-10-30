@@ -4,7 +4,6 @@ import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Wordmark } from "@/components/brand";
 import { BackButton } from "@/components/layout";
 import { LifeCircleCard } from "@/components/lifeCircle";
 import { PetMap } from "@/components/map/PetMap";
@@ -168,11 +167,9 @@ export default function PetDetailScreen() {
               testID="detail-recenter"
             />
           </View>
-          <View className="absolute left-0 right-0 flex-row items-center justify-between px-4" style={{ top: insets.top + 8 }}>
+          {/* Sin logo sobre el mapa: se mezclaba con las calles. La burbuja va entre los botones. */}
+          <View className="absolute left-0 right-0 flex-row items-start justify-between px-4" style={{ top: insets.top + 8 }}>
             <BackButton />
-            <View className="rounded-full bg-surface/80 px-3 py-1">
-              <Wordmark size={24} />
-            </View>
             <IconButton
               icon="ellipsis-horizontal"
               label={t("common.moreOptions")}
@@ -185,8 +182,8 @@ export default function PetDetailScreen() {
           <View
             accessible
             accessibilityLabel={`${pet.kind === "lost" ? `${t("pet.lifeRadius")}: ${formatDistance(radius, locale)}` : t("pet.foundSpot")}. ${t("pet.lastSeenAgo", { time: relativeTime(pet.lastSeenAt, now, locale) })}`}
-            className="absolute items-center self-center rounded-2xl bg-surface px-5 py-2 shadow-md shadow-black/15"
-            style={{ top: insets.top + 72 }}
+            className="absolute max-w-[260px] items-center self-center rounded-2xl bg-surface px-4 py-2 shadow-md shadow-black/15"
+            style={{ top: insets.top + 8 }}
             testID="radius-bubble"
           >
             <Text variant="caption" tone="body">

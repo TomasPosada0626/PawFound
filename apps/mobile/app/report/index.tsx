@@ -372,7 +372,7 @@ export default function ReportScreen() {
         />
         <SelectField
           compact
-          label={isLost ? t("report.age") : t("report.ageFound")}
+          label={t("report.age")}
           icon="calendar-outline"
           value={draft.age}
           options={ageOptions}
@@ -388,14 +388,22 @@ export default function ReportScreen() {
         />
       </View>
 
-      <TextField
-        className="mt-3"
-        label={t("report.breed")}
-        icon="pricetag-outline"
-        value={draft.breed}
-        onChangeText={(v) => update("breed", v)}
-        maxLength={40}
-      />
+      <View className="mt-3 flex-row gap-2">
+        <TextField
+          className="flex-1"
+          label={t("report.breed")}
+          value={draft.breed}
+          onChangeText={(v) => update("breed", v)}
+          maxLength={40}
+        />
+        <TextField
+          className="flex-1"
+          label={t("report.color")}
+          value={draft.color}
+          onChangeText={(v) => update("color", v)}
+          maxLength={40}
+        />
+      </View>
       <TextField
         className="mt-3"
         label={t("report.description")}
@@ -409,22 +417,13 @@ export default function ReportScreen() {
         error={err("description")}
         testID="report-description"
       />
-      <View className="mt-3 flex-row gap-2">
-        <TextField
-          className="flex-1"
-          label={t("report.color")}
-          value={draft.color}
-          onChangeText={(v) => update("color", v)}
-          maxLength={40}
-        />
-        <TextField
-          className="flex-1"
-          label={t("report.collar")}
-          value={draft.collar}
-          onChangeText={(v) => update("collar", v)}
-          maxLength={60}
-        />
-      </View>
+      <TextField
+        className="mt-3"
+        label={t("report.collar")}
+        value={draft.collar}
+        onChangeText={(v) => update("collar", v)}
+        maxLength={60}
+      />
       <TextField
         className="mt-3"
         label={t("report.marks")}
@@ -495,30 +494,26 @@ export default function ReportScreen() {
           onMapPress={(p) => void setPoint(p)}
           testID="report-map"
         />
-        {/* Solo las perdidas tienen círculo de vida; una encontrada es solo el punto donde se encontró. */}
+        {/* Solo las perdidas tienen círculo de vida; una encontrada es solo el punto donde se encontró.
+            Va bajo el mapa, no encima: así no tapa el pin ni el crédito de OpenStreetMap. */}
         {isLost ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`${t("report.lifeRadius")}: ${formatDistance(previewRadius, locale)}`}
             onPress={() => setRadiusSheet(true)}
-            className="absolute bottom-3 left-3 min-h-[52px] flex-row items-center gap-3 rounded-2xl bg-surface px-3 py-2 shadow-md shadow-black/15 active:opacity-80"
+            className="min-h-[56px] flex-row items-center gap-3 border-t border-border bg-surface px-4 py-2 active:opacity-80"
             testID="radius-pill"
           >
-            <Icon name="radio-button-off" size={26} color={colors.primaryStrong} />
-            <View>
+            <Icon name="radio-button-off" size={24} color={colors.lost} />
+            <View className="flex-1">
               <Text variant="label" tone="muted">
-                {isLost ? t("report.lifeRadius") : t("report.searchRadius")}
+                {t("report.lifeRadius")}
               </Text>
-              <Text variant="subheading" tone="primary">
-                {formatDistance(previewRadius, locale)}
+              <Text variant="captionStrong" tone="ink">
+                {formatDistance(previewRadius, locale)} · {t("report.radiusGrows")}
               </Text>
-              {isLost ? (
-                <Text variant="label" tone="muted">
-                  {t("report.radiusGrows")}
-                </Text>
-              ) : null}
             </View>
-            <Icon name="chevron-down" size={18} color={colors.ink} />
+            <Icon name="chevron-down" size={18} color={colors.muted} />
           </Pressable>
         ) : null}
       </View>

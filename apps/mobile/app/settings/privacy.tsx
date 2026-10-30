@@ -56,15 +56,16 @@ export default function PrivacyScreen() {
       right={<Icon name="shield-checkmark-outline" size={26} color={colors.primaryStrong} />}
     >
       <SettingsCard title={t("privacy.accountSecurity")} icon="shield-checkmark-outline">
+        {/* Una sola fila de correo: antes había dos iguales, una con ícono de teléfono. */}
         <ListRow
-          icon="call-outline"
+          icon="mail-outline"
           title={user.verified ? t("privacy.emailVerified") : t("privacy.phoneNotVerified")}
           description={maskEmail(user.email)}
           value={user.verified ? t("privacy.verifiedTag") : t("privacy.verifyNow")}
-          onPress={() => router.push({ pathname: "/auth/verify", params: { next: "/settings/privacy" } })}
+          onPress={
+            user.verified ? undefined : () => router.push({ pathname: "/auth/verify", params: { next: "/settings/privacy" } })
+          }
         />
-        <Divider />
-        <ListRow icon="mail-outline" title={t("privacy.email")} description={maskEmail(user.email)} />
         <Divider />
         <ListRow
           icon="lock-closed-outline"

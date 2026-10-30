@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, ScrollView, TextInput, View } from "react-native";
+import { FlatList, Pressable, TextInput, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppHeader } from "@/components/layout";
@@ -250,13 +250,15 @@ export default function MapScreen() {
             {advancedActive ? <View className="absolute right-2.5 top-2.5 h-2.5 w-2.5 rounded-full bg-lost" /> : null}
           </Pressable>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+        {/* Tres filtros a lo ancho; los avanzados están en el botón junto al buscador. */}
+        <View className="flex-row gap-2">
           <Chip
             label={t("map.filterAll")}
             icon="paw"
             selected={filters.kind === "all"}
             onPress={() => setKind("all")}
             testID="filter-all"
+            className="flex-1 px-2"
           />
           <Chip
             label={t("map.filterLost")}
@@ -264,6 +266,7 @@ export default function MapScreen() {
             selected={filters.kind === "lost"}
             onPress={() => setKind("lost")}
             testID="filter-lost"
+            className="flex-1 px-2"
           />
           <Chip
             label={t("map.filterFound")}
@@ -271,9 +274,9 @@ export default function MapScreen() {
             selected={filters.kind === "found"}
             onPress={() => setKind("found")}
             testID="filter-found"
+            className="flex-[1.3] px-2"
           />
-          <Chip label={t("map.filters")} icon="funnel-outline" selected={advancedActive} onPress={() => setFiltersOpen(true)} />
-        </ScrollView>
+        </View>
       </View>
 
       <View className="flex-1">
