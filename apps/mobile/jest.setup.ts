@@ -38,6 +38,11 @@ jest.mock("expo-location", () => ({
 
 jest.mock("expo-task-manager", () => ({ defineTask: jest.fn() }));
 
+// Las fotos se suben tal cual en las pruebas.
+jest.mock("expo-image-manipulator", () => {
+  throw new Error("sin módulo nativo en las pruebas");
+});
+
 // EAS Update desactivado en las pruebas (como en desarrollo).
 jest.mock("expo-updates", () => ({
   isEnabled: false,

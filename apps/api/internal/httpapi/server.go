@@ -54,6 +54,11 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
+	root := func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]string{"name": "PawFound API", "status": "ok"})
+	}
+	r.Get("/", root)
+	r.Head("/", root)
 	r.Get("/ready", s.ready)
 	if s.Admin != nil {
 		r.Mount("/admin", s.Admin)
@@ -65,6 +70,11 @@ func (s *Server) Handler() http.Handler {
 			actor, err := s.App.Authenticate(ctx, token)
 			return actor.ID, err
 		}))
+		// Subir una foto con datos móviles puede tardar más que el resto: 2 minutos.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Timeout(2*time.Minute), s.requireAuth)
+			r.Post("/media", s.upload)
+		})
 		r.Group(func(r chi.Router) {
 			r.Use(middleware.Timeout(30 * time.Second))
 			s.routes(r)
@@ -149,7 +159,6 @@ func (s *Server) routes(r chi.Router) {
 
 		r.Post("/users/{id}/like", s.like)
 		r.Post("/users/{id}/report", s.reportUser)
-		r.Post("/media", s.upload)
 		r.Post("/pets/{id}/stories", s.addStory)
 		r.Delete("/stories/{id}", s.removeStory)
 		r.Post("/places/{id}/report", s.reportPlace)

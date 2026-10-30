@@ -2,7 +2,9 @@ package app
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -90,10 +92,36 @@ type overpassResponse struct {
 
 // ImportPlaces descarga de la API Overpass de OpenStreetMap las veterinarias dentro de la caja y los guarda (actualiza los existentes, sin duplicar). Lo corre a mano el equipo
 // con `api import-places`; devuelve cuántos lugares importó.
+//
+// Sin endpoint prueba varios servidores públicos de Overpass: el principal a veces rechaza
+// conexiones desde la nube (por ejemplo desde Render) o está saturado.
 func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64, client *http.Client) (int, error) {
-	if endpoint == "" {
-		endpoint = "https://overpass-api.de/api/interpreter"
+	endpoints := overpassEndpoints
+	if endpoint != "" {
+		endpoints = []string{endpoint}
 	}
+	var errs []error
+	for _, e := range endpoints {
+		n, err := a.importPlacesFrom(ctx, e, bbox, client)
+		if err == nil {
+			return n, nil
+		}
+		errs = append(errs, fmt.Errorf("%s: %w", e, err))
+		if ctx.Err() != nil {
+			break
+		}
+	}
+	return 0, errors.Join(errs...)
+}
+
+// overpassEndpoints son servidores públicos de Overpass, en orden de preferencia.
+var overpassEndpoints = []string{
+	"https://overpass-api.de/api/interpreter",
+	"https://overpass.kumi.systems/api/interpreter",
+	"https://overpass.private.coffee/api/interpreter",
+}
+
+func (a *App) importPlacesFrom(ctx context.Context, endpoint string, bbox [4]float64, client *http.Client) (int, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 90 * time.Second}
 	}
@@ -140,18 +168,58 @@ func (a *App) ImportPlaces(ctx context.Context, endpoint string, bbox [4]float64
 		}
 		emergency := el.Tags["emergency"] == "yes" || strings.Contains(el.Tags["opening_hours"], "24/7")
 		sourceID := fmt.Sprintf("%s/%d", el.Type, el.ID)
-		if _, err := a.DB.Exec(ctx, `INSERT INTO places (id, kind, name, lat, lng, address, phone, website, opening_hours, emergency, source, source_id, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'osm', $11, $12)
-			ON CONFLICT (source, source_id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name, lat = EXCLUDED.lat, lng = EXCLUDED.lng,
-				address = EXCLUDED.address, phone = EXCLUDED.phone, website = EXCLUDED.website, opening_hours = EXCLUDED.opening_hours,
-				emergency = EXCLUDED.emergency, updated_at = EXCLUDED.updated_at`,
-			domain.NewID("plc"), "vet", name, lat, lng, optional(address), optional(phone), optional(website),
-			optional(el.Tags["opening_hours"]), emergency, sourceID, a.now()); err != nil {
+		if err := a.upsertPlace(ctx, sourceID, name, lat, lng, address, phone, website, el.Tags["opening_hours"], emergency); err != nil {
 			return imported, err
 		}
 		imported++
 	}
 	return imported, nil
+}
+
+// upsertPlace guarda o actualiza una veterinaria de OpenStreetMap (sin duplicar por source_id).
+func (a *App) upsertPlace(ctx context.Context, sourceID, name string, lat, lng float64, address, phone, website, hours string, emergency bool) error {
+	_, err := a.DB.Exec(ctx, `INSERT INTO places (id, kind, name, lat, lng, address, phone, website, opening_hours, emergency, source, source_id, updated_at)
+		VALUES ($1, 'vet', $2, $3, $4, $5, $6, $7, $8, $9, 'osm', $10, $11)
+		ON CONFLICT (source, source_id) DO UPDATE SET kind = EXCLUDED.kind, name = EXCLUDED.name, lat = EXCLUDED.lat, lng = EXCLUDED.lng,
+			address = EXCLUDED.address, phone = EXCLUDED.phone, website = EXCLUDED.website, opening_hours = EXCLUDED.opening_hours,
+			emergency = EXCLUDED.emergency, updated_at = EXCLUDED.updated_at`,
+		domain.NewID("plc"), name, lat, lng, optional(address), optional(phone), optional(website), optional(hours), emergency, sourceID, a.now())
+	return err
+}
+
+// placesSnapshot es la última importación de OpenStreetMap del Valle de Aburrá (© colaboradores
+// de OpenStreetMap, ODbL), la misma que usa el modo demostración de la app.
+//
+//go:embed places_osm.json
+var placesSnapshot []byte
+
+// SeedPlacesSnapshot carga las veterinarias guardadas cuando Overpass no responde: así la app
+// nunca arranca sin veterinarias. Una importación posterior las actualiza sin duplicar.
+func (a *App) SeedPlacesSnapshot(ctx context.Context) (int, error) {
+	var list []struct {
+		ID           string    `json:"id"`
+		Name         string    `json:"name"`
+		Location     geo.Point `json:"location"`
+		Address      string    `json:"address"`
+		Phone        string    `json:"phone"`
+		Website      string    `json:"website"`
+		OpeningHours string    `json:"openingHours"`
+		Emergency    bool      `json:"emergency"`
+	}
+	if err := json.Unmarshal(placesSnapshot, &list); err != nil {
+		return 0, err
+	}
+	seeded := 0
+	for _, p := range list {
+		if p.Name == "" || !validPoint(p.Location) {
+			continue
+		}
+		if err := a.upsertPlace(ctx, p.ID, p.Name, p.Location.Lat, p.Location.Lng, p.Address, p.Phone, p.Website, p.OpeningHours, p.Emergency); err != nil {
+			return seeded, err
+		}
+		seeded++
+	}
+	return seeded, nil
 }
 
 func nonEmpty(values ...string) []string {
