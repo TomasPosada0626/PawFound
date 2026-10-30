@@ -419,13 +419,20 @@ func (a *App) VerifyCode(ctx context.Context, ac Actor, code string) error {
 		}
 		return newErr(http.StatusUnprocessableEntity, "wrong_code", map[string]any{"count": MaxCodeAttempts - attempts})
 	}
-	return a.withTx(ctx, func(tx pgx.Tx) error {
+	err = a.withTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE users SET email_verified = true WHERE id = $1 AND lower(email) = lower($2)`, ac.ID, v.Email); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `DELETE FROM email_verifications WHERE user_id = $1`, ac.ID)
 		return err
 	})
+	if err == nil {
+		// Si es una cuenta de ADMIN_EMAILS, el panel queda disponible al verificar.
+		if _, perr := a.PromoteAdmins(ctx, ac.ID); perr != nil {
+			a.Log.Error("no se pudo dar el rol de administrador", "err", perr)
+		}
+	}
+	return err
 }
 
 // RequestPasswordReset responde igual exista o no la cuenta (sin enumeración de correos).

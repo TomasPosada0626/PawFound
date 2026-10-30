@@ -100,7 +100,7 @@ func run(args []string, logger *slog.Logger) error {
 	a := &app.App{
 		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher(cfg.JWTSecret), Log: logger,
 		Google: auth.GoogleProvider(cfg.GoogleClients), Apple: auth.AppleProvider(cfg.AppleClients),
-		APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL,
+		APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL, AdminEmails: cfg.AdminEmails,
 		FixedCode: cfg.FixedCode,
 	}
 	// Fotos: Cloudflare R2 si está configurado; si no, el disco local (solo para desarrollo).
@@ -133,6 +133,21 @@ func run(args []string, logger *slog.Logger) error {
 
 	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development()}
 	server := &httpapi.Server{App: a, Log: logger, ClientIPHeader: cfg.ClientIPHeader, Admin: panel.Handler()}
+	// Veterinarias: si la tabla está vacía (primer despliegue), se importan solas de
+	// OpenStreetMap en segundo plano. Para actualizarlas después: api import-places.
+	go func() {
+		if n, err := a.PlacesCount(ctx); err != nil || n > 0 {
+			return
+		}
+		importCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		n, err := a.ImportPlaces(importCtx, os.Getenv("OVERPASS_URL"), app.ValleDeAburra, nil)
+		if err != nil {
+			logger.Error("no se pudieron importar las veterinarias", "err", err)
+			return
+		}
+		logger.Info("veterinarias importadas de OpenStreetMap", "count", n)
+	}()
 	if cfg.JobsEnabled {
 		go jobs.Run(ctx, a, cfg.JobsInterval, logger)
 	}

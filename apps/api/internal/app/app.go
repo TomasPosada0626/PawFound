@@ -44,6 +44,8 @@ type App struct {
 	// SendMailInline envía los correos antes de responder (las pruebas lo usan para leer el
 	// código enseguida). En producción va en false: el registro no espera al proveedor.
 	SendMailInline bool
+	// AdminEmails reciben el rol de administrador cuando su cuenta verifica el correo.
+	AdminEmails []string
 	// WebBaseURL arma los enlaces que se comparten ("https://pawfound.pages.dev").
 	WebBaseURL string
 	// RefreshTTL es la vida de un refresh token sin usar.
