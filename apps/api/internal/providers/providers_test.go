@@ -20,7 +20,7 @@ func TestLogProvidersNeverLeakFullEmail(t *testing.T) {
 	var buf bytes.Buffer
 	log := slog.New(slog.NewTextHandler(&buf, nil))
 	ctx := context.Background()
-	if err := (LogMailer{Log: log}).SendVerificationCode(ctx, "valentina.arango@gmail.com", "123456", "es"); err != nil {
+	if err := (LogMailer{Log: log}).SendVerificationCode(ctx, "valentina.arango@gmail.com", "Valentina", "123456", "es"); err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(buf.String(), "valentina.arango") || !strings.Contains(buf.String(), "gmail.com") || !strings.Contains(buf.String(), "123456") {
@@ -75,11 +75,11 @@ func fakeSMTP(t *testing.T) string {
 
 func TestSMTPMailerSafety(t *testing.T) {
 	ctx := context.Background()
-	if err := (SMTPMailer{}).SendVerificationCode(ctx, "a@b.co", "1", "es"); !errors.Is(err, ErrDisabled) {
+	if err := (SMTPMailer{}).SendVerificationCode(ctx, "a@b.co", "", "1", "es"); !errors.Is(err, ErrDisabled) {
 		t.Fatalf("sin host = %v", err)
 	}
 	m := SMTPMailer{Host: "127.0.0.1", Port: "1", From: "pawfound@x.co", Timeout: time.Second}
-	if err := m.SendVerificationCode(ctx, "a@b.co\r\nBcc: todos@x.co", "1", "es"); !errors.Is(err, errHeaderInjection) {
+	if err := m.SendVerificationCode(ctx, "a@b.co\r\nBcc: todos@x.co", "", "1", "es"); !errors.Is(err, errHeaderInjection) {
 		t.Fatalf("inyección de cabeceras = %v", err)
 	}
 	if err := m.SendPasswordReset(ctx, "a@b.co", "https://x"); err == nil {
@@ -87,10 +87,10 @@ func TestSMTPMailerSafety(t *testing.T) {
 	}
 	host, port, _ := net.SplitHostPort(fakeSMTP(t))
 	plain := SMTPMailer{Host: host, Port: port, From: "pawfound@x.co", Timeout: 2 * time.Second}
-	if err := plain.SendVerificationCode(ctx, "a@b.co", "123456", "en"); err == nil || !strings.Contains(err.Error(), "STARTTLS") {
+	if err := plain.SendVerificationCode(ctx, "a@b.co", "", "123456", "en"); err == nil || !strings.Contains(err.Error(), "STARTTLS") {
 		t.Fatalf("sin STARTTLS = %v", err)
 	}
-	if err := (SMTPMailer{Host: "127.0.0.1", Port: "465", From: "x@x.co", Timeout: time.Second}).SendVerificationCode(ctx, "a@b.co", "1", "fr"); err == nil {
+	if err := (SMTPMailer{Host: "127.0.0.1", Port: "465", From: "x@x.co", Timeout: time.Second}).SendVerificationCode(ctx, "a@b.co", "", "1", "fr"); err == nil {
 		t.Fatal("TLS directo sin servidor")
 	}
 }

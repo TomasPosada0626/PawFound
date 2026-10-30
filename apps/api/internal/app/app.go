@@ -41,6 +41,9 @@ type App struct {
 
 	// APIBaseURL arma las URLs absolutas de las fotos ("https://pawfound-api.onrender.com").
 	APIBaseURL string
+	// SendMailInline envía los correos antes de responder (las pruebas lo usan para leer el
+	// código enseguida). En producción va en false: el registro no espera al proveedor.
+	SendMailInline bool
 	// WebBaseURL arma los enlaces que se comparten ("https://pawfound.pages.dev").
 	WebBaseURL string
 	// RefreshTTL es la vida de un refresh token sin usar.

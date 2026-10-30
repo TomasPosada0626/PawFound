@@ -12,7 +12,7 @@ import { maskEmail } from "@/domain/privacy";
 import { safeNext } from "@/hooks/useAuthGate";
 import { useNow } from "@/hooks/useNow";
 import { countdown } from "@/i18n/format";
-import { authErrorMessage } from "@/features/authErrors";
+import { errorMessage } from "@/features/errorMessages";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
 import { DEMO_CODE } from "@/services/mockBackend";
@@ -86,7 +86,7 @@ export default function VerifyScreen() {
             ? t("errors.locked", { minutes: Number(err.params.minutes) })
             : err.code === "expired"
               ? t("errors.expired")
-              : authErrorMessage(err.code, t),
+              : errorMessage(err.code, t),
       );
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       setDigits(Array(LENGTH).fill(""));

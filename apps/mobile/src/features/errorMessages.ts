@@ -4,10 +4,10 @@ import type { ErrorCode } from "@/services/backendTypes";
 type T = (key: TKey, params?: TParams) => string;
 
 /**
- * Mensaje para un error de cuenta (registro, inicio de sesión, verificación). "Sin conexión"
- * solo cuando de verdad no hubo red; el resto dice qué pasó para que la persona sepa qué hacer.
+ * Mensaje para un error (cuenta, reportes, fotos). "Sin conexión" solo cuando de verdad no hubo
+ * red; el resto dice qué pasó para que la persona sepa qué hacer.
  */
-export function authErrorMessage(code: ErrorCode, t: T): string {
+export function errorMessage(code: ErrorCode, t: T): string {
   switch (code) {
     case "network":
       return t("errors.network");
@@ -19,6 +19,10 @@ export function authErrorMessage(code: ErrorCode, t: T): string {
       return t("errors.suspended");
     case "invalid_input":
       return t("errors.invalid_input");
+    case "storage_unavailable":
+      return t("errors.storage_unavailable");
+    case "invalid_image":
+      return t("errors.invalid_image");
     default:
       return t("errors.unknown");
   }

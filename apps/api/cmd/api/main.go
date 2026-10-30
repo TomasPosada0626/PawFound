@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -111,7 +112,10 @@ func run(args []string, logger *slog.Logger) error {
 	switch {
 	case cfg.BrevoAPIKey != "":
 		// API web de Brevo (HTTPS): funciona aunque el hosting bloquee SMTP, como Render gratis.
-		a.Mailer = providers.BrevoMailer{APIKey: cfg.BrevoAPIKey, From: cfg.SMTP.From}
+		web := strings.TrimRight(cfg.WebBaseURL, "/")
+		a.Mailer = providers.BrevoMailer{APIKey: cfg.BrevoAPIKey, From: cfg.SMTP.From, Brand: providers.EmailBrand{
+			WebURL: web, LogoURL: web + "/email/logo.png", Contact: cfg.SMTP.From,
+		}}
 	case cfg.SMTP.Host != "":
 		a.Mailer = providers.SMTPMailer{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
 	case cfg.Development():
@@ -144,7 +148,22 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
-	logger.Info("pawfound-api escuchando", "addr", srv.Addr, "env", cfg.Env, "mail", cfg.SMTP.Host != "" || cfg.Development(), "push", cfg.PushProvider)
+	mail, storage := "ninguno", "disco local"
+	switch {
+	case cfg.BrevoAPIKey != "":
+		mail = "brevo (api web)"
+	case cfg.SMTP.Host != "":
+		mail = "smtp " + cfg.SMTP.Host
+	case cfg.Development():
+		mail = "log (desarrollo)"
+	}
+	if cfg.R2.Enabled() {
+		storage = "cloudflare r2 (" + cfg.R2.Bucket + ")"
+	} else if !cfg.Development() {
+		logger.Warn("fotos sin Cloudflare R2: en producción el disco se borra y las subidas fallan; define CLOUDFLARE_R2_*")
+	}
+	logger.Info("pawfound-api escuchando", "addr", srv.Addr, "env", cfg.Env, "correo", mail, "fotos", storage,
+		"push", cfg.PushProvider, "tareas_cada", cfg.JobsInterval.String())
 	select {
 	case err := <-errCh:
 		return err

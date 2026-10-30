@@ -11,7 +11,7 @@ import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
 import { validateLogin, type LoginForm } from "@/domain/validation";
 import { safeNext } from "@/hooks/useAuthGate";
-import { authErrorMessage } from "@/features/authErrors";
+import { errorMessage } from "@/features/errorMessages";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
 import { DEMO_EMAIL, DEMO_PASSWORD } from "@/services/seed";
@@ -52,7 +52,7 @@ export default function LoginScreen() {
       setFormError(
         error instanceof BackendError && error.code === "invalid_credentials"
           ? t("errors.invalid_credentials")
-          : authErrorMessage(error instanceof BackendError ? error.code : "unknown", t),
+          : errorMessage(error instanceof BackendError ? error.code : "unknown", t),
       );
     } finally {
       setLoading(false);

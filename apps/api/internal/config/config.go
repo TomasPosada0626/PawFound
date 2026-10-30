@@ -113,7 +113,9 @@ func Load(getenv func(string) string) (Config, error) {
 		errs = append(errs, errors.New("ACCESS_TOKEN_TTL debe estar entre 1m y 24h"))
 	}
 	c.AccessTTL = ttl
-	interval, err := time.ParseDuration(get("JOBS_INTERVAL", "1m"))
+	// Cada 10 min: el círculo llega a 2 km en ~30 min, y entre revisiones la base de datos de
+	// Neon alcanza a dormirse (el plan gratis da 100 horas de cómputo al mes).
+	interval, err := time.ParseDuration(get("JOBS_INTERVAL", "10m"))
 	if err != nil || interval < 10*time.Second {
 		errs = append(errs, errors.New("JOBS_INTERVAL debe ser al menos 10s"))
 	}
