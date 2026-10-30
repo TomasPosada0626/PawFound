@@ -3,7 +3,7 @@ import { View } from "react-native";
 
 import { useI18n } from "@/i18n/I18nProvider";
 
-import { LogoMark, PawDecoration, Wordmark } from "./brand";
+import { LogoMark, Wordmark } from "./brand";
 import { BackButton, Screen, ThemeButton } from "./layout";
 import { Text } from "./ui/Text";
 
@@ -32,9 +32,6 @@ export function AuthLayout({
         </View>
       }
     >
-      {/* Huellas solo junto al logo: más abajo asomaban por detrás de la tarjeta. */}
-      <PawDecoration size={96} className="absolute -left-7 top-6" />
-      <PawDecoration size={64} className="absolute -right-3 top-0" />
       <View className="items-center">
         <LogoMark size={64} />
         <View className="mt-1">

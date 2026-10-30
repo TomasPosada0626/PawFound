@@ -142,9 +142,17 @@ func TestRefreshRotationAndReuseDetection(t *testing.T) {
 	if next.RefreshToken == session.RefreshToken {
 		t.Fatal("el refresh token debe rotar")
 	}
-	// Reusar el viejo revoca toda la familia: también el nuevo deja de servir.
+	// Reintento enseguida con el viejo (la respuesta se perdió en la red): no cierra la sesión.
+	var retried app.Session
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": session.RefreshToken}, &retried)
+	if retried.RefreshToken == next.RefreshToken || retried.RefreshToken == session.RefreshToken {
+		t.Fatal("el reintento recibe un token propio")
+	}
+	// Pasado el margen, reusar el viejo es sospechoso: revoca toda la familia.
+	h.clock.Advance(3 * time.Minute)
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": session.RefreshToken})
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": next.RefreshToken})
+	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": retried.RefreshToken})
 
 	var again app.Session
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"email": "rot@pawfound.app", "password": "Patitas2026"}, &again)
@@ -152,13 +160,16 @@ func TestRefreshRotationAndReuseDetection(t *testing.T) {
 		t.Fatal("una cuenta sin verificar debe recibir otro código al entrar")
 	}
 	h.must(http.StatusNoContent, http.MethodPost, "/v1/auth/logout", "", map[string]string{"refreshToken": again.RefreshToken}, nil)
+	// Cerrar sesión es definitivo, aunque sea dentro del margen de reintento.
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": again.RefreshToken})
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": "inventado"})
 
-	// Vencido.
+	// La sesión se renueva sola mientras se use; solo vence tras un año sin abrir la app.
 	var fresh app.Session
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"email": "rot@pawfound.app", "password": "Patitas2026"}, &fresh)
-	h.clock.Advance(31 * 24 * time.Hour)
+	h.clock.Advance(200 * 24 * time.Hour)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": fresh.RefreshToken}, &fresh)
+	h.clock.Advance(366 * 24 * time.Hour)
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodPost, "/v1/auth/refresh", "", map[string]string{"refreshToken": fresh.RefreshToken})
 }
 

@@ -48,7 +48,8 @@ type App struct {
 	AdminEmails []string
 	// WebBaseURL arma los enlaces que se comparten ("https://pawfound.pages.dev").
 	WebBaseURL string
-	// RefreshTTL es la vida de un refresh token sin usar.
+	// RefreshTTL es la vida de un refresh token sin usar. Cada renovación empieza el plazo de
+	// nuevo: la sesión dura hasta que la persona la cierre o pase este tiempo sin abrir la app.
 	RefreshTTL time.Duration
 	// FixedCode solo en desarrollo: código de verificación fijo para probar la app en local.
 	FixedCode string
@@ -66,7 +67,7 @@ func (a *App) Init() {
 		a.Log = slog.Default()
 	}
 	if a.RefreshTTL == 0 {
-		a.RefreshTTL = 30 * 24 * time.Hour
+		a.RefreshTTL = 365 * 24 * time.Hour
 	}
 	if a.Hub == nil {
 		a.Hub = realtime.NewHub()

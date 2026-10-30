@@ -133,7 +133,7 @@ export default function VerifyScreen() {
             textContentType={i === 0 ? "oneTimeCode" : "none"}
             autoFocus={i === 0}
             selectTextOnFocus
-            className={`h-14 min-w-[44px] flex-1 rounded-2xl border-[1.5px] bg-surface text-center font-extrabold text-2xl text-ink ${error ? "border-danger" : d ? "border-primary-strong" : "border-border"}`}
+            className={`h-14 min-w-[44px] flex-1 rounded-2xl border-[1.5px] bg-surface text-center font-nunito-extrabold text-2xl text-ink ${error ? "border-danger" : d ? "border-primary-strong" : "border-border"}`}
             testID={`otp-${i}`}
           />
         ))}

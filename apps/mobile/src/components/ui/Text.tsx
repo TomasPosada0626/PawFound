@@ -10,15 +10,15 @@ export type TextVariant =
 export type TextTone = "ink" | "body" | "muted" | "primary" | "lost" | "found" | "white" | "danger" | "warning" | "verified";
 
 const VARIANT: Record<TextVariant, string> = {
-  display: "font-black text-[30px] leading-[36px]",
-  title: "font-extrabold text-2xl leading-8",
-  heading: "font-extrabold text-lg leading-6",
-  subheading: "font-bold text-base leading-6",
+  display: "font-nunito-black text-[30px] leading-[36px]",
+  title: "font-nunito-extrabold text-2xl leading-8",
+  heading: "font-nunito-extrabold text-lg leading-6",
+  subheading: "font-nunito-bold text-base leading-6",
   body: "font-regular text-[15px] leading-[22px]",
-  bodyStrong: "font-bold text-[15px] leading-[22px]",
+  bodyStrong: "font-nunito-bold text-[15px] leading-[22px]",
   caption: "font-regular text-[13px] leading-[18px]",
-  captionStrong: "font-bold text-[13px] leading-[18px]",
-  label: "font-bold text-xs leading-4",
+  captionStrong: "font-nunito-bold text-[13px] leading-[18px]",
+  label: "font-nunito-bold text-xs leading-4",
 };
 
 const DEFAULT_TONE: Record<TextVariant, TextTone> = {

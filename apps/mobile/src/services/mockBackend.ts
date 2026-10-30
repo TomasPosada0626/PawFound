@@ -298,8 +298,8 @@ export class MockBackend {
     // Respuesta idéntica exista o no la cuenta (sin enumeración de correos).
   }
 
-  /** "Recordar sesión": restaura solo si la cuenta sigue existiendo. */
-  restoreSession(userId: string): boolean {
+  /** Restaura la sesión guardada solo si la cuenta sigue existiendo. */
+  async restoreSession(userId: string): Promise<boolean> {
     if (!this.state.users[userId]) return false;
     this.commit({ sessionUserId: userId });
     return true;

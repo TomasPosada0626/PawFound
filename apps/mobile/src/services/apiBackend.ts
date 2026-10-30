@@ -34,6 +34,7 @@ import {
 } from "./backendTypes";
 import { DEFAULT_NOTIFICATION_PREFS, DEFAULT_PRIVACY_PREFS } from "./mockBackend";
 import { photoExists, shrinkPhoto } from "./photoShrink";
+import { readJSON, writeJSON } from "./storage";
 
 type NativeFiles = typeof import("expo-file-system/legacy");
 
@@ -56,6 +57,10 @@ function nativeFiles(): NativeFiles | null {
  */
 
 const TOKENS_KEY = "pawfound.tokens";
+/** Última cuenta conocida: al abrir la app se muestra al instante mientras la API responde. */
+const ME_KEY = "pawfound.me";
+/** Resultado de renovar: "failed" es un problema de red o del servidor, no cierra la sesión. */
+type RenewResult = "ok" | "rejected" | "failed";
 const NEARBY_RADIUS = 20_000;
 const RESEND_COOLDOWN_S = 45;
 
@@ -156,7 +161,7 @@ export class ApiBackend {
   private allowance: PublishAllowance = { allowed: true };
   private codeSentAt = 0;
   private socket: WebSocket | null = null;
-  private refreshing: Promise<boolean> | null = null;
+  private refreshing: Promise<RenewResult> | null = null;
 
   constructor(private readonly baseUrl: string) {}
 
@@ -201,7 +206,11 @@ export class ApiBackend {
     } catch {
       throw new BackendError("network");
     }
-    if (res.status === 401 && retry && this.tokens && (await this.renew())) return this.request<T>(method, path, body, false);
+    if (res.status === 401 && retry && this.tokens) {
+      const renewed = await this.renew();
+      if (renewed === "ok") return this.request<T>(method, path, body, false);
+      if (renewed === "failed") throw new BackendError("network");
+    }
     if (res.status === 204) return undefined as T;
     const data = (await res.json().catch(() => null)) as {
       error?: { code?: string; params?: Record<string, string | number> };
@@ -213,27 +222,32 @@ export class ApiBackend {
     return data as T;
   }
 
-  /** Renueva el token de acceso con el refresh token (una sola vez aunque fallen varias peticiones). */
-  private renew(): Promise<boolean> {
+  /**
+   * Renueva el token de acceso con el refresh token (una sola vez aunque fallen varias
+   * peticiones). La sesión solo se cierra si la API la rechaza (401/403): sin red, con la API
+   * despertando (Render gratis) o con un límite de peticiones, se conserva y se reintenta luego.
+   */
+  private renew(): Promise<RenewResult> {
     if (!this.refreshing) {
-      this.refreshing = (async () => {
+      this.refreshing = (async (): Promise<RenewResult> => {
         try {
           const refresh = this.tokens?.refresh;
-          if (!refresh) return false;
+          if (!refresh) return "rejected";
           const res = await fetch(`${this.baseUrl}/v1/auth/refresh`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ refreshToken: refresh }),
           });
-          if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
             await this.clearSession();
-            return false;
+            return "rejected";
           }
+          if (!res.ok) return "failed";
           const session = (await res.json()) as ApiSession;
           await this.saveTokens({ access: session.accessToken, refresh: session.refreshToken });
-          return true;
+          return "ok";
         } catch {
-          return false;
+          return "failed";
         } finally {
           this.refreshing = null;
         }
@@ -252,6 +266,7 @@ export class ApiBackend {
     this.socket?.close();
     this.socket = null;
     await SecureStore.deleteItemAsync(TOKENS_KEY).catch(() => {});
+    await writeJSON(ME_KEY, null);
     this.state = emptyState();
     this.listeners.forEach((l) => l());
   }
@@ -290,7 +305,11 @@ export class ApiBackend {
     } catch {
       throw new BackendError("network");
     }
-    if (res.status === 401 && retry && this.tokens && (await this.renew())) return this.uploadFile(fileUri, purpose, false);
+    if (res.status === 401 && retry && this.tokens) {
+      const renewed = await this.renew();
+      if (renewed === "ok") return this.uploadFile(fileUri, purpose, false);
+      if (renewed === "failed") throw new BackendError("network");
+    }
     type UploadBody = { id?: string; url?: string; error?: { code?: string; params?: Record<string, string | number> } };
     let data: UploadBody | null;
     try {
@@ -378,6 +397,7 @@ export class ApiBackend {
   }
 
   private applyMe(me: ApiMe) {
+    void writeJSON(ME_KEY, me);
     const user = this.toUser(me.user);
     this.allowance = me.allowance.allowed
       ? { allowed: true }
@@ -511,20 +531,35 @@ export class ApiBackend {
     await this.request("POST", "/v1/auth/password-reset", { email });
   }
 
-  /** Restaura la sesión guardada; la confirma la API en segundo plano. */
-  restoreSession(_userId: string): boolean {
-    void (async () => {
-      const raw = await SecureStore.getItemAsync(TOKENS_KEY).catch(() => null);
-      if (!raw) return;
-      this.tokens = JSON.parse(raw) as Tokens;
-      try {
-        this.applyMe(await this.request<ApiMe>("GET", "/v1/me"));
-        await this.sync();
-      } catch (e) {
-        if (e instanceof BackendError && (e.code === "unauthorized" || e.code === "suspended")) await this.clearSession();
-      }
-    })();
+  /**
+   * Restaura la sesión guardada: muestra al instante la última cuenta conocida y la confirma con
+   * la API en segundo plano. La sesión sigue abierta hasta que la persona la cierre o la API la
+   * rechace; sin red o con la API despertando, se reintenta.
+   */
+  async restoreSession(_userId: string): Promise<boolean> {
+    const raw = await SecureStore.getItemAsync(TOKENS_KEY).catch(() => null);
+    if (!raw) return false;
+    this.tokens = JSON.parse(raw) as Tokens;
+    const cached = await readJSON<ApiMe>(ME_KEY);
+    if (cached?.user) this.applyMe(cached);
+    void this.confirmSession();
     return true;
+  }
+
+  /** Confirma la sesión con la API; reintenta con espera creciente (hasta unos 2 minutos). */
+  private async confirmSession(attempt = 0): Promise<void> {
+    try {
+      this.applyMe(await this.request<ApiMe>("GET", "/v1/me"));
+      await this.sync();
+    } catch (e) {
+      if (e instanceof BackendError && (e.code === "unauthorized" || e.code === "suspended")) {
+        await this.clearSession();
+        return;
+      }
+      if (this.tokens && attempt < 6) {
+        setTimeout(() => void this.confirmSession(attempt + 1), Math.min(30_000, 2_000 * 2 ** attempt));
+      }
+    }
   }
 
   // --- Reportes --------------------------------------------------------------------------
