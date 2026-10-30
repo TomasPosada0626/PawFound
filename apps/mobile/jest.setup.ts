@@ -38,6 +38,16 @@ jest.mock("expo-location", () => ({
 
 jest.mock("expo-task-manager", () => ({ defineTask: jest.fn() }));
 
+// En las pruebas no hay cargador nativo de archivos: se usa fetch.
+jest.mock("expo-file-system/legacy", () => {
+  throw new Error("sin módulo nativo en las pruebas");
+});
+
+// Las fotos se suben tal cual en las pruebas.
+jest.mock("expo-image-manipulator", () => {
+  throw new Error("sin módulo nativo en las pruebas");
+});
+
 // EAS Update desactivado en las pruebas (como en desarrollo).
 jest.mock("expo-updates", () => ({
   isEnabled: false,

@@ -30,7 +30,7 @@ import (
 
 // Límites de subida.
 const (
-	MaxUploadBytes = 8 << 20
+	MaxUploadBytes = 12 << 20
 	MaxSide        = 1600
 	maxInputSide   = 12_000
 	maxInputPixels = 50_000_000
