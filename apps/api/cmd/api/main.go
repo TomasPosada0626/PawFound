@@ -133,26 +133,16 @@ func run(args []string, logger *slog.Logger) error {
 
 	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development()}
 	server := &httpapi.Server{App: a, Log: logger, ClientIPHeader: cfg.ClientIPHeader, Admin: panel.Handler()}
-	// Veterinarias: si la tabla está vacía (primer despliegue), se importan solas de
-	// OpenStreetMap en segundo plano. Para actualizarlas después: api import-places.
-	go func() {
-		if n, err := a.PlacesCount(ctx); err != nil || n > 0 {
-			return
-		}
-		importCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
-		defer cancel()
-		n, err := a.ImportPlaces(importCtx, os.Getenv("OVERPASS_URL"), app.ValleDeAburra, nil)
-		if err == nil {
-			logger.Info("veterinarias importadas de OpenStreetMap", "count", n)
-			return
-		}
-		logger.Warn("OpenStreetMap no respondió; se cargan las veterinarias guardadas", "err", err)
-		if n, err = a.SeedPlacesSnapshot(importCtx); err != nil {
-			logger.Error("no se pudieron cargar las veterinarias guardadas", "err", err)
-			return
-		}
-		logger.Info("veterinarias cargadas de la copia guardada de OpenStreetMap", "count", n)
-	}()
+	// Veterinarias: si la tabla está vacía se cargan solas. Las tareas periódicas lo hacen en su
+	// primera ronda (al arrancar) y lo reintentan cada ronda hasta lograrlo; sin tareas, se lanza
+	// aquí una vez. Para actualizarlas después: api import-places.
+	if !cfg.JobsEnabled {
+		go func() {
+			if _, _, err := a.EnsurePlaces(ctx, os.Getenv("OVERPASS_URL")); err != nil {
+				logger.Error("no se pudieron cargar las veterinarias", "err", err)
+			}
+		}()
+	}
 	if cfg.JobsEnabled {
 		go jobs.Run(ctx, a, cfg.JobsInterval, logger)
 	}
