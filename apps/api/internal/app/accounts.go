@@ -85,8 +85,10 @@ func (a *App) Register(ctx context.Context, in RegisterInput) (Session, error) {
 	if err != nil {
 		return Session{}, err
 	}
-	if err := a.issueCode(ctx, userID, email, lang); err != nil {
-		// Sin código enviado no hay forma de verificar: se deshace la cuenta para que la
+	// El correo sale en segundo plano: el registro responde en lo que tarda la base de datos.
+	// Si no llega, "Reenviar código" lo vuelve a enviar y ahí sí avisa si falla.
+	if err := a.issueCode(ctx, userID, email, name, lang, false); err != nil {
+		// Sin proveedor de correo no hay forma de verificar: se deshace la cuenta para que la
 		// persona pueda volver a intentarlo con el mismo correo.
 		_, _ = a.DB.Exec(context.WithoutCancel(ctx), `DELETE FROM users WHERE id = $1`, userID)
 		return Session{}, err
@@ -144,7 +146,7 @@ func (a *App) Login(ctx context.Context, identifier, password string) (Session, 
 	if !session.Me.User.Verified {
 		// Si el último código sigue vigente no se envía otro (evita llenar el correo).
 		if v, err := a.verification(ctx, userID); err != nil || a.now().Sub(v.SentAt) > ResendCooldown {
-			if err := a.issueCode(ctx, userID, session.Me.User.Email, session.Me.User.Lang); err != nil {
+			if err := a.issueCode(ctx, userID, session.Me.User.Email, session.Me.User.Name, session.Me.User.Lang, false); err != nil {
 				return Session{}, err
 			}
 		}
@@ -310,7 +312,10 @@ func (a *App) Logout(ctx context.Context, token string) error {
 
 // --- Verificación del correo ----------------------------------------------
 
-func (a *App) issueCode(ctx context.Context, userID, email, lang string) error {
+// issueCode guarda un código nuevo y lo envía al correo. Con wait=false el envío va en segundo
+// plano (registro e inicio de sesión responden de inmediato); con wait=true espera y devuelve el
+// error (al reenviar, la persona necesita saber si salió).
+func (a *App) issueCode(ctx context.Context, userID, email, name, lang string, wait bool) error {
 	if a.Mailer == nil {
 		return providerUnavailable("email")
 	}
@@ -329,14 +334,26 @@ func (a *App) issueCode(ctx context.Context, userID, email, lang string) error {
 		userID, email, a.Codes.Hash(email, code), a.now()); err != nil {
 		return err
 	}
-	if err := a.Mailer.SendVerificationCode(ctx, email, code, lang); err != nil {
-		// El detalle (SMTP bloqueado, clave inválida, remitente sin verificar) queda en el log; la
-		// app solo dice que no se pudo enviar el correo.
-		if !errors.Is(err, providers.ErrDisabled) {
+	send := func(ctx context.Context) error {
+		err := a.Mailer.SendVerificationCode(ctx, email, name, code, lang)
+		// El detalle (SMTP bloqueado, clave inválida, remitente sin verificar) queda en el log;
+		// la app solo dice que no se pudo enviar el correo.
+		if err != nil && !errors.Is(err, providers.ErrDisabled) {
 			a.Log.Error("no se pudo enviar el código de verificación", "err", err)
 		}
-		return providerUnavailable("email")
+		return err
 	}
+	if wait || a.SendMailInline {
+		if err := send(ctx); err != nil {
+			return providerUnavailable("email")
+		}
+		return nil
+	}
+	go func() {
+		bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		_ = send(bg)
+	}()
 	return nil
 }
 
@@ -372,7 +389,7 @@ func (a *App) ResendCode(ctx context.Context, ac Actor) (int, error) {
 			return seconds, newErr(http.StatusTooManyRequests, "rate_limited", map[string]any{"seconds": seconds})
 		}
 	}
-	return int(ResendCooldown.Seconds()), a.issueCode(ctx, ac.ID, email, ac.Lang)
+	return int(ResendCooldown.Seconds()), a.issueCode(ctx, ac.ID, email, ac.Name, ac.Lang, true)
 }
 
 // VerifyCode confirma el correo y otorga la insignia azul. 5 intentos fallidos bloquean 5 minutos.
@@ -402,13 +419,20 @@ func (a *App) VerifyCode(ctx context.Context, ac Actor, code string) error {
 		}
 		return newErr(http.StatusUnprocessableEntity, "wrong_code", map[string]any{"count": MaxCodeAttempts - attempts})
 	}
-	return a.withTx(ctx, func(tx pgx.Tx) error {
+	err = a.withTx(ctx, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE users SET email_verified = true WHERE id = $1 AND lower(email) = lower($2)`, ac.ID, v.Email); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, `DELETE FROM email_verifications WHERE user_id = $1`, ac.ID)
 		return err
 	})
+	if err == nil {
+		// Si es una cuenta de ADMIN_EMAILS, el panel queda disponible al verificar.
+		if _, perr := a.PromoteAdmins(ctx, ac.ID); perr != nil {
+			a.Log.Error("no se pudo dar el rol de administrador", "err", perr)
+		}
+	}
+	return err
 }
 
 // RequestPasswordReset responde igual exista o no la cuenta (sin enumeración de correos).

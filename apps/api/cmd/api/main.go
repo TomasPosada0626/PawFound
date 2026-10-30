@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -99,7 +100,7 @@ func run(args []string, logger *slog.Logger) error {
 	a := &app.App{
 		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher(cfg.JWTSecret), Log: logger,
 		Google: auth.GoogleProvider(cfg.GoogleClients), Apple: auth.AppleProvider(cfg.AppleClients),
-		APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL,
+		APIBaseURL: cfg.APIBaseURL, WebBaseURL: cfg.WebBaseURL, AdminEmails: cfg.AdminEmails,
 		FixedCode: cfg.FixedCode,
 	}
 	// Fotos: Cloudflare R2 si está configurado; si no, el disco local (solo para desarrollo).
@@ -111,7 +112,10 @@ func run(args []string, logger *slog.Logger) error {
 	switch {
 	case cfg.BrevoAPIKey != "":
 		// API web de Brevo (HTTPS): funciona aunque el hosting bloquee SMTP, como Render gratis.
-		a.Mailer = providers.BrevoMailer{APIKey: cfg.BrevoAPIKey, From: cfg.SMTP.From}
+		web := strings.TrimRight(cfg.WebBaseURL, "/")
+		a.Mailer = providers.BrevoMailer{APIKey: cfg.BrevoAPIKey, From: cfg.SMTP.From, Brand: providers.EmailBrand{
+			WebURL: web, LogoURL: web + "/email/logo.png", Contact: cfg.SMTP.From,
+		}}
 	case cfg.SMTP.Host != "":
 		a.Mailer = providers.SMTPMailer{Host: cfg.SMTP.Host, Port: cfg.SMTP.Port, Username: cfg.SMTP.Username, Password: cfg.SMTP.Password, From: cfg.SMTP.From}
 	case cfg.Development():
@@ -129,6 +133,21 @@ func run(args []string, logger *slog.Logger) error {
 
 	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development()}
 	server := &httpapi.Server{App: a, Log: logger, ClientIPHeader: cfg.ClientIPHeader, Admin: panel.Handler()}
+	// Veterinarias: si la tabla está vacía (primer despliegue), se importan solas de
+	// OpenStreetMap en segundo plano. Para actualizarlas después: api import-places.
+	go func() {
+		if n, err := a.PlacesCount(ctx); err != nil || n > 0 {
+			return
+		}
+		importCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+		n, err := a.ImportPlaces(importCtx, os.Getenv("OVERPASS_URL"), app.ValleDeAburra, nil)
+		if err != nil {
+			logger.Error("no se pudieron importar las veterinarias", "err", err)
+			return
+		}
+		logger.Info("veterinarias importadas de OpenStreetMap", "count", n)
+	}()
 	if cfg.JobsEnabled {
 		go jobs.Run(ctx, a, cfg.JobsInterval, logger)
 	}
@@ -144,7 +163,22 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
-	logger.Info("pawfound-api escuchando", "addr", srv.Addr, "env", cfg.Env, "mail", cfg.SMTP.Host != "" || cfg.Development(), "push", cfg.PushProvider)
+	mail, storage := "ninguno", "disco local"
+	switch {
+	case cfg.BrevoAPIKey != "":
+		mail = "brevo (api web)"
+	case cfg.SMTP.Host != "":
+		mail = "smtp " + cfg.SMTP.Host
+	case cfg.Development():
+		mail = "log (desarrollo)"
+	}
+	if cfg.R2.Enabled() {
+		storage = "cloudflare r2 (" + cfg.R2.Bucket + ")"
+	} else if !cfg.Development() {
+		logger.Warn("fotos sin Cloudflare R2: en producción el disco se borra y las subidas fallan; define CLOUDFLARE_R2_*")
+	}
+	logger.Info("pawfound-api escuchando", "addr", srv.Addr, "env", cfg.Env, "correo", mail, "fotos", storage,
+		"push", cfg.PushProvider, "tareas_cada", cfg.JobsInterval.String())
 	select {
 	case err := <-errCh:
 		return err

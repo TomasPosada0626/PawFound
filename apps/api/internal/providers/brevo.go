@@ -18,6 +18,8 @@ import (
 type BrevoMailer struct {
 	APIKey string
 	From   string
+	// Brand pone el logo, la web y el contacto en la versión con diseño del correo.
+	Brand EmailBrand
 	// Endpoint por defecto https://api.brevo.com/v3/smtp/email (las pruebas usan un servidor falso).
 	Endpoint string
 	Client   *http.Client
@@ -26,30 +28,46 @@ type BrevoMailer struct {
 const brevoEndpoint = "https://api.brevo.com/v3/smtp/email"
 
 // SendVerificationCode envía el código de 6 dígitos.
-func (m BrevoMailer) SendVerificationCode(ctx context.Context, email, code, lang string) error {
+func (m BrevoMailer) SendVerificationCode(ctx context.Context, email, name, code, lang string) error {
 	subject, body := verificationMessage(code, lang)
-	return m.send(ctx, email, subject, body)
+	html, err := verificationHTML(m.Brand, name, code, lang)
+	if err != nil {
+		return err
+	}
+	return m.send(ctx, email, name, subject, body, html)
 }
 
 // SendPasswordReset envía el enlace de un solo uso.
 func (m BrevoMailer) SendPasswordReset(ctx context.Context, email, link string) error {
 	subject, body := resetMessage(link)
-	return m.send(ctx, email, subject, body)
+	html, err := resetHTML(m.Brand, link)
+	if err != nil {
+		return err
+	}
+	return m.send(ctx, email, "", subject, body, html)
 }
 
-func (m BrevoMailer) send(ctx context.Context, to, subject, body string) error {
+func (m BrevoMailer) send(ctx context.Context, to, name, subject, body, html string) error {
 	if m.APIKey == "" || m.From == "" {
 		return ErrDisabled
 	}
 	if strings.ContainsAny(to, "\r\n") || !strings.Contains(to, "@") {
 		return errHeaderInjection
 	}
-	payload, err := json.Marshal(map[string]any{
+	recipient := map[string]string{"email": to}
+	if name = strings.TrimSpace(name); name != "" && !strings.ContainsAny(name, "\r\n") {
+		recipient["name"] = name
+	}
+	message := map[string]any{
 		"sender":      map[string]string{"name": "PawFound", "email": m.From},
-		"to":          []map[string]string{{"email": to}},
+		"to":          []map[string]string{recipient},
 		"subject":     subject,
 		"textContent": strings.ReplaceAll(body, "\r\n", "\n"),
-	})
+	}
+	if html != "" {
+		message["htmlContent"] = html
+	}
+	payload, err := json.Marshal(message)
 	if err != nil {
 		return err
 	}

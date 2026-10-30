@@ -453,6 +453,8 @@ export const en: Translations = {
     rate_limited: "Too many attempts in a row. Wait a moment and try again.",
     suspended: "This account is suspended for breaking the community rules.",
     invalid_input: "Check your details and try again.",
+    storage_unavailable: "We couldn't upload the photos. Try again in a few minutes.",
+    invalid_image: "We couldn't read one of the photos. Try another one (JPG or PNG, up to 8 MB).",
     photo_required: "Add at least one photo: it's what helps most to recognize it.",
     location_required: "Mark on the map where it was seen.",
     too_long: "Maximum {max} characters",

@@ -380,3 +380,22 @@ func (a *App) GrantRole(ctx context.Context, email, role string) error {
 	}
 	return nil
 }
+
+// PromoteAdmins da el rol de administrador a las cuentas de ADMIN_EMAILS que ya verificaron su
+// correo (con userID, solo a esa cuenta). Exigir el correo verificado impide que alguien se
+// registre con una de esas direcciones sin ser su dueño y se quede con el panel.
+func (a *App) PromoteAdmins(ctx context.Context, userID string) (int64, error) {
+	if len(a.AdminEmails) == 0 {
+		return 0, nil
+	}
+	tag, err := a.DB.Exec(ctx, `UPDATE users SET role = 'admin'
+		WHERE lower(email) = ANY($1) AND email_verified AND role <> 'admin' AND ($2 = '' OR id = $2)`, a.AdminEmails, userID)
+	return tag.RowsAffected(), err
+}
+
+// PlacesCount dice cuántas veterinarias hay cargadas.
+func (a *App) PlacesCount(ctx context.Context) (int, error) {
+	var n int
+	err := a.DB.QueryRow(ctx, `SELECT count(*) FROM places`).Scan(&n)
+	return n, err
+}

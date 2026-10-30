@@ -42,6 +42,8 @@ export type ErrorCode =
   | "invalid_input"
   | "suspended"
   | "unauthorized"
+  | "storage_unavailable"
+  | "invalid_image"
   | "network"
   | "unknown";
 
