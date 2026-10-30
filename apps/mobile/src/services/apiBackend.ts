@@ -33,7 +33,19 @@ import {
   type SocialProvider,
 } from "./backendTypes";
 import { DEFAULT_NOTIFICATION_PREFS, DEFAULT_PRIVACY_PREFS } from "./mockBackend";
-import { shrinkPhoto } from "./photoShrink";
+import { photoExists, shrinkPhoto } from "./photoShrink";
+
+type NativeFiles = typeof import("expo-file-system/legacy");
+
+/** Subida nativa de archivos (expo-file-system); null donde no existe (web, pruebas). */
+function nativeFiles(): NativeFiles | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("expo-file-system/legacy") as NativeFiles;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Backend real: la misma interfaz que MockBackend, sobre la API de PawFound
@@ -246,12 +258,51 @@ export class ApiBackend {
 
   private async upload(uri: string, purpose: "pet" | "owned" | "chat" | "story"): Promise<string> {
     if (/^https?:\/\//.test(uri)) return uri; // ya está en el servidor
+    // Una foto que ya no existe (borrador viejo) se reporta como tal, no como falta de internet.
+    if (!(await photoExists(uri))) throw new BackendError("invalid_image");
     const small = await shrinkPhoto(uri);
-    const form = new FormData();
-    form.append("purpose", purpose);
-    form.append("file", { uri: small, name: "foto.jpg", type: "image/jpeg" } as unknown as Blob);
-    const media = await this.request<{ id: string; url: string }>("POST", "/v1/media", form);
+    const media = await this.uploadFile(small, purpose);
     return media.id;
+  }
+
+  /**
+   * Sube el archivo como multipart con el cargador nativo de Expo, más confiable en Android que
+   * FormData con fetch. Renueva la sesión una vez si venció. Sin cargador nativo usa fetch.
+   */
+  private async uploadFile(fileUri: string, purpose: string, retry = true): Promise<{ id: string; url: string }> {
+    const files = nativeFiles();
+    if (!files) {
+      const form = new FormData();
+      form.append("purpose", purpose);
+      form.append("file", { uri: fileUri, name: "foto.jpg", type: "image/jpeg" } as unknown as Blob);
+      return this.request<{ id: string; url: string }>("POST", "/v1/media", form);
+    }
+    let res: Awaited<ReturnType<NativeFiles["uploadAsync"]>>;
+    try {
+      res = await files.uploadAsync(`${this.baseUrl}/v1/media`, fileUri, {
+        httpMethod: "POST",
+        uploadType: files.FileSystemUploadType.MULTIPART,
+        fieldName: "file",
+        mimeType: "image/jpeg",
+        parameters: { purpose },
+        headers: { Accept: "application/json", ...(this.tokens ? { Authorization: `Bearer ${this.tokens.access}` } : {}) },
+      });
+    } catch {
+      throw new BackendError("network");
+    }
+    if (res.status === 401 && retry && this.tokens && (await this.renew())) return this.uploadFile(fileUri, purpose, false);
+    type UploadBody = { id?: string; url?: string; error?: { code?: string; params?: Record<string, string | number> } };
+    let data: UploadBody | null;
+    try {
+      data = JSON.parse(res.body) as UploadBody;
+    } catch {
+      data = null;
+    }
+    if (res.status >= 300 || !data?.id) {
+      const code = data?.error?.code as ErrorCode | undefined;
+      throw new BackendError(code && KNOWN_CODES.has(code) ? code : "unknown", data?.error?.params ?? {});
+    }
+    return { id: data.id, url: data.url ?? "" };
   }
 
   // --- Conversión API → modelo de la app ------------------------------------------------

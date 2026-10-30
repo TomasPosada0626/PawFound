@@ -37,6 +37,7 @@ import { usePlacePicker, zoneFromPoint } from "@/hooks/usePlacePicker";
 import { clockTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
+import { photoExists } from "@/services/photoShrink";
 import { readJSON, STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useCurrentUser } from "@/store/backend";
 import { useUserLocation } from "@/store/location";
@@ -73,7 +74,13 @@ export default function ReportScreen() {
       loaded.current = true;
       return;
     }
-    void readJSON<ReportDraft>(STORAGE_KEYS.reportDraft).then((saved) => {
+    void readJSON<ReportDraft>(STORAGE_KEYS.reportDraft).then(async (stored) => {
+      let saved = stored;
+      if (saved) {
+        // Las fotos de un borrador viejo pueden haber desaparecido de la caché de Android.
+        const kept = await Promise.all(saved.photos.map(async (p) => ((await photoExists(p)) ? p : null)));
+        saved = { ...saved, photos: kept.filter((p): p is string => p !== null) };
+      }
       if (saved && isDraftMeaningful(saved)) {
         setDraft({ ...emptyDraft(saved.kind), ...saved });
         setRestored(true);
