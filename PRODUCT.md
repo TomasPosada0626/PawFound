@@ -99,6 +99,8 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 - **Fotos en el chat**, en grupos de caso y en mensajes directos ("¿es este?"). Se envían sin ubicación ni datos del celular: la API re-codifica cada foto y solo los miembros del chat pueden verla.
 - **"¿Es tu mascota?"**: si alguien reporta una mascota encontrada que se parece a una de "Mis mascotas" (misma especie, cerca de la zona de alertas de la familia y al menos dos señales entre tamaño, sexo, raza y color, sin contradicciones), su familia recibe "¿Es Rocky?". Es estricta a propósito: una falsa alarma asusta a una familia cuya mascota está en casa. Se controla con "Mascotas encontradas cerca".
 - Publicación y su chat de caso se archivan al marcar la mascota como encontrada; no se eliminan automáticamente.
+- La familia puede eliminar su publicación, perdida o encontrada, desde su perfil: deja de verse para todas las personas y su grupo se cierra. Los datos se conservan según la política de retención.
+- Los reportes nuevos y los cierres llegan al instante a quienes tienen la app abierta con su cuenta. Quien explora sin cuenta los ve al actualizarse la app, cada minuto.
 - Límite de 2 publicaciones por cuenta por día, validado en backend (no solo en el cliente), para prevenir spam.
 - El autor de un reporte se muestra con nombre corto/inicial, nunca el nombre completo, a otras personas usuarias — minimización de datos frente a alguien que ya conoce tu ubicación aproximada por el radio de búsqueda.
 - La persona usuaria puede exportar sus datos y eliminar su cuenta (derecho de portabilidad y al olvido) de forma autoservicio desde Privacidad y seguridad, además del canal de soporte para solicitudes ARCO.

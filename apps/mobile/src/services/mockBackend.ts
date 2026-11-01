@@ -26,7 +26,7 @@ import type {
 import { shortName } from "@/domain/privacy";
 import { normalizeColombianMobile, normalizeUsername } from "@/domain/validation";
 
-import { reunionHelperCandidates } from "./selectors";
+import { reunionHelperCandidates, type HelperCandidate } from "./selectors";
 
 import {
   BackendError,
@@ -526,6 +526,26 @@ export class MockBackend {
     });
   }
 
+  /** Elimina la publicación: deja de verse para todas las personas y su grupo se cierra. */
+  async withdrawPet(petId: string): Promise<void> {
+    const user = this.requireUser();
+    const pet = this.requirePet(petId);
+    if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
+    this.commit({
+      pets: this.state.pets.filter((p) => p.id !== petId),
+      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      stories: this.state.stories.filter((s) => s.petId !== petId),
+      notifications: this.state.notifications.filter((n) => n.petId !== petId),
+      messages: this.hideLocations((m) =>
+        this.state.threads.some((t) => t.id === m.threadId && t.kind === "dm" && t.petId === petId),
+      ),
+    });
+  }
+
+  async helperCandidates(petId: string): Promise<HelperCandidate[]> {
+    return reunionHelperCandidates(this.state, petId);
+  }
+
   /** Agrega una actualización a la historia del caso (solo la familia, con el caso activo). */
   async addStory(petId: string, input: { text: string; photo?: string }): Promise<StoryItem> {
     const user = this.requireVerified();
@@ -710,7 +730,7 @@ export class MockBackend {
     return thread.id;
   }
 
-  /** Cierra un mensaje directo para las dos personas. Los grupos no se cierran. */
+  /** Cierra un mensaje directo para las dos personas. Los grupos se cierran solos con el caso. */
   async closeDirect(threadId: string): Promise<void> {
     const user = this.requireUser();
     const thread = this.state.threads.find((t) => t.id === threadId);

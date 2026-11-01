@@ -47,7 +47,7 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 		return PublicProfile{}, err
 	}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
-		FROM pets WHERE owner_id = $1 AND NOT moderation_removed`, userID).Scan(&p.Reported, &p.Found); err != nil {
+		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
 		return PublicProfile{}, err
 	}
 	rows, _ := a.DB.Query(ctx, `SELECT id, name, species, photos FROM owned_pets WHERE owner_id = $1 ORDER BY created_at`, userID)

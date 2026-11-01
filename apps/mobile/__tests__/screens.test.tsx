@@ -129,6 +129,19 @@ describe("cuentas sin teléfono", () => {
   });
 });
 
+describe("mis publicaciones", () => {
+  it("elimina una publicación desde Mis reportes tras confirmar", async () => {
+    await loginAs("u_valentina");
+    await open("/list?filter=mine");
+    const rows = await screen.findAllByTestId(/^delete-pet-/);
+    const before = rows.length;
+    await fireEvent.press(rows[0]!);
+    await fireEvent.press(await screen.findByRole("button", { name: "Sí, eliminar" }));
+    expect(await screen.findByText("Publicación eliminada")).toBeOnTheScreen();
+    await waitFor(() => expect(screen.queryAllByTestId(/^delete-pet-/)).toHaveLength(before - 1));
+  });
+});
+
 describe("ajustes", () => {
   it("cambia preferencias de notificaciones y muestra el horario de descanso", async () => {
     await loginAs("u_valentina");

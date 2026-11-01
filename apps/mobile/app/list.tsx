@@ -2,6 +2,7 @@ import { useLocalSearchParams } from "expo-router";
 import { useMemo } from "react";
 import { View } from "react-native";
 
+import { DeletePetButton } from "@/components/DeletePetButton";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { PetRow } from "@/components/pets";
 import { EmptyState } from "@/components/ui/Controls";
@@ -56,9 +57,18 @@ export default function PetListScreen() {
         <EmptyState icon={filter === "following" ? "heart-outline" : "paw-outline"} title={empty} />
       ) : (
         <View className="gap-3">
-          {rows.map((r) => (
-            <PetRow key={r.pet.id} pet={r.pet} distance={r.distance} now={now} />
-          ))}
+          {rows.map((r) =>
+            filter === "mine" ? (
+              <View key={r.pet.id} className="flex-row items-center gap-1">
+                <View className="flex-1">
+                  <PetRow pet={r.pet} distance={r.distance} now={now} />
+                </View>
+                <DeletePetButton pet={r.pet} />
+              </View>
+            ) : (
+              <PetRow key={r.pet.id} pet={r.pet} distance={r.distance} now={now} />
+            ),
+          )}
         </View>
       )}
     </Screen>

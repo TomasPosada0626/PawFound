@@ -189,11 +189,12 @@ type petRow struct {
 	ModerationRemoved bool       `db:"moderation_removed"`
 	CreatedAt         time.Time  `db:"created_at"`
 	ReunitedAt        *time.Time `db:"reunited_at"`
+	WithdrawnAt       *time.Time `db:"withdrawn_at"`
 }
 
 const petCols = `id, kind, state, name, species, breed, sex, age, size, color, collar, marks, description, photos,
 	traumatic_event, shy_or_indoor, last_seen_at, lat, lng, zone, found_search_radius, reward, found_condition,
-	found_custody, owner_id, owner_short_name, owned_pet_id, group_id, share_count, moderation_removed, created_at, reunited_at`
+	found_custody, owner_id, owner_short_name, owned_pet_id, group_id, share_count, moderation_removed, created_at, reunited_at, withdrawn_at`
 
 func (r petRow) domainCase() domain.Case {
 	radius := 0

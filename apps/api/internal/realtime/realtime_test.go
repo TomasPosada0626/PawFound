@@ -60,8 +60,12 @@ func TestHubDeliversOnlyToAuthenticatedUser(t *testing.T) {
 	}
 	hub.Publish([]string{"u_2"}, Event{Type: "message", Data: "ajeno"})
 	hub.Publish([]string{"u_1"}, Event{Type: "message", Data: "hola"})
+	hub.Broadcast(Event{Type: "pet", Data: "para todos"})
 	if e := read(t, conn); e.Type != "message" || e.Data != "hola" {
 		t.Fatalf("evento = %+v", e)
+	}
+	if e := read(t, conn); e.Type != "pet" || e.Data != "para todos" {
+		t.Fatalf("difusión = %+v", e)
 	}
 	_ = conn.Close(websocket.StatusNormalClosure, "")
 	deadline = time.Now().Add(2 * time.Second)
