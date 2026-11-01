@@ -101,6 +101,7 @@ export default function NotificationSettingsScreen() {
         {prefs.quietHours ? (
           <View className="mt-2 flex-row gap-2">
             <SelectField
+              inRow
               compact
               label={t("notificationSettings.from")}
               icon="moon-outline"
@@ -109,6 +110,7 @@ export default function NotificationSettingsScreen() {
               onChange={(v) => set({ quietFrom: v })}
             />
             <SelectField
+              inRow
               compact
               label={t("notificationSettings.to")}
               icon="sunny-outline"
