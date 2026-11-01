@@ -2,8 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 
-import { AuthLayout, OrDivider } from "@/components/AuthLayout";
-import { SocialButtons } from "@/components/SocialButtons";
+import { AuthLayout } from "@/components/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Banner } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
@@ -116,9 +115,6 @@ export default function LoginScreen() {
         </View>
       ) : null}
       <Button label={t("auth.login")} onPress={() => void submit()} loading={loading} testID="login-submit" />
-
-      <OrDivider label={t("auth.orContinue")} />
-      <SocialButtons next={next} />
 
       <View className="mt-5 flex-row items-center justify-center gap-1">
         <Text variant="body" tone="muted">

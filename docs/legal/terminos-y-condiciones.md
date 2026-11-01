@@ -27,7 +27,7 @@ emergencia de bienestar animal, contacta a las autoridades u organizaciones comp
 - Cada cuenta puede publicar hasta 2 reportes por día. Este límite existe para prevenir
   spam y proteger la confiabilidad de la comunidad.
 - La insignia azul de verificado indica que el correo de la cuenta fue confirmado (con el
-  código o por Google o Apple); no es una certificación de identidad legal completa ni una
+  código de 6 dígitos); no es una certificación de identidad legal completa ni una
   garantía de buena conducta.
 - Eres responsable de mantener la confidencialidad de tus credenciales y de la actividad
   de tu cuenta.

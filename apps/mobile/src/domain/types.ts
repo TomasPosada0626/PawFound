@@ -137,7 +137,7 @@ export type User = {
   email: string;
   /** Opcional: nunca se verifica ni se muestra a otras personas. */
   phone?: string;
-  /** Correo verificado con el código de 6 dígitos (o por Google/Apple): insignia azul. */
+  /** Correo verificado con el código de 6 dígitos: insignia azul. */
   verified: boolean;
   avatar: AvatarId;
   /** Foto de perfil propia (la ven todas las personas). Sin foto se muestra el avatar. */

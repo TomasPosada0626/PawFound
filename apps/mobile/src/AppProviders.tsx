@@ -14,7 +14,7 @@ import { ThemeProvider } from "@/theme/ThemeProvider";
 /**
  * Restaura la sesión guardada y solo entonces muestra las rutas: así un enlace directo (p. ej.
  * a un chat) no rebota al login antes de tiempo. La sesión queda guardada siempre, se entre por
- * login, registro o Google, y solo se borra cuando la persona la cierra.
+ * login o registro, y solo se borra cuando la persona la cierra.
  */
 function SessionGate({ children }: { children: ReactNode }) {
   const backend = useBackend();
