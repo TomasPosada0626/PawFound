@@ -44,8 +44,7 @@ func (a *App) SetAlertZone(ctx context.Context, ac Actor, zone *AlertZone) error
 		if existed == (zone != nil) {
 			return nil
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO consents (user_id, kind, granted, at) VALUES ($1, 'location', $2, $3)`, ac.ID, zone != nil, now)
-		return err
+		return recordConsent(ctx, tx, ac.ID, "location", zone != nil, now)
 	})
 }
 
@@ -61,20 +60,57 @@ func (a *App) RegisterDevice(ctx context.Context, ac Actor, token, platform stri
 	}
 	now := a.now()
 	return a.withTx(ctx, func(tx pgx.Tx) error {
+		var previous string
+		if err := tx.QueryRow(ctx, `SELECT user_id FROM devices WHERE token = $1`, token).Scan(&previous); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		}
+		var hadDevice bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM devices WHERE user_id = $1)`, ac.ID).Scan(&hadDevice); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO devices (token, user_id, platform, created_at, last_seen_at) VALUES ($1, $2, $3, $4, $4)
 			ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, last_seen_at = EXCLUDED.last_seen_at`,
 			token, ac.ID, platform, now); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `INSERT INTO consents (user_id, kind, granted, at) VALUES ($1, 'push', true, $2)`, ac.ID, now)
-		return err
+		if previous != "" && previous != ac.ID {
+			if err := recordPushRevokedIfNoDevices(ctx, tx, previous, now); err != nil {
+				return err
+			}
+		}
+		// Solo al activarlo: la app registra su token cada vez que abre.
+		if hadDevice {
+			return nil
+		}
+		return recordConsent(ctx, tx, ac.ID, "push", true, now)
 	})
+}
+
+// recordConsent agrega una fila al historial (nunca se actualiza) con la versión del texto.
+func recordConsent(ctx context.Context, tx pgx.Tx, userID, kind string, granted bool, at time.Time) error {
+	_, err := tx.Exec(ctx, `INSERT INTO consents (user_id, kind, granted, at, text_version) VALUES ($1, $2, $3, $4, $5)`,
+		userID, kind, granted, at, domain.ConsentTextVersion)
+	return err
+}
+
+// recordPushRevokedIfNoDevices registra la revocación cuando la cuenta se queda sin celulares.
+func recordPushRevokedIfNoDevices(ctx context.Context, tx pgx.Tx, userID string, at time.Time) error {
+	var left bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM devices WHERE user_id = $1)`, userID).Scan(&left); err != nil || left {
+		return err
+	}
+	return recordConsent(ctx, tx, userID, "push", false, at)
 }
 
 // UnregisterDevice se llama al cerrar sesión o al desactivar el push.
 func (a *App) UnregisterDevice(ctx context.Context, ac Actor, token string) error {
-	_, err := a.DB.Exec(ctx, `DELETE FROM devices WHERE token = $1 AND user_id = $2`, token, ac.ID)
-	return err
+	return a.withTx(ctx, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `DELETE FROM devices WHERE token = $1 AND user_id = $2`, token, ac.ID)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		return recordPushRevokedIfNoDevices(ctx, tx, ac.ID, a.now())
+	})
 }
 
 // Export es la portabilidad de datos (Ley 1581): todo lo que la cuenta generó.
@@ -92,6 +128,8 @@ type ConsentEntry struct {
 	Kind    string    `json:"kind" db:"kind"`
 	Granted bool      `json:"granted" db:"granted"`
 	At      time.Time `json:"at" db:"at"`
+	// TextVersion queda vacío en lo registrado antes de guardar la versión.
+	TextVersion *string `json:"textVersion,omitempty" db:"text_version"`
 }
 
 // ExportData junta los datos de la cuenta.
@@ -117,7 +155,7 @@ func (a *App) ExportData(ctx context.Context, ac Actor) (Export, error) {
 	for i, m := range list {
 		messages[i] = a.toMessage(m)
 	}
-	cr, _ := a.DB.Query(ctx, `SELECT kind, granted, at FROM consents WHERE user_id = $1 ORDER BY at`, ac.ID)
+	cr, _ := a.DB.Query(ctx, `SELECT kind, granted, at, text_version FROM consents WHERE user_id = $1 ORDER BY at`, ac.ID)
 	consents, err := pgx.CollectRows(cr, pgx.RowToStructByName[ConsentEntry])
 	if err != nil {
 		return Export{}, err

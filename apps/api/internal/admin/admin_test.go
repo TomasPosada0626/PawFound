@@ -32,7 +32,10 @@ type env struct {
 func setup(t *testing.T) *env {
 	t.Helper()
 	pool := testdb.Pool(t)
-	now := func() time.Time { return time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC) }
+	// Reloj fijo pero en la hora real: las plantillas comparan con time.Now() y los datos de
+	// prueba usan now() de la base. Con una fecha fija, "Restringida hasta" caducaba con los días.
+	start := time.Now().UTC().Truncate(time.Second)
+	now := func() time.Time { return start }
 	tokens, _ := auth.NewTokens(strings.Repeat("k", 32), time.Hour, now)
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a := &app.App{

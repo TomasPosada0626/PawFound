@@ -43,12 +43,15 @@ func TestValidators(t *testing.T) {
 			t.Errorf("NormalizeColombianMobile(%q) = %q, want %q", in, got, want)
 		}
 	}
-	for pw, want := range map[string]string{"corta1": "too_short", "solamenteletras": "needs_number", "12345678": "needs_letter", "Patitas2026": "", strings.Repeat("a1", 200): "too_long"} {
+	for pw, want := range map[string]string{
+		"corta1": "too_short", "solamenteletras": "needs_upper", "12345678": "needs_upper", "SOLOMAYUSCULA1": "needs_lower",
+		"Solamenteletras": "needs_number", "Patitas2026": "", strings.Repeat("a1", 200): "too_long",
+	} {
 		if got := PasswordIssue(pw); got != want {
 			t.Errorf("PasswordIssue(%q) = %q, want %q", pw, got, want)
 		}
 	}
-	for in, want := range map[string]string{"@Valen_A": "valen_a", "ab": "", "con espacio": "", "ñandú": ""} {
+	for in, want := range map[string]string{"Valen_A": "valen_a", "@valen_a": "", "ab": "", "con espacio": "", "ñandú": ""} {
 		if got := NormalizeUsername(in); got != want {
 			t.Errorf("NormalizeUsername(%q) = %q, want %q", in, got, want)
 		}
@@ -158,7 +161,7 @@ func TestCurrentRadiusAndPossibleMatches(t *testing.T) {
 		ID: "l1", Kind: "lost", State: "active", Species: "dog", Sex: "male", Size: "medium", Breed: "Criollo",
 		LastSeenAt: now, Location: center, OwnerID: "u1",
 	}
-	if got := CurrentRadius(lost, now); got != 500 {
+	if got := CurrentRadius(lost, now); got != 250 {
 		t.Fatalf("radio inicial de perro tranquilo = %d", got)
 	}
 	if CurrentRadius(Case{Kind: "found", FoundSearchRadius: 2000}, now) != 2000 || CurrentRadius(Case{Kind: "found", FoundSearchRadius: 7}, now) != 400 {

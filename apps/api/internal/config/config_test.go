@@ -20,7 +20,7 @@ func TestDevelopmentDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !c.Development() || c.SMTP.Port != "587" || c.PushProvider != "log" || !c.MigrateOnStart || !c.JobsEnabled ||
-		c.AccessTTL != 15*time.Minute || c.JobsInterval != time.Minute || c.Port != "8080" {
+		c.AccessTTL != 15*time.Minute || c.JobsInterval != 10*time.Minute || c.Port != "8080" {
 		t.Fatalf("defaults = %+v", c)
 	}
 	v := base()

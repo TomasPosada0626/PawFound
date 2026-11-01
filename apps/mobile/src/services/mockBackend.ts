@@ -163,7 +163,7 @@ export class MockBackend {
   /** Entra con el correo o con el nombre de usuario. */
   async login(identifier: string, password: string): Promise<{ needsVerification: boolean }> {
     const id = identifier.trim().toLowerCase();
-    const username = id.includes("@") && !id.startsWith("@") ? null : normalizeUsername(id);
+    const username = id.includes("@") ? null : normalizeUsername(id);
     const email = username
       ? Object.values(this.state.users)
           .find((u) => u.username === username)
@@ -497,6 +497,8 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
+      // El grupo se cierra solo: queda para leer, sin mensajes nuevos.
+      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
       // La historia del caso se quita: ya está en casa.
       stories: this.state.stories.filter((s) => s.petId !== petId),
       // Las ubicaciones compartidas en los mensajes directos del caso dejan de verse.
@@ -655,7 +657,8 @@ export class MockBackend {
     const thread = this.state.threads.find((t) => t.id === pet.groupId);
     if (!thread) throw new BackendError("not_found");
     if (thread.memberIds.includes(user.id)) return thread.id;
-    if (thread.archived) throw new BackendError("not_allowed");
+    // Un caso cerrado no suma gente nueva.
+    if (thread.archived || pet.state !== "active") throw new BackendError("not_allowed");
     this.commit({
       threads: this.state.threads.map((t) =>
         t.id === thread.id ? { ...t, memberIds: [...t.memberIds, user.id], readAt: { ...t.readAt, [user.id]: this.iso() } } : t,

@@ -69,9 +69,10 @@ func TestReportValidationCoversEveryField(t *testing.T) {
 			t.Errorf("%s: %d %s", field, res.Status, res.Body)
 		}
 	}
-	// Sin proveedor de correo, el restablecimiento responde igual (y queda en el log).
-	h.app.Mailer = nil
+	// Sin proveedor de correo, el restablecimiento responde igual (y queda en el log). La cuenta
+	// se crea antes: registrarse sin correo falla a propósito (TestEmailProviderAndAntiAbuseLimits).
 	var session struct{ AccessToken string }
 	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("mail@pawfound.app", "mail"), &session)
+	h.app.Mailer = nil
 	h.must(http.StatusAccepted, http.MethodPost, "/v1/auth/password-reset", "", map[string]string{"email": "mail@pawfound.app"}, nil)
 }
