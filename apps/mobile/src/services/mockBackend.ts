@@ -26,7 +26,7 @@ import type {
 import { shortName } from "@/domain/privacy";
 import { normalizeColombianMobile, normalizeUsername } from "@/domain/validation";
 
-import { reunionHelperCandidates } from "./selectors";
+import { reunionHelperCandidates, type HelperCandidate } from "./selectors";
 
 import {
   BackendError,
@@ -35,7 +35,6 @@ import {
   type NewSightingInput,
   type OwnedPetInput,
   type ProfilePatch,
-  type SocialProvider,
 } from "./backendTypes";
 
 /**
@@ -164,7 +163,7 @@ export class MockBackend {
   /** Entra con el correo o con el nombre de usuario. */
   async login(identifier: string, password: string): Promise<{ needsVerification: boolean }> {
     const id = identifier.trim().toLowerCase();
-    const username = id.includes("@") && !id.startsWith("@") ? null : normalizeUsername(id);
+    const username = id.includes("@") ? null : normalizeUsername(id);
     const email = username
       ? Object.values(this.state.users)
           .find((u) => u.username === username)
@@ -181,17 +180,6 @@ export class MockBackend {
       return { needsVerification: true };
     }
     return { needsVerification: false };
-  }
-
-  /** Google o Apple ya confirmaron el correo: la cuenta queda verificada sin código. */
-  async loginWithProvider(provider: SocialProvider): Promise<void> {
-    const email = `demo.${provider}@pawfound.app`;
-    let user = Object.values(this.state.users).find((u) => u.email === email);
-    if (!user) {
-      user = { ...this.makeUser({ name: `Persona ${provider[0]?.toUpperCase()}${provider.slice(1)}`, email }), verified: true };
-      this.commit({ users: { ...this.state.users, [user.id]: user } });
-    }
-    this.commit({ sessionUserId: user.id });
   }
 
   /** Registro con correo, nombre y apellidos, usuario y contraseña. Envía el código al correo. */
@@ -509,6 +497,8 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
+      // El grupo se cierra solo: queda para leer, sin mensajes nuevos.
+      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
       // La historia del caso se quita: ya está en casa.
       stories: this.state.stories.filter((s) => s.petId !== petId),
       // Las ubicaciones compartidas en los mensajes directos del caso dejan de verse.
@@ -522,6 +512,26 @@ export class MockBackend {
         ...this.state.notifications,
       ],
     });
+  }
+
+  /** Elimina la publicación: deja de verse para todas las personas y su grupo se cierra. */
+  async withdrawPet(petId: string): Promise<void> {
+    const user = this.requireUser();
+    const pet = this.requirePet(petId);
+    if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
+    this.commit({
+      pets: this.state.pets.filter((p) => p.id !== petId),
+      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      stories: this.state.stories.filter((s) => s.petId !== petId),
+      notifications: this.state.notifications.filter((n) => n.petId !== petId),
+      messages: this.hideLocations((m) =>
+        this.state.threads.some((t) => t.id === m.threadId && t.kind === "dm" && t.petId === petId),
+      ),
+    });
+  }
+
+  async helperCandidates(petId: string): Promise<HelperCandidate[]> {
+    return reunionHelperCandidates(this.state, petId);
   }
 
   /** Agrega una actualización a la historia del caso (solo la familia, con el caso activo). */
@@ -667,7 +677,8 @@ export class MockBackend {
     const thread = this.state.threads.find((t) => t.id === pet.groupId);
     if (!thread) throw new BackendError("not_found");
     if (thread.memberIds.includes(user.id)) return thread.id;
-    if (thread.archived) throw new BackendError("not_allowed");
+    // Un caso cerrado no suma gente nueva.
+    if (thread.archived || pet.state !== "active") throw new BackendError("not_allowed");
     this.commit({
       threads: this.state.threads.map((t) =>
         t.id === thread.id ? { ...t, memberIds: [...t.memberIds, user.id], readAt: { ...t.readAt, [user.id]: this.iso() } } : t,
@@ -707,7 +718,7 @@ export class MockBackend {
     return thread.id;
   }
 
-  /** Cierra un mensaje directo para las dos personas. Los grupos no se cierran. */
+  /** Cierra un mensaje directo para las dos personas. Los grupos se cierran solos con el caso. */
   async closeDirect(threadId: string): Promise<void> {
     const user = this.requireUser();
     const thread = this.state.threads.find((t) => t.id === threadId);

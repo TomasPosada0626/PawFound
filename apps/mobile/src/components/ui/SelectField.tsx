@@ -18,6 +18,7 @@ export function SelectField<V extends string | number>({
   testID,
   compact,
   sheetSubtitle,
+  inRow,
 }: {
   label: string;
   value: V | null | undefined;
@@ -28,13 +29,16 @@ export function SelectField<V extends string | number>({
   testID?: string;
   compact?: boolean;
   sheetSubtitle?: string;
+  /** Reparte el ancho con sus vecinos en una fila. En una columna, flex-1 deja su contenedor sin alto
+      y lo que sigue se monta encima. */
+  inRow?: boolean;
 }) {
   const { colors } = useTheme();
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
 
   return (
-    <View className="flex-1">
+    <View className={inRow ? "flex-1" : undefined}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={selected ? `${label}: ${selected.label}` : label}

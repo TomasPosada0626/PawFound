@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { BadgeCatalog, BadgeTile } from "@/components/badges";
+import { DeletePetButton } from "@/components/DeletePetButton";
 import { AppHeader, Screen } from "@/components/layout";
 import { PetAvatar, PetPhoto, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
@@ -234,29 +235,32 @@ export default function ProfileScreen() {
           activity.map((item, i) => (
             <View key={`${item.pet.id}-${item.kind}`}>
               {i > 0 ? <Divider /> : null}
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => router.push(`/pet/${item.pet.id}`)}
-                className="min-h-[76px] flex-row items-center gap-3 py-3 active:opacity-70"
-              >
-                <PetAvatar pet={item.pet} size={52} badgeIcon="paw" />
-                <View className="flex-1">
-                  <Text variant="bodyStrong" tone={item.kind === "lost" ? "lost" : "found"}>
-                    {item.kind === "lost"
-                      ? t("profile.activityLost")
-                      : item.kind === "found"
-                        ? t("profile.activityFound")
-                        : t("profile.activityReunited")}
-                  </Text>
-                  <Text variant="caption" tone="body" numberOfLines={1}>
-                    {`${item.pet.name ?? t("common.unnamed")}${item.pet.breed ? ` (${item.pet.breed})` : ""}`}
-                  </Text>
-                  <Text variant="caption" numberOfLines={1}>
-                    {`${item.pet.zone} · ${relativeTime(item.at, now, locale)}`}
-                  </Text>
-                </View>
-                <Icon name="chevron-forward" size={18} color={colors.muted} />
-              </Pressable>
+              <View className="flex-row items-center">
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => router.push(`/pet/${item.pet.id}`)}
+                  className="min-h-[76px] flex-1 flex-row items-center gap-3 py-3 active:opacity-70"
+                >
+                  <PetAvatar pet={item.pet} size={52} badgeIcon="paw" />
+                  <View className="flex-1">
+                    <Text variant="bodyStrong" tone={item.kind === "lost" ? "lost" : "found"}>
+                      {item.kind === "lost"
+                        ? t("profile.activityLost")
+                        : item.kind === "found"
+                          ? t("profile.activityFound")
+                          : t("profile.activityReunited")}
+                    </Text>
+                    <Text variant="caption" tone="body" numberOfLines={1}>
+                      {`${item.pet.name ?? t("common.unnamed")}${item.pet.breed ? ` (${item.pet.breed})` : ""}`}
+                    </Text>
+                    <Text variant="caption" numberOfLines={1}>
+                      {`${item.pet.zone} · ${relativeTime(item.at, now, locale)}`}
+                    </Text>
+                  </View>
+                  <Icon name="chevron-forward" size={18} color={colors.muted} />
+                </Pressable>
+                <DeletePetButton pet={item.pet} />
+              </View>
             </View>
           ))
         )}

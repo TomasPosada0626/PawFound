@@ -116,19 +116,6 @@ describe("autenticación", () => {
     await expect(backend.resendCode()).resolves.toBeUndefined();
   });
 
-  it("login social crea la cuenta sin teléfono y la reutiliza después", async () => {
-    const backend = makeBackend();
-    expect(await backend.loginWithProvider("google")).toEqual({ needsPhone: true });
-    const id = backend.currentUser?.id;
-    await backend.logout();
-    expect(backend.currentUser).toBeNull();
-    await backend.loginWithProvider("google");
-    expect(backend.currentUser?.id).toBe(id);
-    // Sin teléfono verificado no puede publicar ni escribir.
-    await expectCode(backend.createReport(report()), "not_allowed");
-    await expectCode(backend.joinGroup("max"), "not_allowed");
-  });
-
   it("restaura la sesión solo si la cuenta existe", () => {
     const backend = makeBackend();
     expect(backend.restoreSession("u_inexistente")).toBe(false);
@@ -233,6 +220,17 @@ describe("reportes", () => {
     );
   });
 
+  it("solo la familia elimina su publicación; sale de la lista y cierra el grupo", async () => {
+    const backend = makeBackend();
+    await loginDemo(backend);
+    await expectCode(backend.withdrawPet("max"), "not_allowed");
+    await backend.withdrawPet("rocky");
+    const state = backend.getSnapshot();
+    expect(state.pets.some((p) => p.id === "rocky")).toBe(false);
+    expect(state.threads.find((t) => t.id === "grp_rocky")?.archived).toBe(true);
+    expect(state.notifications.some((n) => n.petId === "rocky")).toBe(false);
+  });
+
   it("cuenta compartidos y valida que el caso exista", async () => {
     const backend = makeBackend();
     const before = backend.getPet("max")!.shareCount;
@@ -330,8 +328,8 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     const backend = makeBackend();
     await loginDemo(backend);
     await expectCode(backend.updateProfile({ username: "a" }), "invalid_username");
-    await expectCode(backend.updateProfile({ username: "@MARIA" }), "username_taken");
-    await backend.updateProfile({ username: "@Vale_23", bio: "x".repeat(300) });
+    await expectCode(backend.updateProfile({ username: "MARIA" }), "username_taken");
+    await backend.updateProfile({ username: "Vale_23", bio: "x".repeat(300) });
     expect(backend.currentUser).toMatchObject({ username: "vale_23" });
     expect(backend.currentUser?.bio).toHaveLength(150);
   });

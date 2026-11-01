@@ -17,7 +17,7 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
 ## 2. Qué datos recolectamos
 
 - **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
-  dígitos), contraseña cifrada o, si entras con Google, ese proveedor. El número de
+  dígitos), contraseña cifrada. El número de
   celular es opcional: no se verifica ni se muestra a otras personas.
 - **Perfil**: datos que decidas agregar a tu perfil y, si quieres, una foto propia en lugar
   del avatar. La foto de perfil es pública: la ven las demás personas en tu perfil, en tus
@@ -91,7 +91,8 @@ OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
 ## 5. Cuánto tiempo conservamos tus datos
 
 Un reporte se archiva al marcar la mascota como encontrada o al retirarlo; no se elimina
-automáticamente. Los chats no se cierran ni se borran solos: cada persona decide archivarlos
+automáticamente. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
+directos no se cierran ni se borran solos: cada persona decide archivarlos
 o eliminarlos de su lista, y un mensaje directo lo cierra cualquiera de las dos personas. Al
 cerrarse un caso se quitan sus historias y dejan de verse las ubicaciones compartidas en sus
 mensajes directos. Los plazos de retención y anonimización definitivos se fijan en

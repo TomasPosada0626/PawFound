@@ -131,7 +131,8 @@ func (a *App) JoinGroup(ctx context.Context, ac Actor, petID string) (string, er
 	if member {
 		return row.GroupID, nil
 	}
-	if archived {
+	// Un caso cerrado no suma gente nueva.
+	if archived || row.State != "active" {
 		return "", ErrNotAllowed
 	}
 	now := a.now()

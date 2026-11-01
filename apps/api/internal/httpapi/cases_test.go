@@ -20,7 +20,7 @@ func TestReportLifecycleAndNearbySearch(t *testing.T) {
 	h := newHarness(t)
 	owner := h.user("Valentina Arango", true)
 	pet := h.report(owner, lostReport("Max", map[string]float64{"latitude": 6.24471, "longitude": -75.59162}, nil))
-	if pet.Location.Lat == 6.24471 || pet.OwnerShortName != "Valentina A." || pet.State != "active" || pet.CurrentRadius != 663 {
+	if pet.Location.Lat == 6.24471 || pet.OwnerShortName != "Valentina A." || pet.State != "active" || pet.CurrentRadius != 1260 {
 		t.Fatalf("reporte: %+v", pet)
 	}
 	if pet.Owner == nil || pet.Owner.ShortName != "Valentina A." {
@@ -86,18 +86,14 @@ func TestReportLifecycleAndNearbySearch(t *testing.T) {
 	h.expectError(http.StatusBadRequest, "invalid_input", http.MethodGet, "/v1/pets?lat=x", "", nil)
 	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodGet, "/v1/pets?lat=6.2&lng=-75.5&kind=x", "", nil)
 
-	// Retirar: se archiva y sale del mapa; solo la familia puede.
+	// Eliminar: sale del mapa y de sus reportes; solo la familia puede.
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodDelete, "/v1/pets/"+pet.ID, finder.Token, nil)
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/pets/"+pet.ID, owner.Token, nil, nil)
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/pets/"+pet.ID, owner.Token, nil, nil)
-	var archived app.Pet
-	h.must(http.StatusOK, http.MethodGet, "/v1/pets/"+pet.ID, "", nil, &archived)
-	if archived.State != "archived" {
-		t.Fatalf("estado = %s", archived.State)
-	}
+	h.expectError(http.StatusNotFound, "not_found", http.MethodGet, "/v1/pets/"+pet.ID, "", nil)
 	var mine []app.Pet
 	h.must(http.StatusOK, http.MethodGet, "/v1/me/pets", owner.Token, nil, &mine)
-	if len(mine) != 2 {
+	if len(mine) != 1 {
 		t.Fatalf("mis reportes = %d", len(mine))
 	}
 	h.expectError(http.StatusNotFound, "not_found", http.MethodGet, "/v1/pets/pet_inexistente", "", nil)
@@ -105,19 +101,20 @@ func TestReportLifecycleAndNearbySearch(t *testing.T) {
 
 func TestAngelAlertReachGrowsWithLifeCircle(t *testing.T) {
 	h := newHarness(t)
+	// Regla actual: 250 m al publicar, 2 km a los 30 min y nunca más.
 	owner := h.user("Valentina Arango", true)
-	near := h.user("Carlos Mejía", true)  // ~0,9 km: dentro del círculo inicial de perro en pánico (1 km)
-	mid := h.user("Laura Gil", true)      // ~2 km: entra cuando el círculo crece
-	far := h.user("Pedro Far", true)      // ~8 km
-	optOut := h.user("Sin Alertas", true) // a 0,9 km pero con alertas apagadas
+	near := h.user("Carlos Mejía", true)  // en Laureles: dentro de los 250 m iniciales
+	mid := h.user("Laura Gil", true)      // ~0,9 km: entra cuando el círculo crece
+	far := h.user("Pedro Far", true)      // ~7 km: fuera del tope de 2 km
+	optOut := h.user("Sin Alertas", true) // en Laureles pero con alertas apagadas
 	for _, u := range []user{owner, near, mid, far, optOut} {
 		h.device(u)
 	}
 	h.alertZone(owner, laureles, "Laureles")
-	h.alertZone(near, estadio, "Estadio")
-	h.alertZone(mid, belen, "Belén")
+	h.alertZone(near, laureles, "Laureles")
+	h.alertZone(mid, estadio, "Estadio")
 	h.alertZone(far, envigado, "Envigado")
-	h.alertZone(optOut, estadio, "Estadio")
+	h.alertZone(optOut, laureles, "Laureles")
 	h.must(http.StatusOK, http.MethodPut, "/v1/me/notification-prefs", optOut.Token, map[string]any{"angelAlerts": false}, nil)
 	h.must(http.StatusOK, http.MethodPut, "/v1/me/notification-prefs", near.Token, map[string]any{"quietHours": true, "quietFrom": "09:00", "quietTo": "11:00"}, nil)
 
@@ -141,27 +138,27 @@ func TestAngelAlertReachGrowsWithLifeCircle(t *testing.T) {
 	if n, _ := h.app.RunAlertJob(context.Background()); n != 0 {
 		t.Fatalf("job sin crecimiento = %d", n)
 	}
-	// 1 h después el círculo de perro en pánico mide ~2,2 km: llega a Belén, no a Envigado.
-	h.clock.Advance(time.Hour)
+	// A los 10 min el círculo mide ~1,26 km: llega al Estadio, no a Envigado.
+	h.clock.Advance(10 * time.Minute)
 	if n, _ := h.app.RunAlertJob(context.Background()); n != 1 {
-		t.Fatalf("job a la hora = %d", n)
+		t.Fatalf("job a los 10 min = %d", n)
 	}
 	if got := kinds(h.notifications(mid)); got != "life_circle" {
-		t.Fatalf("Belén = %q", got)
+		t.Fatalf("Estadio = %q", got)
+	}
+	if got := h.pushesTo(mid); len(got) != 1 || !strings.Contains(got[0].Title, "llegó a tu zona") {
+		t.Fatalf("push de crecimiento = %+v", got)
 	}
 	if got := kinds(h.notifications(near)); got != "angel_alert" {
 		t.Fatalf("una sola alerta por persona y caso: %q", got)
 	}
-	// En 48 h llega al tope (8 km) y alcanza Envigado.
-	h.clock.Advance(47 * time.Hour)
-	if n, _ := h.app.RunAlertJob(context.Background()); n != 1 {
-		t.Fatalf("job al tope = %d", n)
+	// El tope es 2 km: ni dos horas después llega a Envigado.
+	h.clock.Advance(2 * time.Hour)
+	if n, _ := h.app.RunAlertJob(context.Background()); n != 0 {
+		t.Fatalf("job pasado el tope = %d", n)
 	}
-	if got := kinds(h.notifications(far)); got != "life_circle" {
+	if got := kinds(h.notifications(far)); got != "" {
 		t.Fatalf("Envigado = %q", got)
-	}
-	if got := h.pushesTo(far); len(got) != 1 || !strings.Contains(got[0].Title, "llegó a tu zona") {
-		t.Fatalf("push de crecimiento = %+v", got)
 	}
 
 	// Un caso cerrado no alerta más.
@@ -184,7 +181,9 @@ func TestAngelAlertDailyCap(t *testing.T) {
 	if got := len(h.notifications(neighbor)); got != 5 {
 		t.Fatalf("máximo 5 alertas al día, llegaron %d", got)
 	}
+	// Al día siguiente, con la ubicación al día (abrió la app), llega la pendiente.
 	h.clock.Advance(25 * time.Hour)
+	h.alertZone(neighbor, laureles, "Laureles")
 	if n, _ := h.app.RunAlertJob(context.Background()); n != 1 {
 		t.Fatalf("al día siguiente debe llegar la pendiente: %d", n)
 	}
@@ -341,6 +340,7 @@ func TestSightingsChatPhotosAndReunion(t *testing.T) {
 	if got := kinds(h.notifications(stranger)); got != "" {
 		t.Fatalf("quien no participó = %q", got)
 	}
+	// El grupo se cierra solo con el caso: queda para leer, sin mensajes nuevos.
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/threads/"+pet.GroupID+"/messages", helper.Token, map[string]string{"text": "hola"})
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/pets/"+pet.ID+"/join", stranger.Token, nil)
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/pets/"+pet.ID+"/reunite", owner.Token, map[string]any{})
@@ -452,7 +452,7 @@ func TestUploadRejectsNonImages(t *testing.T) {
 	if _, res := h.upload(u, "pet", []byte("<html>no soy foto</html>")); res.Status != http.StatusUnprocessableEntity || res.code() != "invalid_image" {
 		t.Fatalf("no imagen = %d %s", res.Status, res.Body)
 	}
-	if _, res := h.upload(u, "avatar", jpegBytes(1)); res.Status != http.StatusUnprocessableEntity {
+	if _, res := h.upload(u, "no-existe", jpegBytes(1)); res.Status != http.StatusUnprocessableEntity {
 		t.Fatalf("propósito inválido = %d", res.Status)
 	}
 	if _, res := h.upload(unverified, "chat", jpegBytes(1)); res.Status != http.StatusForbidden {

@@ -15,6 +15,8 @@ import (
 )
 
 func TestTickRunsAlertsAndCleanup(t *testing.T) {
+	// Sin red en las pruebas: OpenStreetMap "no responde" y se cargan las veterinarias guardadas.
+	t.Setenv("OVERPASS_URL", "http://127.0.0.1:1/api/interpreter")
 	pool := testdb.Pool(t)
 	ctx := context.Background()
 	now := time.Date(2026, 10, 28, 15, 0, 0, 0, time.UTC)
@@ -29,12 +31,13 @@ func TestTickRunsAlertsAndCleanup(t *testing.T) {
 		}
 	}
 	exec(`INSERT INTO users (id, name, username, email) VALUES ('u1', 'Familia', 'u1', 'u1@x.co'), ('u2', 'Vecina', 'u2', 'u2@x.co')`)
-	exec(`INSERT INTO alert_zones (user_id, lat, lng, zone) VALUES ('u2', 6.2310, -75.6030, 'Belén')`)
-	// Perdida hace 3 h: el círculo de perro tranquilo mide ~1,2 km y todavía no llega a Belén (~2 km).
+	// La vecina está ~1,5 km al norte del último punto donde vieron a la mascota.
+	exec(`INSERT INTO alert_zones (user_id, lat, lng, zone, updated_at) VALUES ('u2', 6.2582, -75.5916, 'Florida Nueva', $1)`, now)
+	// Perdida hace 10 min: el círculo mide ~1,26 km y todavía no llega a la vecina.
 	exec(`INSERT INTO pets (id, kind, species, sex, age, size, description, last_seen_at, lat, lng, zone, owner_id, owner_short_name, group_id)
-		VALUES ('p1', 'lost', 'dog', 'male', 'adult', 'medium', '', $1, 6.2447, -75.5916, 'Laureles', 'u1', 'Familia', 'g1')`, now.Add(-3*time.Hour))
+		VALUES ('p1', 'lost', 'dog', 'male', 'adult', 'medium', '', $1, 6.2447, -75.5916, 'Laureles', 'u1', 'Familia', 'g1')`, now.Add(-10*time.Minute))
 	exec(`INSERT INTO refresh_tokens (id, user_id, family, token_hash, expires_at) VALUES ('rt1', 'u1', 'f', 'x', $1)`, now.Add(-time.Hour))
-	exec(`INSERT INTO phone_verifications (user_id, phone, code_hash, sent_at) VALUES ('u1', '+57', 'x', $1)`, now.Add(-48*time.Hour))
+	exec(`INSERT INTO email_verifications (user_id, email, code_hash, sent_at) VALUES ('u1', 'u1@x.co', 'x', $1)`, now.Add(-48*time.Hour))
 	_ = store.Put(ctx, "med_old.jpg", []byte("x"))
 	exec(`INSERT INTO media (id, owner_id, purpose, content_type, width, height, bytes, phash, storage_key, created_at)
 		VALUES ('med_old', 'u1', 'chat', 'image/jpeg', 1, 1, 1, 0, 'med_old.jpg', $1)`, now.Add(-48*time.Hour))
@@ -50,15 +53,18 @@ func TestTickRunsAlertsAndCleanup(t *testing.T) {
 	if count(`SELECT count(*) FROM notifications`) != 0 {
 		t.Fatal("el círculo aún no llega a la vecina")
 	}
-	if count(`SELECT count(*) FROM refresh_tokens`) != 0 || count(`SELECT count(*) FROM phone_verifications`) != 0 || count(`SELECT count(*) FROM media`) != 0 {
+	if count(`SELECT count(*) FROM refresh_tokens`) != 0 || count(`SELECT count(*) FROM email_verifications`) != 0 || count(`SELECT count(*) FROM media`) != 0 {
 		t.Fatal("la limpieza no borró lo vencido")
 	}
 	if _, err := store.Open(ctx, "med_old.jpg"); err == nil {
 		t.Fatal("el archivo de la foto sin usar sigue en disco")
 	}
+	if count(`SELECT count(*) FROM places WHERE kind = 'vet'`) == 0 {
+		t.Fatal("la pasada debía cargar las veterinarias en la tabla vacía")
+	}
 
-	// Con el círculo más grande, la vecina recibe la alerta en la siguiente pasada.
-	now = now.Add(20 * time.Hour)
+	// A los 30 min el círculo llega a 2 km y la vecina recibe la alerta en la siguiente pasada.
+	now = now.Add(30 * time.Minute)
 	if err := Tick(ctx, a); err != nil {
 		t.Fatal(err)
 	}

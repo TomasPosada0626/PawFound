@@ -363,6 +363,7 @@ export default function ReportScreen() {
 
       <View className="mt-3 flex-row gap-2">
         <SelectField
+          inRow
           compact
           label={t("report.sex")}
           icon="male-female"
@@ -371,6 +372,7 @@ export default function ReportScreen() {
           onChange={(v) => update("sex", v)}
         />
         <SelectField
+          inRow
           compact
           label={t("report.age")}
           icon="calendar-outline"
@@ -379,6 +381,7 @@ export default function ReportScreen() {
           onChange={(v) => update("age", v)}
         />
         <SelectField
+          inRow
           compact
           label={t("report.size")}
           icon="resize"

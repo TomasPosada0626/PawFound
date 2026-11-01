@@ -113,9 +113,9 @@ func PasswordIssue(password string) string {
 	return ""
 }
 
-// NormalizeUsername quita "@", pasa a minúsculas y valida; "" si no es válido.
+// NormalizeUsername pasa a minúsculas y valida; "" si no es válido (sin caracteres especiales).
 func NormalizeUsername(raw string) string {
-	u := strings.ToLower(strings.TrimPrefix(strings.TrimSpace(raw), "@"))
+	u := strings.ToLower(strings.TrimSpace(raw))
 	if !usernameRE.MatchString(u) {
 		return ""
 	}

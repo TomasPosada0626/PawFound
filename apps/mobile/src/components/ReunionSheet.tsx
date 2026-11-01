@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { shortName } from "@/domain/privacy";
 import type { PetCase } from "@/domain/types";
 import { useI18n } from "@/i18n/I18nProvider";
 import { MAX_HELPERS } from "@/services/mockBackend";
-import { reunionHelperCandidates } from "@/services/selectors";
-import { useBackendState } from "@/store/backend";
+import { reunionHelperCandidates, type HelperCandidate } from "@/services/selectors";
+import { useBackend, useBackendState } from "@/store/backend";
 
 import { BadgeHex } from "./badges";
 import { UserAvatar } from "./pets";
@@ -36,7 +36,24 @@ export function ReunionSheet({
 }) {
   const { t } = useI18n();
   const state = useBackendState();
-  const candidates = useMemo(() => reunionHelperCandidates(state, pet.id), [state, pet.id]);
+  const backend = useBackend();
+  const local = useMemo(() => reunionHelperCandidates(state, pet.id), [state, pet.id]);
+  // El servidor conoce a todas las personas que ayudaron, aunque aquí no estén cargados sus mensajes.
+  const [remote, setRemote] = useState<HelperCandidate[] | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    let live = true;
+    backend
+      .helperCandidates(pet.id)
+      .then((list) => {
+        if (live) setRemote(list);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [backend, pet.id, visible]);
+  const candidates = remote ?? local;
   const [selected, setSelected] = useState<string[]>([]);
 
   const toggle = (userId: string, next: boolean) =>
@@ -67,7 +84,8 @@ export function ReunionSheet({
               >
                 <View className="flex-row items-center gap-3">
                   <UserAvatar user={c.user} size={40} />
-                  <View className="flex-1">
+                  {/* shrink y no flex-1: Checkbox no da ancho fijo y flex-1 esconde el nombre. */}
+                  <View className="shrink">
                     <Text variant="bodyStrong">{shortName(c.user.name)}</Text>
                     <Text variant="caption">{c.reasons.map((r) => t(`pet.thankReason_${r}`)).join(" · ")}</Text>
                   </View>
