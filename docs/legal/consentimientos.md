@@ -5,6 +5,8 @@
 > [tratamiento-de-datos.md](tratamiento-de-datos.md) y en
 > [politica-de-privacidad.md](politica-de-privacidad.md).
 
+Versión de estos textos: 0.1. Cada consentimiento guarda la versión vigente al registrarse.
+
 ## Ubicación aproximada
 
 “Autorizo a PawFound a usar mi ubicación aproximada para mostrar reportes cercanos y, si

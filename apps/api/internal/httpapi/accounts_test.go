@@ -16,6 +16,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/auth"
 )
 
@@ -29,7 +30,7 @@ func registerBody(email, username string) map[string]any {
 func TestRegisterVerifyAndLogin(t *testing.T) {
 	h := newHarness(t)
 	var session app.Session
-	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("Valen@PawFound.app", "@Valen_A"), &session)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/auth/register", "", registerBody("Valen@PawFound.app", "Valen_A"), &session)
 	if !session.NeedsVerification || session.Me.User.Verified || session.Me.User.Email != "valen@pawfound.app" || session.Me.User.Username != "valen_a" {
 		t.Fatalf("registro: %+v", session)
 	}
@@ -42,11 +43,11 @@ func TestRegisterVerifyAndLogin(t *testing.T) {
 	h.expectError(http.StatusConflict, "email_taken", http.MethodPost, "/v1/auth/register", "", registerBody("valen@pawfound.app", "otra"))
 	h.expectError(http.StatusConflict, "username_taken", http.MethodPost, "/v1/auth/register", "", registerBody("otra@pawfound.app", "valen_a"))
 	h.expectError(http.StatusUnprocessableEntity, "invalid_username", http.MethodPost, "/v1/auth/register", "", registerBody("otra@pawfound.app", "a b"))
+	// Cada regla de contraseña ya la prueba domain.TestValidators; aquí basta una por tipo de
+	// campo, sin pasar el límite de 10 registros por hora por IP.
 	for _, bad := range []map[string]any{
 		{"password": "corta"},
 		{"password": "sinmayusculas1"},
-		{"password": "SINMINUSCULAS1"},
-		{"password": "SinNumeros"},
 		{"name": "Valentina"},
 		{"acceptTerms": false},
 		{"email": "no-es-correo"},
@@ -85,7 +86,7 @@ func TestRegisterVerifyAndLogin(t *testing.T) {
 	if login.NeedsVerification || login.ExpiresIn <= 0 {
 		t.Fatalf("login: %+v", login)
 	}
-	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "@Valen_A", "password": "Patitas2026"}, &login)
+	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"identifier": "Valen_A", "password": "Patitas2026"}, &login)
 	h.must(http.StatusOK, http.MethodPost, "/v1/auth/login", "", map[string]string{"email": "valen@pawfound.app", "password": "Patitas2026"}, nil)
 
 	// El celular es opcional, se agrega en el perfil y no se verifica.
@@ -94,8 +95,11 @@ func TestRegisterVerifyAndLogin(t *testing.T) {
 		t.Fatalf("celular: %+v", me.User.Phone)
 	}
 	h.expectError(http.StatusUnprocessableEntity, "invalid_phone", http.MethodPatch, "/v1/me", tok, map[string]string{"phone": "123"})
-	h.must(http.StatusOK, http.MethodPatch, "/v1/me", tok, map[string]string{"phone": ""}, &me)
-	if me.User.Phone != nil {
+	// Respuesta en una variable nueva: "phone" vacío no viaja en el JSON y decodificar sobre
+	// `me` dejaría el valor anterior.
+	var cleared app.Me
+	h.must(http.StatusOK, http.MethodPatch, "/v1/me", tok, map[string]string{"phone": ""}, &cleared)
+	if cleared.User.Phone != nil {
 		t.Fatal("el celular se puede borrar")
 	}
 }
@@ -237,7 +241,7 @@ func TestProfileAndPreferences(t *testing.T) {
 	other := h.user("Otro Usuario", true)
 	var me app.Me
 	h.must(http.StatusOK, http.MethodPatch, "/v1/me", ana.Token, map[string]any{
-		"username": "@Ana_G", "bio": strings.Repeat("a", 200),
+		"username": "Ana_G", "bio": strings.Repeat("a", 200),
 		"avatar": "fox", "title": "rescuer", "city": "Medellín", "neighborhood": "Laureles", "name": "Ana María Gómez",
 	}, &me)
 	if me.User.Username != "ana_g" || len(me.User.Bio) != 150 || me.User.Avatar != "fox" || *me.User.Neighborhood != "Laureles" {
@@ -266,13 +270,23 @@ func TestProfileAndPreferences(t *testing.T) {
 	}
 	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPut, "/v1/me/alert-zone", ana.Token, map[string]any{"location": map[string]float64{"latitude": 99, "longitude": 0}, "zone": "x"})
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me/alert-zone", ana.Token, nil, nil)
-	if n := h.count(`SELECT count(*) FROM consents WHERE user_id = $1 AND kind = 'alert_zone'`, ana.ID); n != 2 {
+	if n := h.count(`SELECT count(*) FROM consents WHERE user_id = $1 AND kind = 'location'`, ana.ID); n != 2 {
 		t.Fatalf("consentimientos auditables = %d", n)
 	}
 	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/me/devices", ana.Token, map[string]string{"token": "a b", "platform": "android"})
 	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/me/devices", ana.Token, map[string]string{"token": "x", "platform": "windows"})
 	h.device(ana)
+	h.device(ana) // La app registra el token cada vez que abre: el consentimiento queda una sola vez.
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me/devices", ana.Token, map[string]string{"token": "ExponentPushToken[" + ana.ID + "]"}, nil)
+	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me/devices", ana.Token, map[string]string{"token": "ExponentPushToken[" + ana.ID + "]"}, nil)
+	for _, kind := range []string{"push", "angel_alerts"} {
+		if n := h.count(`SELECT count(*) FROM consents WHERE user_id = $1 AND kind = $2 AND NOT granted AND text_version = $3`, ana.ID, kind, domain.ConsentTextVersion); n != 1 {
+			t.Fatalf("revocaciones de %s = %d", kind, n)
+		}
+	}
+	if n := h.count(`SELECT count(*) FROM consents WHERE user_id = $1 AND kind = 'push' AND granted`, ana.ID); n != 1 {
+		t.Fatalf("activaciones de push = %d", n)
+	}
 
 	// Sin token, o con uno inválido.
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodGet, "/v1/me", "", nil)

@@ -54,6 +54,7 @@ Supabase (base de datos), Cloudflare (imágenes), Firebase (notificaciones) — 
 
 Los plazos de retención y anonimización se aprobarán legalmente antes de producción. Una
 publicación se archivará al marcar la mascota como encontrada; no se eliminará
-automáticamente. Los chats no se cierran ni se borran solos: cada persona los archiva o los
+automáticamente, y el grupo del caso se cerrará en ese momento. Los chats directos no se
+cierran ni se borran solos: cada persona los archiva o los
 elimina de su lista. Las coordenadas de una ubicación compartida en el chat se borran en
 cuanto deja de ser visible.

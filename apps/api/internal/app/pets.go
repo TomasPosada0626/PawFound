@@ -530,8 +530,11 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 				return err
 			}
 		}
-		// Los chats del caso no se cierran solos: cada persona decide si archivarlos o eliminarlos.
-		// Las historias del caso sí se quitan: ya no hay a quién buscar.
+		// El grupo del caso se cierra solo: queda para leer, sin mensajes nuevos. Los chats directos
+		// no se cierran solos. Las historias del caso se quitan: ya no hay a quién buscar.
+		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, now); err != nil {
 			return err
 		}

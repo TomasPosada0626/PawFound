@@ -79,8 +79,7 @@ func (a *App) Register(ctx context.Context, in RegisterInput) (Session, error) {
 			}
 			return err
 		}
-		_, err = tx.Exec(ctx, `INSERT INTO consents (user_id, kind, granted, at) VALUES ($1, 'terms', true, $2)`, userID, a.now())
-		return err
+		return recordConsent(ctx, tx, userID, "terms", true, a.now())
 	})
 	if err != nil {
 		return Session{}, err
@@ -701,6 +700,7 @@ func (a *App) UpdateNotificationPrefs(ctx context.Context, ac Actor, patch json.
 	if err != nil {
 		return prefs, err
 	}
+	angelBefore := prefs.AngelAlerts
 	if err := json.Unmarshal(patch, &prefs); err != nil {
 		return prefs, invalid("notificationPrefs")
 	}
@@ -708,7 +708,15 @@ func (a *App) UpdateNotificationPrefs(ctx context.Context, ac Actor, patch json.
 		return prefs, invalid("quietHours")
 	}
 	raw, _ := json.Marshal(prefs)
-	_, err = a.DB.Exec(ctx, `UPDATE users SET notification_prefs = $2 WHERE id = $1`, ac.ID, raw)
+	err = a.withTx(ctx, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `UPDATE users SET notification_prefs = $2 WHERE id = $1`, ac.ID, raw); err != nil {
+			return err
+		}
+		if prefs.AngelAlerts == angelBefore {
+			return nil
+		}
+		return recordConsent(ctx, tx, ac.ID, "angel_alerts", prefs.AngelAlerts, a.now())
+	})
 	return prefs, err
 }
 

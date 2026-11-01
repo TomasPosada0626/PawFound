@@ -70,17 +70,24 @@ func TestProfileFor(t *testing.T) {
 	}
 }
 
+// Regla del 2026-10-28: todas arrancan en 250 m y llegan al tope de 2 km en unos 30 minutos.
 func TestRadiusEdgeCases(t *testing.T) {
 	for _, h := range []float64{-5, math.NaN(), math.Inf(1), math.Inf(-1)} {
-		if got := RadiusMeters(DogCalm, h); got != 500 {
-			t.Errorf("RadiusMeters(DogCalm, %v) = %d, want 500", h, got)
+		if got := RadiusMeters(DogCalm, h); got != 250 {
+			t.Errorf("RadiusMeters(DogCalm, %v) = %d, want 250", h, got)
 		}
 	}
-	if got := RadiusMeters("inventado", 0); got != 300 {
-		t.Errorf("perfil desconocido = %d, want 300 (Unknown)", got)
+	if got := RadiusMeters("inventado", 0); got != 250 {
+		t.Errorf("perfil desconocido = %d, want 250 (Unknown)", got)
 	}
 	now := time.Date(2026, 10, 27, 12, 0, 0, 0, time.UTC)
-	if got := RadiusSince(DogPanic, now.Add(-time.Hour), now); got != 2200 {
-		t.Errorf("RadiusSince 1h panic = %d, want 2200", got)
+	if got := RadiusSince(DogPanic, now.Add(-15*time.Minute), now); got != 1488 {
+		t.Errorf("RadiusSince 15 min = %d, want 1488", got)
+	}
+	if got := RadiusSince(DogPanic, now.Add(-30*time.Minute), now); got != 2000 {
+		t.Errorf("RadiusSince 30 min = %d, want 2000 (tope)", got)
+	}
+	if got := RadiusSince(CatOrShy, now.Add(-time.Hour), now); got != 2000 {
+		t.Errorf("RadiusSince 1 h = %d, want 2000 (tope)", got)
 	}
 }

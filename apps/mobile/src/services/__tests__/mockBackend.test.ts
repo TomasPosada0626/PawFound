@@ -330,8 +330,8 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     const backend = makeBackend();
     await loginDemo(backend);
     await expectCode(backend.updateProfile({ username: "a" }), "invalid_username");
-    await expectCode(backend.updateProfile({ username: "@MARIA" }), "username_taken");
-    await backend.updateProfile({ username: "@Vale_23", bio: "x".repeat(300) });
+    await expectCode(backend.updateProfile({ username: "MARIA" }), "username_taken");
+    await backend.updateProfile({ username: "Vale_23", bio: "x".repeat(300) });
     expect(backend.currentUser).toMatchObject({ username: "vale_23" });
     expect(backend.currentUser?.bio).toHaveLength(150);
   });

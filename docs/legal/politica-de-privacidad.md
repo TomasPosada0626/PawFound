@@ -91,7 +91,8 @@ OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
 ## 5. Cuánto tiempo conservamos tus datos
 
 Un reporte se archiva al marcar la mascota como encontrada o al retirarlo; no se elimina
-automáticamente. Los chats no se cierran ni se borran solos: cada persona decide archivarlos
+automáticamente. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
+directos no se cierran ni se borran solos: cada persona decide archivarlos
 o eliminarlos de su lista, y un mensaje directo lo cierra cualquiera de las dos personas. Al
 cerrarse un caso se quitan sus historias y dejan de verse las ubicaciones compartidas en sus
 mensajes directos. Los plazos de retención y anonimización definitivos se fijan en
