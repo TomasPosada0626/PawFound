@@ -1,7 +1,7 @@
 # Flujo: onboarding, login y registro con verificación SMS
 
 > **Desactualizado (2026-10-28)**: la verificación ahora es gratis por correo, con un código
-> de 6 dígitos, y el inicio de sesión social es solo con Google o Apple (Facebook se quitó).
+> de 6 dígitos, y ya no hay inicio de sesión social (decisión del 2026-11-01).
 > El registro pide correo, nombre y apellidos, nombre de usuario y contraseña; se entra con
 > correo o nombre de usuario. Este documento conserva el diseño original por SMS como
 > historia; el flujo vigente está en PRODUCT.md y en la app.

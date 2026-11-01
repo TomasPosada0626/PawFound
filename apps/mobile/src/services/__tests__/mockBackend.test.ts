@@ -116,19 +116,6 @@ describe("autenticación", () => {
     await expect(backend.resendCode()).resolves.toBeUndefined();
   });
 
-  it("login social crea la cuenta sin teléfono y la reutiliza después", async () => {
-    const backend = makeBackend();
-    expect(await backend.loginWithProvider("google")).toEqual({ needsPhone: true });
-    const id = backend.currentUser?.id;
-    await backend.logout();
-    expect(backend.currentUser).toBeNull();
-    await backend.loginWithProvider("google");
-    expect(backend.currentUser?.id).toBe(id);
-    // Sin teléfono verificado no puede publicar ni escribir.
-    await expectCode(backend.createReport(report()), "not_allowed");
-    await expectCode(backend.joinGroup("max"), "not_allowed");
-  });
-
   it("restaura la sesión solo si la cuenta existe", () => {
     const backend = makeBackend();
     expect(backend.restoreSession("u_inexistente")).toBe(false);

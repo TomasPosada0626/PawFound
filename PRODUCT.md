@@ -60,7 +60,7 @@ A diferencia de publicar en un grupo genérico de Facebook/vecinos, PawFound est
 
 ## Capabilities and Constraints
 
-- Login: correo o nombre de usuario y contraseña + continuar con Google o Apple. Facebook se quitó (decisión del 2026-10-28).
+- Login: correo o nombre de usuario y contraseña. Sin inicio de sesión con Google, Apple ni Facebook (decisión del 2026-11-01).
 - Registro: verificación de cuenta por SMS al número registrado; al verificarse, la cuenta recibe automáticamente la insignia azul de verificado. No hay un paso de aprobación manual descrito. Declaración autoinformada de edad mínima durante el registro.
 - No se muestran direcciones ni coordenadas exactas de forma predeterminada (regla ya fijada en `docs/legal/tratamiento-de-datos.md`); el mapa trabaja con ubicación aproximada. Aplica también, y especialmente, a reportes de mascotas encontradas (revela dónde vive/está quien encontró la mascota).
 - Resuelto (issue #46): la dirección/coordenada exacta nunca se muestra en mapa ni detalle; solo se comparte manualmente por mensaje directo si el dueño decide dársela a alguien.

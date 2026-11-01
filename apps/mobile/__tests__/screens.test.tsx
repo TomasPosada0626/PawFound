@@ -115,20 +115,6 @@ describe("detalle del caso", () => {
   });
 });
 
-describe("cuentas sin teléfono", () => {
-  it("login social para reportar pide verificar el celular", async () => {
-    const app = await open("/auth/login?next=/report");
-    await fireEvent.press(await screen.findByTestId("social-google"));
-    await waitFor(() => expect(app.getPathname()).toBe("/auth/phone"));
-    await fireEvent.changeText(screen.getByTestId("phone-input"), "123");
-    await fireEvent.press(screen.getByTestId("phone-submit"));
-    expect(await screen.findByText("Escribe un celular colombiano válido (ej. 300 123 4567)")).toBeOnTheScreen();
-    await fireEvent.changeText(screen.getByTestId("phone-input"), "320 555 1234");
-    await fireEvent.press(screen.getByTestId("phone-submit"));
-    await waitFor(() => expect(app.getPathname()).toBe("/auth/verify"));
-  });
-});
-
 describe("ajustes", () => {
   it("cambia preferencias de notificaciones y muestra el horario de descanso", async () => {
     await loginAs("u_valentina");
