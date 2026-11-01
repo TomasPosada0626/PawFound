@@ -2,8 +2,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { Linking, Pressable, View } from "react-native";
 
-import { AuthLayout, OrDivider } from "@/components/AuthLayout";
-import { SocialButtons } from "@/components/SocialButtons";
+import { AuthLayout } from "@/components/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { Banner, Checkbox } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
@@ -189,9 +188,6 @@ export default function RegisterScreen() {
           testID="register-submit"
         />
       </View>
-
-      <OrDivider label={t("auth.orRegister")} />
-      <SocialButtons next={next} />
 
       <View className="mt-5 flex-row items-center justify-center gap-1">
         <Text variant="body" tone="muted">

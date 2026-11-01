@@ -35,7 +35,6 @@ import {
   type NewSightingInput,
   type OwnedPetInput,
   type ProfilePatch,
-  type SocialProvider,
 } from "./backendTypes";
 
 /**
@@ -181,17 +180,6 @@ export class MockBackend {
       return { needsVerification: true };
     }
     return { needsVerification: false };
-  }
-
-  /** Google o Apple ya confirmaron el correo: la cuenta queda verificada sin código. */
-  async loginWithProvider(provider: SocialProvider): Promise<void> {
-    const email = `demo.${provider}@pawfound.app`;
-    let user = Object.values(this.state.users).find((u) => u.email === email);
-    if (!user) {
-      user = { ...this.makeUser({ name: `Persona ${provider[0]?.toUpperCase()}${provider.slice(1)}`, email }), verified: true };
-      this.commit({ users: { ...this.state.users, [user.id]: user } });
-    }
-    this.commit({ sessionUserId: user.id });
   }
 
   /** Registro con correo, nombre y apellidos, usuario y contraseña. Envía el código al correo. */

@@ -61,14 +61,3 @@ export function AuthLayout({
     </Screen>
   );
 }
-
-/** Separador "o continúa con". */
-export function OrDivider({ label }: { label: string }) {
-  return (
-    <View className="my-5 flex-row items-center gap-3">
-      <View className="h-px flex-1 bg-border" />
-      <Text variant="caption">{label}</Text>
-      <View className="h-px flex-1 bg-border" />
-    </View>
-  );
-}

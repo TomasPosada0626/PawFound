@@ -30,7 +30,6 @@ import {
   type NewSightingInput,
   type OwnedPetInput,
   type ProfilePatch,
-  type SocialProvider,
 } from "./backendTypes";
 import { DEFAULT_NOTIFICATION_PREFS, DEFAULT_PRIVACY_PREFS } from "./mockBackend";
 import { photoExists, shrinkPhoto } from "./photoShrink";
@@ -517,11 +516,6 @@ export class ApiBackend {
     await this.startSession(session);
     if (session.needsVerification) this.codeSentAt = Date.now();
     return { needsVerification: session.needsVerification };
-  }
-
-  /** Requiere el SDK de Google/Apple con su client ID (pendiente de configurar). */
-  async loginWithProvider(_provider: SocialProvider): Promise<void> {
-    throw new BackendError("provider_unavailable");
   }
 
   async register(input: { name: string; email: string; username: string; password: string }): Promise<void> {

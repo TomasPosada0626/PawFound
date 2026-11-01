@@ -112,9 +112,6 @@ EXPO_PUBLIC_API_URL=https://<tu-api> EXPO_PUBLIC_WEB_URL=https://pawfound.pages.
 ```
 
 La API key de Google Maps va en `app.json` → `android.config.googleMaps.apiKey` antes del build.
-Para "Continuar con Google" se crean los ID de cliente en Google Cloud Console (pantalla de
-consentimiento + ID de Android con el nombre del paquete y la huella SHA-1 del build) y se
-ponen en `GOOGLE_CLIENT_IDS` (API).
 
 ### Actualizaciones sin reinstalar (EAS Update)
 
