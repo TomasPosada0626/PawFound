@@ -7,6 +7,7 @@ import {
   hasErrors,
   isValidEmail,
   normalizeColombianMobile,
+  normalizeUsername,
   passwordIssues,
   validateLogin,
   validateRegister,
@@ -106,21 +107,32 @@ describe("validation", () => {
   });
 
   it("explica qué le falta a la contraseña", () => {
-    expect(passwordIssues("abc")).toEqual(["too_short", "needs_number"]);
-    expect(passwordIssues("12345678")).toEqual(["needs_letter"]);
+    expect(passwordIssues("abc")).toEqual(["too_short", "needs_upper", "needs_number"]);
+    expect(passwordIssues("12345678")).toEqual(["needs_upper", "needs_lower"]);
+    expect(passwordIssues("SINMINUSCULAS1")).toEqual(["needs_lower"]);
     expect(passwordIssues("PawFound2026")).toEqual([]);
   });
 
   it("valida el login", () => {
-    expect(validateLogin({ email: "", password: "" })).toEqual({ email: "required", password: "required" });
-    expect(validateLogin({ email: "x", password: "y" })).toEqual({ email: "invalid_email" });
+    expect(validateLogin({ identifier: "", password: "" })).toEqual({ identifier: "required", password: "required" });
+    expect(validateLogin({ identifier: "ana@x", password: "y" })).toEqual({ identifier: "invalid_email" });
+    expect(validateLogin({ identifier: "ab", password: "y" })).toEqual({ identifier: "invalid_username" });
+    expect(validateLogin({ identifier: "ana_g", password: "y" })).toEqual({});
+    expect(validateLogin({ identifier: "ana@x.co", password: "y" })).toEqual({});
+  });
+
+  it("el nombre de usuario no acepta caracteres especiales, tampoco @ al inicio", () => {
+    expect(normalizeUsername("Ana_G")).toBe("ana_g");
+    expect(normalizeUsername("@ana_g")).toBeNull();
+    expect(normalizeUsername("ana.g")).toBeNull();
+    expect(validateLogin({ identifier: "@ana_g", password: "y" })).toEqual({ identifier: "invalid_email" });
   });
 
   it("exige ambos consentimientos y contraseñas iguales en el registro", () => {
     const base = {
-      name: "Ana",
+      name: "Ana Gómez",
       email: "ana@x.co",
-      phone: "3001234567",
+      username: "ana_g",
       password: "Clave1234",
       confirm: "Clave1234",
       acceptTerms: true,
@@ -132,11 +144,13 @@ describe("validation", () => {
       acceptTerms: "required",
       confirmAge: "required",
     });
-    expect(validateRegister({ ...base, name: " ", phone: "123", email: "" })).toMatchObject({
+    expect(validateRegister({ ...base, name: " ", username: "a b", email: "" })).toMatchObject({
       name: "required",
-      phone: "invalid_phone",
+      username: "invalid_username",
       email: "required",
     });
+    expect(validateRegister({ ...base, name: "Ana" })).toEqual({ name: "needs_surname" });
+    expect(validateRegister({ ...base, username: "" })).toEqual({ username: "required" });
   });
 
   it("valida el reporte según el tipo", () => {

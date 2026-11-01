@@ -37,7 +37,7 @@ const north = (km: number) => ({ latitude: LAURELES.latitude + km / 111.32, long
 
 const candidate = (extra: Partial<AlertCandidate> = {}): AlertCandidate => ({
   userId: "u1",
-  zone: { location: north(0.8), zone: "Estadio" },
+  zone: { location: north(0.1), zone: "Laureles" },
   prefs: { angelAlerts: true },
   alertsLast24h: 0,
   alreadyAlerted: false,
@@ -45,20 +45,22 @@ const candidate = (extra: Partial<AlertCandidate> = {}): AlertCandidate => ({
 });
 
 describe("Alerta Ángel", () => {
-  // Perro asustado: círculo de 1 km al publicar que crece con el tiempo.
+  // Círculo de 250 m al publicar, que llega a 2 km a los 30 minutos y no pasa de ahí.
   const panicDog = pet({ traumaticEvent: true });
 
   it("al publicar, llega a los celulares dentro del círculo inicial", () => {
     expect(alertAudience(panicDog, [candidate()], now)).toEqual(["u1"]);
-    expect(alertAudience(panicDog, [candidate({ zone: { location: north(3), zone: "Robledo" } })], now)).toEqual([]);
+    expect(alertAudience(panicDog, [candidate({ zone: { location: north(0.8), zone: "Estadio" } })], now)).toEqual([]);
   });
 
   it("a medida que el círculo crece, llega a celulares más lejanos", () => {
+    const mid = candidate({ zone: { location: north(1.5), zone: "Estadio" } });
     const far = candidate({ zone: { location: north(3), zone: "Robledo" } });
-    const later = new Date(now.getTime() + 6 * 3_600_000);
-    expect(alertAudience(panicDog, [far], later)).toEqual(["u1"]);
-    // Un gato tímido casi no se aleja: su círculo no llega tan lejos.
-    expect(alertAudience(pet({ species: "cat", shyOrIndoor: true }), [far], later)).toEqual([]);
+    const later = new Date(now.getTime() + 30 * 60_000);
+    expect(alertAudience(panicDog, [mid], now)).toEqual([]);
+    expect(alertAudience(panicDog, [mid], later)).toEqual(["u1"]);
+    // El tope es 2 km, para todas y sin importar cuánto pase.
+    expect(alertAudience(panicDog, [far], new Date(now.getTime() + 6 * 3_600_000))).toEqual([]);
   });
 
   it("respeta consentimiento, límite diario y una sola alerta por caso", () => {

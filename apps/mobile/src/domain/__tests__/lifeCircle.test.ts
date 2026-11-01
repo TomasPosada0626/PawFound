@@ -44,10 +44,10 @@ const pet = (over: Partial<PetCase>): PetCase =>
 describe("tabla del círculo de vida (PRODUCT.md, issue #10)", () => {
   it("coincide con los parámetros fijados por producto", () => {
     expect(LIFE_CIRCLE_PROFILES).toEqual({
-      dog_panic: { initial: 1000, rate: 1200, cap: 8000 },
-      dog_calm: { initial: 500, rate: 400, cap: 4000 },
-      cat_or_shy: { initial: 150, rate: 60, cap: 800 },
-      unknown: { initial: 300, rate: 250, cap: 5000 },
+      dog_panic: { initial: 250, rate: 2475, cap: 2000 },
+      dog_calm: { initial: 250, rate: 2475, cap: 2000 },
+      cat_or_shy: { initial: 250, rate: 2475, cap: 2000 },
+      unknown: { initial: 250, rate: 2475, cap: 2000 },
     });
   });
 
@@ -66,8 +66,8 @@ describe("tabla del círculo de vida (PRODUCT.md, issue #10)", () => {
   });
 
   it("trata horas negativas o inválidas como cero", () => {
-    expect(radiusMeters("dog_calm", -5)).toBe(500);
-    expect(radiusMeters("dog_calm", Number.NaN)).toBe(500);
+    expect(radiusMeters("dog_calm", -5)).toBe(250);
+    expect(radiusMeters("dog_calm", Number.NaN)).toBe(250);
   });
 
   it("crece de forma monótona", () => {
@@ -116,24 +116,26 @@ describe("radio vigente y proyección", () => {
   });
 
   it("projection devuelve los hitos pedidos", () => {
-    expect(projection("cat_or_shy", [0, 4])).toEqual([
-      { hours: 0, meters: 150 },
-      { hours: 4, meters: 270 },
+    expect(projection("cat_or_shy", [0, 0.5, 4])).toEqual([
+      { hours: 0, meters: 250 },
+      { hours: 0.5, meters: 2000 },
+      { hours: 4, meters: 2000 },
     ]);
   });
 
   it("hoursToCap es el punto donde la fórmula alcanza el tope", () => {
     const h = hoursToCap("dog_calm");
-    expect(radiusMeters("dog_calm", h)).toBe(4000);
-    expect(radiusMeters("dog_calm", h - 1)).toBeLessThan(4000);
+    expect(h).toBeCloseTo(0.5);
+    expect(radiusMeters("dog_calm", h)).toBe(2000);
+    expect(radiusMeters("dog_calm", h - 0.1)).toBeLessThan(2000);
   });
 
   it("growthSnapshot explica cuánto crecerá y si llegó al máximo", () => {
-    const fresh = growthSnapshot(pet({ traumaticEvent: true, lastSeenAt: hoursAgo(1) }), NOW);
-    expect(fresh).toMatchObject({ profile: "dog_panic", current: 2200, cap: 8000, atCap: false, pctOfCap: 28 });
-    expect(fresh.nextHourGrowth).toBe(radiusMeters("dog_panic", 2) - 2200);
+    const fresh = growthSnapshot(pet({ traumaticEvent: true, lastSeenAt: hoursAgo(5 / 60) }), NOW);
+    expect(fresh).toMatchObject({ profile: "dog_panic", current: 964, cap: 2000, atCap: false, pctOfCap: 48 });
+    expect(fresh.nextGrowth).toBe(radiusMeters("dog_panic", 10 / 60) - 964);
 
     const old = growthSnapshot(pet({ species: "cat", lastSeenAt: hoursAgo(1000) }), NOW);
-    expect(old).toMatchObject({ atCap: true, nextHourGrowth: 0, pctOfCap: 100 });
+    expect(old).toMatchObject({ atCap: true, nextGrowth: 0, pctOfCap: 100 });
   });
 });

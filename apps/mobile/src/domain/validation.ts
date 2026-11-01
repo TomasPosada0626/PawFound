@@ -43,7 +43,7 @@ export function passwordIssues(password: string): PasswordIssue[] {
 
 export type FieldErrors<K extends string> = Partial<Record<K, string>>;
 
-/** Nombre de usuario: 3 a 20 letras minúsculas, números o _ (se acepta con @ adelante). */
+/** Nombre de usuario: 3 a 20 letras minúsculas, números o _, sin caracteres especiales. */
 export function normalizeUsername(raw: string): string | null {
   const username = raw.trim().toLowerCase();
   return /^[a-z0-9_]{3,20}$/.test(username) ? username : null;
@@ -56,7 +56,7 @@ export function validateLogin(form: LoginForm): FieldErrors<keyof LoginForm> {
   const errors: FieldErrors<keyof LoginForm> = {};
   const id = form.identifier.trim();
   if (!id) errors.identifier = "required";
-  else if (id.includes("@") && !id.startsWith("@") && !isValidEmail(id)) errors.identifier = "invalid_email";
+  else if (id.includes("@") && !isValidEmail(id)) errors.identifier = "invalid_email";
   else if (!id.includes("@") && !normalizeUsername(id)) errors.identifier = "invalid_username";
   if (!form.password) errors.password = "required";
   return errors;

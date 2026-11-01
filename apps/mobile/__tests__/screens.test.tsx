@@ -4,7 +4,7 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
-import { Share } from "react-native";
+import { Linking, Share } from "react-native";
 
 import { STORAGE_KEYS } from "@/services/storage";
 
@@ -92,7 +92,7 @@ describe("detalle del caso", () => {
     await loginAs("u_valentina");
     await open("/pet/simba");
     await fireEvent.press(await screen.findByTestId("share"));
-    expect(Share.share).toHaveBeenCalledWith({ message: expect.stringContaining("https://pawfound.app/mascota/simba") });
+    expect(Share.share).toHaveBeenCalledWith({ message: expect.stringContaining("/mascota/simba") });
     expect(
       await screen.findByText("¡Gracias por compartir! Cada persona que lo ve aumenta las posibilidades."),
     ).toBeOnTheScreen();
@@ -149,7 +149,8 @@ describe("ajustes", () => {
     expect(Share.share).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('"u_valentina"') }));
   });
 
-  it("busca en la ayuda, expande respuestas y envía un mensaje a soporte sin necesitar cuenta", async () => {
+  it("busca en la ayuda, expande respuestas y abre el correo a soporte sin necesitar cuenta", async () => {
+    const openURL = jest.spyOn(Linking, "openURL").mockResolvedValue(undefined as never);
     await open("/settings/support");
     await fireEvent.changeText(await screen.findByTestId("faq-search"), "estafas");
     expect(screen.getByText("¿Cómo evito estafas?")).toBeOnTheScreen();
@@ -159,7 +160,9 @@ describe("ajustes", () => {
     await fireEvent.press(screen.getByTestId("contact-reportBug"));
     await fireEvent.changeText(await screen.findByTestId("support-message"), "El mapa no carga en mi barrio");
     await fireEvent.press(screen.getByTestId("support-send"));
-    expect(await screen.findByText(/Te responderemos en menos de 24 horas/)).toBeOnTheScreen();
+    expect(openURL).toHaveBeenCalledWith(expect.stringMatching(/^mailto:.*El%20mapa%20no%20carga/));
+    await waitFor(() => expect(screen.queryByTestId("support-message")).not.toBeOnTheScreen());
+    openURL.mockRestore();
   });
 
   it("navega entre secciones de ajustes", async () => {

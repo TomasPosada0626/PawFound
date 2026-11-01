@@ -526,7 +526,7 @@ func (a *App) ToggleMute(ctx context.Context, ac Actor, threadID string) (bool, 
 }
 
 // CloseDirect cierra un mensaje directo para las dos personas: ya nadie escribe ahí (si
-// quieren volver a hablar, abren otro desde el caso). Los grupos no se cierran.
+// quieren volver a hablar, abren otro desde el caso). Los grupos se cierran solos con el caso.
 func (a *App) CloseDirect(ctx context.Context, ac Actor, threadID string) error {
 	var kind string
 	var archived bool

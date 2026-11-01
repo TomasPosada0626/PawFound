@@ -24,12 +24,13 @@ describe("explorar sin cuenta y reportar una mascota perdida", () => {
   it("pide cuenta al reportar, vuelve al formulario y publica con grupo de caso", async () => {
     const app = await open("/");
     expect(await screen.findByText("¡Hola!")).toBeOnTheScreen();
-    expect(screen.getByText("Max")).toBeOnTheScreen();
+    expect(screen.getAllByText("Max").length).toBeGreaterThan(0);
 
     await fireEvent.press(screen.getByTestId("tab-report"));
     expect(await screen.findByText("Necesitas una cuenta para continuar")).toBeOnTheScreen();
 
-    await fireEvent.press(screen.getByTestId("fill-demo"));
+    await fireEvent.changeText(screen.getByTestId("login-email"), "demo@pawfound.app");
+    await fireEvent.changeText(screen.getByTestId("login-password"), "PawFound2026");
     await fireEvent.press(screen.getByTestId("login-submit"));
     expect(await screen.findByTestId("report-screen")).toBeOnTheScreen();
     expect(app.getPathname()).toBe("/report");
@@ -64,12 +65,12 @@ describe("explorar sin cuenta y reportar una mascota perdida", () => {
   });
 });
 
-describe("registro y verificación SMS", () => {
+describe("registro y verificación por correo", () => {
   it("anuncia el código incorrecto y otorga la insignia al verificar", async () => {
     await open("/auth/register");
     await fireEvent.changeText(await screen.findByTestId("register-name"), "Ana Gómez");
     await fireEvent.changeText(screen.getByTestId("register-email"), "ana@correo.co");
-    await fireEvent.changeText(screen.getByTestId("register-phone"), "310 555 0000");
+    await fireEvent.changeText(screen.getByTestId("register-username"), "ana_g");
     await fireEvent.changeText(screen.getByTestId("register-password"), "Clave2026");
     await fireEvent.changeText(screen.getByTestId("register-confirm"), "Clave2026");
     expect(screen.getByTestId("register-submit")).toBeDisabled();
@@ -77,14 +78,14 @@ describe("registro y verificación SMS", () => {
     await fireEvent.press(screen.getByTestId("confirm-age"));
     await fireEvent.press(screen.getByTestId("register-submit"));
 
-    expect(await screen.findByText("Te enviamos un código de 6 dígitos a +57 310 *** **00")).toBeOnTheScreen();
+    expect(await screen.findByText(/Te enviamos un código de 6 dígitos a an•+@correo\.co/)).toBeOnTheScreen();
     await fireEvent.changeText(screen.getByTestId("otp-0"), "000000");
     await fireEvent.press(screen.getByTestId("verify-submit"));
     expect(await screen.findByText("Código incorrecto. Te quedan 4 intentos.")).toBeOnTheScreen();
 
     await fireEvent.changeText(screen.getByTestId("otp-0"), "123456");
     await fireEvent.press(screen.getByTestId("verify-submit"));
-    expect(await screen.findByText("¡Cuenta verificada! Ya tienes tu insignia azul.")).toBeOnTheScreen();
+    expect(await screen.findByText("¡Correo verificado! Ganaste tu primera insignia.")).toBeOnTheScreen();
 
     // Paso siguiente: activar las alertas, con su porqué y sin obligar.
     expect(await screen.findByTestId("alerts-onboarding")).toBeOnTheScreen();
@@ -108,10 +109,10 @@ describe("círculo de vida", () => {
   it("previsualiza cuánto crecerá el círculo en el tiempo", async () => {
     await open("/pet/max");
     expect(await screen.findByText("Así crece su círculo de vida")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("preview-24"));
-    expect(await screen.findByText(/Dentro de 24 h:/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("preview-30"));
+    expect(await screen.findByText(/Dentro de 30 min:/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("preview-0"));
-    await waitFor(() => expect(screen.queryByText(/Dentro de 24 h:/)).not.toBeOnTheScreen());
+    await waitFor(() => expect(screen.queryByText(/Dentro de 30 min:/)).not.toBeOnTheScreen());
   });
 });
 
@@ -167,7 +168,7 @@ describe("mensajes, mapa, ajustes e idioma", () => {
     await open("/settings/edit-profile");
     await fireEvent.changeText(await screen.findByTestId("edit-username"), "a");
     await fireEvent.press(screen.getByTestId("save-profile"));
-    expect(await screen.findByText("Usa de 3 a 20 letras, números o guion bajo.")).toBeOnTheScreen();
+    expect(await screen.findByText("Usa de 3 a 20 letras, números o _")).toBeOnTheScreen();
   });
 
   it("elimina la cuenta tras confirmar y vuelve a modo exploración", async () => {
