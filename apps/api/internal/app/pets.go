@@ -11,6 +11,7 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/geo"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/media"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/realtime"
 )
 
 // ReportInput es el formulario de reporte (NewReportInput en la app). Photos son ids de
@@ -149,8 +150,27 @@ func (a *App) CreateReport(ctx context.Context, ac Actor, in ReportInput) (Pet, 
 	if err != nil {
 		return Pet{}, err
 	}
+	a.announcePet(ctx, row)
 	a.afterReport(ctx, row)
 	return a.toPet(ctx, row, ac.ID)
+}
+
+// announcePet muestra el reporte nuevo al instante a quienes tienen la app abierta, con la
+// misma vista pública que da el mapa.
+func (a *App) announcePet(ctx context.Context, row petRow) {
+	pet, err := a.toPet(ctx, row, "")
+	if err != nil {
+		a.Log.Error("no se pudo anunciar el reporte", "pet", row.ID, "err", err)
+		return
+	}
+	a.Hub.Broadcast(realtime.Event{Type: "pet", Data: pet})
+}
+
+// petClosedEvent avisa que un caso dejó de estar activo. Removed: además ya no existe para nadie.
+type petClosedEvent struct {
+	ID      string    `json:"id"`
+	Removed bool      `json:"removed"`
+	At      time.Time `json:"at"`
 }
 
 // afterReport hace los avisos que no deben tumbar la publicación si fallan.
@@ -305,7 +325,7 @@ func (a *App) GetPet(ctx context.Context, viewerID, id string) (Pet, error) {
 	if err != nil {
 		return Pet{}, err
 	}
-	if row.ModerationRemoved && deref(row.OwnerID) != viewerID {
+	if row.WithdrawnAt != nil || (row.ModerationRemoved && deref(row.OwnerID) != viewerID) {
 		return Pet{}, ErrNotFound
 	}
 	return a.toPet(ctx, row, viewerID)
@@ -352,7 +372,11 @@ func (a *App) Nearby(ctx context.Context, viewerID string, q NearbyQuery) ([]Pet
 
 // MyPets devuelve los reportes propios (cualquier estado).
 func (a *App) MyPets(ctx context.Context, ac Actor) ([]Pet, error) {
-	rows, _ := a.DB.Query(ctx, `SELECT `+petCols+` FROM pets WHERE owner_id = $1 ORDER BY created_at DESC LIMIT 100`, ac.ID)
+	return a.reportsOf(ctx, ac, `AND withdrawn_at IS NULL`)
+}
+
+func (a *App) reportsOf(ctx context.Context, ac Actor, filter string) ([]Pet, error) {
+	rows, _ := a.DB.Query(ctx, `SELECT `+petCols+` FROM pets WHERE owner_id = $1 `+filter+` ORDER BY created_at DESC LIMIT 100`, ac.ID)
 	list, err := pgx.CollectRows(rows, pgx.RowToStructByName[petRow])
 	if err != nil {
 		return nil, err
@@ -560,6 +584,7 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 	a.publishMessages(ctx, hidden)
 	a.notify(ctx, helpers, "thanked", petID, nil)
 	a.notify(ctx, closedFor, "case_closed", petID, nil)
+	a.Hub.Broadcast(realtime.Event{Type: "pet_closed", Data: petClosedEvent{ID: petID, At: now}})
 	return a.GetPet(ctx, ac.ID, petID)
 }
 
@@ -578,7 +603,8 @@ func (a *App) Share(ctx context.Context, viewerID, petID string) error {
 	return err
 }
 
-// Withdraw: la familia retira su reporte. Se archiva, no se borra (política de retención).
+// Withdraw: la familia elimina su publicación, activa o ya cerrada. Deja de verse para todas las
+// personas, también para ella, y su grupo se cierra. La fila se conserva (política de retención).
 func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 	row, err := a.petRow(ctx, petID)
 	if err != nil {
@@ -587,13 +613,19 @@ func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 	if deref(row.OwnerID) != ac.ID {
 		return ErrNotAllowed
 	}
-	if row.State != "active" {
+	if row.WithdrawnAt != nil {
 		return nil
 	}
 	now := a.now()
 	var hidden []string
 	err = a.withTx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE pets SET state = 'archived' WHERE id = $1`, petID); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE pets SET withdrawn_at = $2, state = CASE WHEN state = 'active' THEN 'archived' ELSE state END WHERE id = $1`, petID, now); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `DELETE FROM notifications WHERE pet_id = $1`, petID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, now); err != nil {
@@ -604,6 +636,7 @@ func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 	})
 	if err == nil {
 		a.publishMessages(ctx, hidden)
+		a.Hub.Broadcast(realtime.Event{Type: "pet_closed", Data: petClosedEvent{ID: petID, Removed: true, At: now}})
 	}
 	return err
 }

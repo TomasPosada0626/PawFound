@@ -86,18 +86,14 @@ func TestReportLifecycleAndNearbySearch(t *testing.T) {
 	h.expectError(http.StatusBadRequest, "invalid_input", http.MethodGet, "/v1/pets?lat=x", "", nil)
 	h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodGet, "/v1/pets?lat=6.2&lng=-75.5&kind=x", "", nil)
 
-	// Retirar: se archiva y sale del mapa; solo la familia puede.
+	// Eliminar: sale del mapa y de sus reportes; solo la familia puede.
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodDelete, "/v1/pets/"+pet.ID, finder.Token, nil)
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/pets/"+pet.ID, owner.Token, nil, nil)
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/pets/"+pet.ID, owner.Token, nil, nil)
-	var archived app.Pet
-	h.must(http.StatusOK, http.MethodGet, "/v1/pets/"+pet.ID, "", nil, &archived)
-	if archived.State != "archived" {
-		t.Fatalf("estado = %s", archived.State)
-	}
+	h.expectError(http.StatusNotFound, "not_found", http.MethodGet, "/v1/pets/"+pet.ID, "", nil)
 	var mine []app.Pet
 	h.must(http.StatusOK, http.MethodGet, "/v1/me/pets", owner.Token, nil, &mine)
-	if len(mine) != 2 {
+	if len(mine) != 1 {
 		t.Fatalf("mis reportes = %d", len(mine))
 	}
 	h.expectError(http.StatusNotFound, "not_found", http.MethodGet, "/v1/pets/pet_inexistente", "", nil)

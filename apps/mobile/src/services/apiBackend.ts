@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 
 import type { BadgeProgress } from "@/domain/badges";
-import { approximateLocation } from "@/domain/geo";
+import { approximateLocation, distanceMeters } from "@/domain/geo";
 import { publishAllowance, type PublishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
@@ -33,6 +33,7 @@ import {
 } from "./backendTypes";
 import { DEFAULT_NOTIFICATION_PREFS, DEFAULT_PRIVACY_PREFS } from "./mockBackend";
 import { photoExists, shrinkPhoto } from "./photoShrink";
+import type { HelperCandidate, HelperReason } from "./selectors";
 import { readJSON, writeJSON } from "./storage";
 
 type NativeFiles = typeof import("expo-file-system/legacy");
@@ -61,6 +62,8 @@ const ME_KEY = "pawfound.me";
 /** Resultado de renovar: "failed" es un problema de red o del servidor, no cierra la sesión. */
 type RenewResult = "ok" | "rejected" | "failed";
 const NEARBY_RADIUS = 20_000;
+/** Tope de resultados de la API: con la lista llena no se sabe qué quedó por fuera. */
+const NEARBY_LIMIT = 200;
 const RESEND_COOLDOWN_S = 45;
 
 type Tokens = { access: string; refresh: string };
@@ -173,6 +176,7 @@ export class ApiBackend {
   private allowance: PublishAllowance = { allowed: true };
   private codeSentAt = 0;
   private socket: WebSocket | null = null;
+  private nearbyCenter: LatLng | null = null;
   private refreshing: Promise<RenewResult> | null = null;
   /** Token push registrado por este celular, para darlo de baja al cerrar sesión. */
   private pushToken: string | null = null;
@@ -488,6 +492,14 @@ export class ApiBackend {
             this.commit({ notifications: [n, ...this.state.notifications] });
           if (!this.state.pets.some((p) => p.id === n.petId)) void this.loadPet(n.petId);
         }
+        if (data.type === "pet") {
+          const pet = data.data as ApiPet;
+          if (!this.getPet(pet.id)) this.mergePets([pet]);
+        }
+        if (data.type === "pet_closed") {
+          const closed = data.data as { id: string; removed: boolean; at: string };
+          this.closePetLocally(closed.id, closed.removed, closed.at);
+        }
       } catch {
         // Evento desconocido: se ignora.
       }
@@ -607,7 +619,39 @@ export class ApiBackend {
   /** Las tareas periódicas las hace el servidor; aquí solo se sincroniza la bandeja. */
   runScheduledJobs(): number {
     void this.sync();
+    // Por si se cortó la conexión en vivo, y para quien explora sin cuenta (no la tiene).
+    if (this.nearbyCenter) void this.loadNearby(this.nearbyCenter).catch(() => {});
     return 0;
+  }
+
+  /** Aplica el cierre de un caso en este celular, sin esperar a la próxima sincronización. */
+  private closePetLocally(petId: string, removed: boolean, at: string) {
+    const pet = this.getPet(petId);
+    if (!pet) return;
+    this.commit({
+      pets: removed
+        ? this.state.pets.filter((p) => p.id !== petId)
+        : this.state.pets.map((p) => (p.id === petId ? { ...p, state: "reunited" as const, reunitedAt: p.reunitedAt ?? at } : p)),
+      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      stories: this.state.stories.filter((s) => s.petId !== petId),
+      notifications: removed ? this.state.notifications.filter((n) => n.petId !== petId) : this.state.notifications,
+    });
+  }
+
+  /** Elimina la publicación: deja de verse para todas las personas y su grupo se cierra. */
+  async withdrawPet(petId: string): Promise<void> {
+    await this.request("DELETE", `/v1/pets/${petId}`);
+    this.closePetLocally(petId, true, new Date().toISOString());
+  }
+
+  async helperCandidates(petId: string): Promise<HelperCandidate[]> {
+    const list = await this.request<{ userId: string; user: ApiSummary; reasons: HelperReason[] }[]>(
+      "GET",
+      `/v1/pets/${petId}/helpers`,
+    );
+    const users = this.mergeSummaries(list.map((c) => c.user));
+    this.commit({ users });
+    return list.map((c) => ({ userId: c.userId, user: users[c.userId] as User, reasons: c.reasons }));
   }
 
   async addSighting(petId: string, input: NewSightingInput): Promise<void> {
@@ -845,12 +889,23 @@ export class ApiBackend {
   // --- Cargadores: completan la copia local cuando una pantalla los necesita -----------------
 
   async loadNearby(center: LatLng): Promise<void> {
+    this.nearbyCenter = center;
     try {
       const list = await this.request<ApiPet[]>(
         "GET",
         `/v1/pets?lat=${center.latitude}&lng=${center.longitude}&radius=${NEARBY_RADIUS}`,
       );
       this.mergePets(list);
+      if (list.length < NEARBY_LIMIT) {
+        // Lo que ya no viene de la zona dejó de estar activo: no se puede seguir mostrando.
+        const current = new Set(list.map((p) => p.id));
+        const stale = (p: PetCase) =>
+          p.state === "active" &&
+          p.ownerId !== this.state.sessionUserId &&
+          !current.has(p.id) &&
+          distanceMeters(center, p.location) <= NEARBY_RADIUS;
+        if (this.state.pets.some(stale)) this.commit({ pets: this.state.pets.filter((p) => !stale(p)) });
+      }
     } finally {
       // Con o sin éxito termina la espera: sin red se muestra el estado vacío, no esqueletos eternos.
       if (!this.state.nearbyLoaded) this.commit({ nearbyLoaded: true });

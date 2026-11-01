@@ -220,6 +220,17 @@ describe("reportes", () => {
     );
   });
 
+  it("solo la familia elimina su publicación; sale de la lista y cierra el grupo", async () => {
+    const backend = makeBackend();
+    await loginDemo(backend);
+    await expectCode(backend.withdrawPet("max"), "not_allowed");
+    await backend.withdrawPet("rocky");
+    const state = backend.getSnapshot();
+    expect(state.pets.some((p) => p.id === "rocky")).toBe(false);
+    expect(state.threads.find((t) => t.id === "grp_rocky")?.archived).toBe(true);
+    expect(state.notifications.some((n) => n.petId === "rocky")).toBe(false);
+  });
+
   it("cuenta compartidos y valida que el caso exista", async () => {
     const backend = makeBackend();
     const before = backend.getPet("max")!.shareCount;

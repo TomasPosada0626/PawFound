@@ -138,7 +138,8 @@ func (a *App) ExportData(ctx context.Context, ac Actor) (Export, error) {
 	if err != nil {
 		return Export{}, err
 	}
-	reports, err := a.MyPets(ctx, ac)
+	// También las publicaciones eliminadas: la exportación lleva todo lo que se conserva.
+	reports, err := a.reportsOf(ctx, ac, "")
 	if err != nil {
 		return Export{}, err
 	}

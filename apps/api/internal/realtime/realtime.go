@@ -72,6 +72,21 @@ func (h *Hub) Publish(userIDs []string, event Event) {
 	}
 }
 
+// Broadcast envía el evento a todas las conexiones abiertas, sin bloquear. Solo para datos
+// públicos, como un reporte nuevo en el mapa.
+func (h *Hub) Broadcast(event Event) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for _, conns := range h.conns {
+		for ch := range conns {
+			select {
+			case ch <- event:
+			default: // cliente atrasado: se descarta y se cerrará por el ping
+			}
+		}
+	}
+}
+
 // Connected cuenta las conexiones de una cuenta (para pruebas y métricas).
 func (h *Hub) Connected(userID string) int {
 	h.mu.RLock()
