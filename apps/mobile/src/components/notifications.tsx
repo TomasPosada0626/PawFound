@@ -2,13 +2,13 @@ import { router } from "expo-router";
 import { Pressable, View } from "react-native";
 
 import type { AppNotification, PetCase } from "@/domain/types";
-import { notificationUrl } from "@/features/notifications";
+import { notificationTexts, notificationUrl } from "@/features/notifications";
 import { relativeTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useBackend, useBackendState } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
-import { PetAvatar, PetPhoto, petDisplayName } from "./pets";
+import { PetAvatar, PetPhoto } from "./pets";
 import { Icon } from "./ui/Icon";
 import { cn, Text } from "./ui/Text";
 
@@ -28,12 +28,9 @@ export function NotificationRow({ notification, pet, now }: { notification: AppN
   const { colors } = useTheme();
   const backend = useBackend();
   const state = useBackendState();
-  // "¿Es Rocky?": en owned_match el nombre es el de la mascota propia, no el del reporte encontrado.
   const owned = notification.ownedPetId ? state.ownedPets.find((p) => p.id === notification.ownedPetId) : undefined;
-  const name = owned?.name ?? petDisplayName(pet, t);
   const isLostTone = pet.kind === "lost" && LOST_TONE.has(notification.kind);
-  const title = t(`notifications.${notification.kind}`, { name });
-  const body = t(`notifications.body_${notification.kind}`, { name });
+  const { title, body } = notificationTexts(notification, pet, owned?.name, t);
   const time = relativeTime(notification.at, now, locale);
 
   return (

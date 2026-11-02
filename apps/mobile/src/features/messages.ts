@@ -1,9 +1,12 @@
 import type { Lang, Message, PetCase, Thread, User } from "@/domain/types";
 import type { TKey, TParams } from "@/i18n/core";
 
+import { petSentence } from "./petNames";
+
 type T = (key: TKey, params?: TParams) => string;
 
-const petName = (pet: PetCase | undefined, t: T) => pet?.name ?? t("common.unnamed");
+/** Por si el caso ya no está disponible al mostrar un mensaje de sistema. */
+const UNKNOWN_PET = { kind: "found", species: "other", sex: "unknown" } as const;
 
 /** Título del hilo: nombre fijo del grupo de caso, o el nombre corto de la otra persona. */
 export function threadTitle(
@@ -14,7 +17,7 @@ export function threadTitle(
   shortName: (n: string) => string,
 ): string {
   if (thread.kind === "group") {
-    return pet?.kind === "lost" ? t("messages.groupLost", { name: petName(pet, t) }) : t("messages.groupFound");
+    return pet?.kind === "lost" ? petSentence(t, "messages.groupLost", pet) : t("messages.groupFound");
   }
   return counterpart ? shortName(counterpart.name) : t("common.deletedUser");
 }
@@ -24,7 +27,7 @@ export function messageText(message: Message, pet: PetCase | undefined, t: T): s
   if (message.kind === "system") {
     if (message.text === "created") return t("chat.created");
     if (message.text === "joined") return t("chat.joined", { name: message.authorShortName || t("common.deletedUser") });
-    if (message.text === "reunited") return t("chat.reunitedMsg", { name: petName(pet, t) });
+    if (message.text === "reunited") return petSentence(t, "chat.reunitedMsg", pet ?? UNKNOWN_PET);
     if (message.text === "closed") return t("chat.closedMsg", { name: message.authorShortName || t("common.deletedUser") });
     return message.text;
   }

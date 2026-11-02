@@ -4,7 +4,7 @@ import { Pressable, TextInput, View } from "react-native";
 
 import { AppHeader, Screen } from "@/components/layout";
 import { NotificationRow } from "@/components/notifications";
-import { KindTag, PetAvatar, StatusBadge, UserAvatar } from "@/components/pets";
+import { KindTag, PetAvatar, petDisplayName, StatusBadge, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { EmptyState, IconBubble } from "@/components/ui/Controls";
 import { RowSkeleton } from "@/components/ui/Skeleton";
@@ -14,6 +14,7 @@ import { cn, Text } from "@/components/ui/Text";
 import { shortName } from "@/domain/privacy";
 import type { AvatarId, PetCase, Thread } from "@/domain/types";
 import { messagePreview, threadTitle } from "@/features/messages";
+import { petSentence } from "@/features/petNames";
 import { useNow } from "@/hooks/useNow";
 import { chatTimestamp } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -276,7 +277,7 @@ function ThreadRow({
   const { t } = useI18n();
   const { colors } = useTheme();
   const petCase = pet;
-  const petName = petCase?.name ?? t("common.unnamed");
+  const petName = petCase ? petDisplayName(petCase, t) : "";
   const isGroup = thread.kind === "group";
   const members = thread.memberIds.length;
   const label = [
@@ -323,8 +324,10 @@ function ThreadRow({
                 label={
                   otherIsOwner
                     ? petCase.kind === "lost"
-                      ? t("messages.familyOf", { name: petName })
-                      : t("messages.foundBy", { name: petName })
+                      ? petSentence(t, "messages.familyOf", petCase)
+                      : petCase.name
+                        ? t("messages.foundBy", { name: petCase.name })
+                        : petName
                     : petName
                 }
               />

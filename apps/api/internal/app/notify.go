@@ -102,24 +102,25 @@ func (a *App) deliver(ctx context.Context, list []Notification) {
 		userIDs[i] = n.UserID
 	}
 	people := a.recipients(ctx, dedupe(userIDs))
-	names := map[string]string{}
+	pets := map[string]pushPet{}
 	var messages []providers.PushMessage
 	for _, n := range list {
-		if _, ok := names[n.PetID]; !ok {
-			var name *string
-			_ = a.DB.QueryRow(ctx, `SELECT name FROM pets WHERE id = $1`, n.PetID).Scan(&name)
-			names[n.PetID] = deref(name)
+		if _, ok := pets[n.PetID]; !ok {
+			var pet pushPet
+			_ = a.DB.QueryRow(ctx, `SELECT coalesce(name, ''), kind, species, sex FROM pets WHERE id = $1`, n.PetID).
+				Scan(&pet.Name, &pet.Kind, &pet.Species, &pet.Sex)
+			pets[n.PetID] = pet
 		}
 		person, ok := people[n.UserID]
 		if !ok || !person.Prefs.Push {
 			continue
 		}
-		name := names[n.PetID]
+		pet := pets[n.PetID]
 		if n.OwnedPetID != nil {
 			// "¿Es Rocky?": el nombre es el de la mascota propia, no el del reporte encontrado.
-			_ = a.DB.QueryRow(ctx, `SELECT name FROM owned_pets WHERE id = $1`, *n.OwnedPetID).Scan(&name)
+			_ = a.DB.QueryRow(ctx, `SELECT name FROM owned_pets WHERE id = $1`, *n.OwnedPetID).Scan(&pet.Name)
 		}
-		title, body := pushText(n.Kind, person.Lang, name)
+		title, body := pushText(n.Kind, person.Lang, pet)
 		channel := channelUpdates
 		if alertKinds[n.Kind] {
 			channel = channelAngel
@@ -169,20 +170,62 @@ var pushTexts = map[string]map[string][2]string{
 	},
 }
 
-var unnamed = map[string]string{"es": "Sin nombre", "en": "No name"}
+// Sin nombre conocido se habla de "el perrito encontrado" (unnamedPet en los textos de la app).
+var (
+	petNouns = map[string]map[string]string{
+		"es": {"dog_m": "perrito", "dog_f": "perrita", "cat_m": "gatico", "cat_f": "gatica", "other_f": "mascota"},
+		"en": {"dog_m": "dog", "dog_f": "dog", "cat_m": "cat", "cat_f": "cat", "other_f": "pet"},
+	}
+	petPhrases = map[string]map[string]string{
+		"es": {"lost_m": "el {pet} perdido", "lost_f": "la {pet} perdida", "found_m": "el {pet} encontrado", "found_f": "la {pet} encontrada"},
+		"en": {"lost_m": "the lost {pet}", "lost_f": "the lost {pet}", "found_m": "the found {pet}", "found_f": "the found {pet}"},
+	}
+	spanishContractions = strings.NewReplacer(" a el ", " al ", " de el ", " del ")
+)
 
-func pushText(kind, lang, name string) (string, string) {
+// pushPet son los datos de la mascota que entran en el texto de un push.
+type pushPet struct {
+	Name, Kind, Species, Sex string
+}
+
+// phrase nombra a la mascota sin nombre. Sin sexo conocido usa el masculino genérico; "mascota"
+// siempre es femenino.
+func (p pushPet) phrase(lang string) string {
+	species, gender := "other", "f"
+	if p.Species == "dog" || p.Species == "cat" {
+		species, gender = p.Species, "m"
+		if p.Sex == "female" {
+			gender = "f"
+		}
+	}
+	kind := "found"
+	if p.Kind == "lost" {
+		kind = "lost"
+	}
+	return strings.ReplaceAll(petPhrases[lang][kind+"_"+gender], "{pet}", petNouns[lang][species+"_"+gender])
+}
+
+func pushText(kind, lang string, pet pushPet) (string, string) {
 	if _, ok := pushTexts[lang]; !ok {
 		lang = "es"
-	}
-	if name == "" {
-		name = unnamed[lang]
 	}
 	t, ok := pushTexts[lang][kind]
 	if !ok {
 		t = [2]string{"PawFound", "{name}"}
 	}
-	return strings.ReplaceAll(t[0], "{name}", name), strings.ReplaceAll(t[1], "{name}", name)
+	if pet.Name != "" {
+		return strings.ReplaceAll(t[0], "{name}", pet.Name), strings.ReplaceAll(t[1], "{name}", pet.Name)
+	}
+	return fillUnnamed(t[0], pet.phrase(lang)), fillUnnamed(t[1], pet.phrase(lang))
+}
+
+// fillUnnamed pone la frase en el texto: contrae "a el" y "de el" y lleva mayúscula si la abre.
+func fillUnnamed(text, phrase string) string {
+	filled := spanishContractions.Replace(strings.ReplaceAll(text, "{name}", phrase))
+	if strings.HasPrefix(text, "{name}") {
+		return strings.ToUpper(filled[:1]) + filled[1:]
+	}
+	return filled
 }
 
 // alertAudience envía la Alerta Ángel a las zonas que quedaron dentro del círculo de vida:

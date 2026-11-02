@@ -7,6 +7,7 @@ import { AppHeader } from "@/components/layout";
 import { PetMap } from "@/components/map/PetMap";
 import { PlaceSheet } from "@/components/PlaceSheet";
 import { PetCard, PetPhoto, petDisplayName, StatusBadge } from "@/components/pets";
+import { petSentence } from "@/features/petNames";
 import { PetCardSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
 import { Banner, Chip, ToggleRow } from "@/components/ui/Controls";
@@ -524,7 +525,7 @@ function FocusPanel({
       className="px-4 pt-1"
       testID="map-focus"
       accessibilityLiveRegion="polite"
-      accessibilityLabel={t("map.focusLabel", { name })}
+      accessibilityLabel={petSentence(t, "map.focusLabel", pet)}
     >
       <View className="flex-row items-center gap-3">
         <PetPhoto pet={pet} className="h-20 w-20" />

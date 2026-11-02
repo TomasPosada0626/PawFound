@@ -9,7 +9,7 @@ import { DirectionsSheet } from "@/components/DirectionsSheet";
 import { LocationCard } from "@/components/LocationCard";
 import { ReportUserSheet } from "@/components/ReportUserSheet";
 import { BackButton } from "@/components/layout";
-import { PetAvatar, UserAvatar } from "@/components/pets";
+import { PetAvatar, petDisplayName, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, EmptyState, ListRow, ToggleRow } from "@/components/ui/Controls";
 import { Icon } from "@/components/ui/Icon";
@@ -171,7 +171,7 @@ export default function ChatScreen() {
                   : other
                     ? t("profile.memberDays", { count: memberDays(other.createdAt, new Date()) })
                     : pet
-                      ? (pet.name ?? t("common.unnamed"))
+                      ? petDisplayName(pet, t)
                       : ""}
               </Text>
             </View>

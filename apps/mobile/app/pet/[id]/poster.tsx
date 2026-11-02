@@ -8,6 +8,7 @@ import { captureRef } from "react-native-view-shot";
 import { LogoMark, PawDecoration } from "@/components/brand";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { petDisplayName } from "@/components/pets";
+import { petSentence } from "@/features/petNames";
 import { QrCode } from "@/components/QrCode";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, EmptyState, ToggleRow } from "@/components/ui/Controls";
@@ -137,7 +138,7 @@ export default function PosterScreen() {
         ref={posterRef}
         collapsable={false}
         accessible
-        accessibilityLabel={t("poster.preview", { name })}
+        accessibilityLabel={petSentence(t, "poster.preview", pet)}
         style={{ backgroundColor: POSTER.paper, borderRadius: 24, overflow: "hidden" }}
         className="mt-2 w-full max-w-[420px] self-center border border-border"
       >

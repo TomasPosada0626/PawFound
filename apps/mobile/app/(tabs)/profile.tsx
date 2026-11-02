@@ -6,7 +6,7 @@ import { BadgeCatalog, BadgeTile } from "@/components/badges";
 import { DeletePetButton } from "@/components/DeletePetButton";
 import { FounderTag } from "@/components/FounderTag";
 import { AppHeader, Screen } from "@/components/layout";
-import { PetAvatar, PetPhoto, UserAvatar } from "@/components/pets";
+import { PetAvatar, PetPhoto, petDisplayName, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Divider, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -258,7 +258,7 @@ export default function ProfileScreen() {
                           : t("profile.activityReunited")}
                     </Text>
                     <Text variant="caption" tone="body" numberOfLines={1}>
-                      {`${item.pet.name ?? t("common.unnamed")}${item.pet.breed ? ` (${item.pet.breed})` : ""}`}
+                      {`${petDisplayName(item.pet, t)}${item.pet.breed ? ` (${item.pet.breed})` : ""}`}
                     </Text>
                     <Text variant="caption" numberOfLines={1}>
                       {`${item.pet.zone} · ${relativeTime(item.at, now, locale)}`}

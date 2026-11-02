@@ -1,11 +1,11 @@
 import { useState } from "react";
 
+import { petSentence } from "@/features/petNames";
 import type { PetCase } from "@/domain/types";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useBackend } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
-import { petDisplayName } from "./pets";
 import { IconButton } from "./ui/IconButton";
 import { ConfirmSheet } from "./ui/Sheet";
 import { useToast } from "./ui/Toast";
@@ -18,7 +18,6 @@ export function DeletePetButton({ pet }: { pet: PetCase }) {
   const toast = useToast();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const name = petDisplayName(pet, t);
 
   const remove = async () => {
     setLoading(true);
@@ -37,14 +36,14 @@ export function DeletePetButton({ pet }: { pet: PetCase }) {
     <>
       <IconButton
         icon="trash-outline"
-        label={t("list.deleteLabel", { name })}
+        label={petSentence(t, "list.deleteLabel", pet)}
         color={colors.danger}
         onPress={() => setOpen(true)}
         testID={`delete-pet-${pet.id}`}
       />
       <ConfirmSheet
         visible={open}
-        title={t("list.deleteTitle", { name })}
+        title={petSentence(t, "list.deleteTitle", pet)}
         body={t("list.deleteBody")}
         confirmLabel={t("list.deleteConfirm")}
         danger
