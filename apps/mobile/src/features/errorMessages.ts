@@ -23,6 +23,8 @@ export function errorMessage(code: ErrorCode, t: T): string {
       return t("errors.storage_unavailable");
     case "invalid_image":
       return t("errors.invalid_image");
+    case "follow_wait":
+      return t("errors.follow_wait");
     default:
       return t("errors.unknown");
   }

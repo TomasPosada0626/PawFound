@@ -5,7 +5,7 @@ import { View } from "react-native";
 
 import { AppHeader, BackButton, Screen, ThemeButton } from "@/components/layout";
 import { PetMap } from "@/components/map/PetMap";
-import { petDisplayName } from "@/components/pets";
+import { petSentence } from "@/features/petNames";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
@@ -82,7 +82,7 @@ export default function SightingScreen() {
         {t("sighting.title")}
       </Text>
       <Text variant="body" tone="muted" className="mb-5 text-center">
-        {t("sighting.subtitle", { name: petDisplayName(pet, t) })}
+        {petSentence(t, "sighting.subtitle", pet)}
       </Text>
 
       <Text variant="subheading" className="mb-2">

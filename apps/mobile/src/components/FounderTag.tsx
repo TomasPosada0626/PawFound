@@ -6,7 +6,7 @@ import { useTheme } from "@/theme/ThemeProvider";
 import { Icon } from "./ui/Icon";
 import { Text } from "./ui/Text";
 
-/** Identifica el perfil de quien creó PawFound. */
+/** Identifica el perfil de quien fundó PawFound. */
 export function FounderTag() {
   const { t } = useI18n();
   const { colors } = useTheme();

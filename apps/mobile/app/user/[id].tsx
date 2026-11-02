@@ -8,23 +8,29 @@ import { BadgeTile } from "@/components/badges";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { PetPhoto, UserAvatar } from "@/components/pets";
 import { ReportUserSheet } from "@/components/ReportUserSheet";
+import { Button } from "@/components/ui/Button";
 import { Banner, Card, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
+import { ConfirmSheet } from "@/components/ui/Sheet";
 import { Icon } from "@/components/ui/Icon";
 import { cn, Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { memberDays } from "@/domain/moderation";
+import { formatRating } from "@/domain/rating";
 import { shortName } from "@/domain/privacy";
 import { useAuthGate } from "@/hooks/useAuthGate";
+import { errorMessage } from "@/features/errorMessages";
 import { shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
-import { hasLiked, likesOf, ownedPetsOf, userBadgeProgress, userStats } from "@/services/selectors";
+import { BackendError } from "@/services/backendTypes";
+import { followInfoOf, hasLiked, likesOf, ownedPetsOf, userBadgeProgress, userStats } from "@/services/selectors";
 import { useBackend, useBackendState } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
 /**
- * Perfil público: lo que da confianza sin exponer datos de contacto. Días en PawFound,
- * insignias, mascotas y "me gusta" de la comunidad. Ningún perfil es oculto: cualquiera
- * puede abrirlo desde un caso, un chat directo o un mensaje en un grupo.
+ * Perfil público: lo que da confianza sin exponer datos de contacto. Días en PawFound, calificación,
+ * insignias y "me gusta" de la comunidad. Ningún perfil es oculto: cualquiera puede abrirlo desde
+ * un caso, un chat, un grupo o una búsqueda. La ubicación no se muestra a nadie, las mascotas solo
+ * a quienes se siguen mutuamente, y de los seguidores se ven solo los números.
  */
 export default function PublicProfileScreen() {
   const { id, preview } = useLocalSearchParams<{ id: string; preview?: string }>();
@@ -39,6 +45,8 @@ export default function PublicProfileScreen() {
   const toast = useToast();
   const requireAccount = useAuthGate();
   const [reportOpen, setReportOpen] = useState(false);
+  const [unfollowOpen, setUnfollowOpen] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
   const person = id ? state.users[id] : undefined;
   const viewerId = state.sessionUserId;
   const isSelf = viewerId === id;
@@ -59,6 +67,7 @@ export default function PublicProfileScreen() {
   const liked = hasLiked(state, viewerId, person.id);
   const stats = userStats(state, person.id);
   const days = memberDays(person.createdAt, new Date());
+  const follow = followInfoOf(state, person.id);
 
   const toggleLike = async () => {
     if (!requireAccount(`/user/${person.id}`)) return;
@@ -67,6 +76,20 @@ export default function PublicProfileScreen() {
       if (nowLiked) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     } catch {
       toast(t("publicProfile.likeVerify"), "error");
+    }
+  };
+
+  const changeFollow = async (action: () => Promise<unknown>) => {
+    if (!requireAccount(`/user/${person.id}`)) return;
+    setFollowBusy(true);
+    try {
+      await action();
+    } catch (err) {
+      const code = err instanceof BackendError ? err.code : "unknown";
+      toast(code === "not_allowed" ? t("network.followVerify") : errorMessage(code, t), "error");
+    } finally {
+      setFollowBusy(false);
+      setUnfollowOpen(false);
     }
   };
 
@@ -103,12 +126,50 @@ export default function PublicProfileScreen() {
           </Text>
           <Text variant="caption">{`· ${t("profile.memberSince", { date: shortDate(new Date(person.createdAt), locale) })}`}</Text>
         </View>
+        <View className="mt-1 flex-row items-center gap-1" accessible testID="public-rating">
+          <Icon name="star" size={16} color="#F5A524" />
+          <Text variant="captionStrong">{formatRating(stats.ratingAvg, locale)}</Text>
+          <Text variant="caption">
+            {stats.ratingCount > 0 ? t("profile.ratingCount", { count: stats.ratingCount }) : t("profile.noRatings")}
+          </Text>
+        </View>
         {person.bio ? (
           <Text variant="body" className="mt-2 text-center">
             {person.bio}
           </Text>
         ) : null}
       </View>
+
+      {/* Seguir: con solicitud y aceptación */}
+      {!isSelf ? (
+        <View className="mt-4 gap-2">
+          <Button
+            label={
+              follow.status === "accepted"
+                ? t("network.following")
+                : follow.status === "pending"
+                  ? t("network.requested")
+                  : t("network.follow")
+            }
+            icon={
+              follow.status === "accepted" ? "checkmark" : follow.status === "pending" ? "time-outline" : "person-add-outline"
+            }
+            variant={follow.status === "none" ? "primary" : "outline"}
+            loading={followBusy}
+            onPress={() => {
+              if (follow.status === "accepted") setUnfollowOpen(true);
+              else if (follow.status === "pending") void changeFollow(() => backend.unfollowUser(person.id));
+              else void changeFollow(() => backend.followUser(person.id));
+            }}
+            testID="follow-user"
+          />
+          {follow.status === "none" ? (
+            <Text variant="caption" className="text-center">
+              {t("network.followHint")}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Me gusta */}
       <View className="mt-4 items-center gap-2">
@@ -134,6 +195,21 @@ export default function PublicProfileScreen() {
           {t("publicProfile.likeHint")}
         </Text>
       </View>
+
+      {/* Seguidores: cualquiera ve el número; la lista solo la propia cuenta */}
+      <Pressable
+        accessibilityRole={isSelf ? "button" : undefined}
+        disabled={!isSelf}
+        onPress={() => router.push("/seguidores")}
+        testID="public-followers"
+      >
+        <Card className="mt-4">
+          <View className="flex-row">
+            <MiniStat value={follow.followers} label={t("network.followers")} />
+            <MiniStat value={follow.following} label={t("network.following")} last />
+          </View>
+        </Card>
+      </Pressable>
 
       {/* Actividad real */}
       <Card className="mt-4">
@@ -161,7 +237,9 @@ export default function PublicProfileScreen() {
       {/* Mascotas (solo foto, nombre y especie) */}
       <Card className="mt-4">
         <SectionHeader title={t("publicProfile.pets")} />
-        {pets.length === 0 ? (
+        {!isSelf && !follow.mutual ? (
+          <Text variant="caption">{t("publicProfile.petsPrivate")}</Text>
+        ) : pets.length === 0 ? (
           <Text variant="caption">{t("publicProfile.noPets")}</Text>
         ) : (
           <View className="flex-row flex-wrap gap-4" testID="public-pets">
@@ -197,6 +275,16 @@ export default function PublicProfileScreen() {
       </Text>
 
       <ReportUserSheet target={reportOpen ? person : null} onClose={() => setReportOpen(false)} />
+      <ConfirmSheet
+        visible={unfollowOpen}
+        danger
+        loading={followBusy}
+        title={t("network.unfollowTitle", { name })}
+        body={t("network.unfollowBody")}
+        confirmLabel={t("network.unfollow")}
+        onCancel={() => setUnfollowOpen(false)}
+        onConfirm={() => void changeFollow(() => backend.unfollowUser(person.id))}
+      />
     </Screen>
   );
 }

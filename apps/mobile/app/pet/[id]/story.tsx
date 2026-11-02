@@ -9,6 +9,7 @@ import { captureRef } from "react-native-view-shot";
 
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { petDisplayName } from "@/components/pets";
+import { petSentence } from "@/features/petNames";
 import { QrCode } from "@/components/QrCode";
 import { Button } from "@/components/ui/Button";
 import { Card, EmptyState } from "@/components/ui/Controls";
@@ -102,7 +103,7 @@ export default function StoryScreen() {
         ref={storyRef}
         collapsable={false}
         accessible
-        accessibilityLabel={t("story.preview", { name })}
+        accessibilityLabel={petSentence(t, "story.preview", pet)}
         style={{ width: canvasWidth, aspectRatio: 9 / 16, borderRadius: 28, overflow: "hidden" }}
         className="mt-2 self-center"
         testID="story-canvas"
@@ -161,7 +162,7 @@ export default function StoryScreen() {
           </Text>
           {home ? (
             <Text variant="bodyStrong" tone="white" className="text-center" numberOfLines={3}>
-              {t("story.homeThanks", { name })}
+              {petSentence(t, "story.homeThanks", pet)}
             </Text>
           ) : (
             <>
@@ -222,20 +223,21 @@ export default function StoryScreen() {
           <Text variant="subheading" accessibilityRole="header" className="mb-2">
             {t("story.tipsTitle")}
           </Text>
-          {(home ? [t("story.tipHome")] : [t("story.tipLink"), t("story.tipHighlights"), t("story.tipClose", { name })]).map(
-            (tip, i) => (
-              <View key={tip} className="mt-2 flex-row gap-3">
-                <View className="h-6 w-6 items-center justify-center rounded-full bg-primary-soft">
-                  <Text variant="captionStrong" tone="primary">
-                    {String(i + 1)}
-                  </Text>
-                </View>
-                <Text variant="body" className="flex-1">
-                  {tip}
+          {(home
+            ? [t("story.tipHome")]
+            : [t("story.tipLink"), t("story.tipHighlights"), petSentence(t, "story.tipClose", pet)]
+          ).map((tip, i) => (
+            <View key={tip} className="mt-2 flex-row gap-3">
+              <View className="h-6 w-6 items-center justify-center rounded-full bg-primary-soft">
+                <Text variant="captionStrong" tone="primary">
+                  {String(i + 1)}
                 </Text>
               </View>
-            ),
-          )}
+              <Text variant="body" className="flex-1">
+                {tip}
+              </Text>
+            </View>
+          ))}
         </Card>
       </View>
     </Screen>

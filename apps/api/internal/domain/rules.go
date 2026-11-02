@@ -20,6 +20,7 @@ type NotificationPrefs struct {
 	Groups         bool   `json:"groups"`
 	LifeCircle     bool   `json:"lifeCircle"`
 	AngelAlerts    bool   `json:"angelAlerts"`
+	FriendAlerts   bool   `json:"friendAlerts"`
 	QuietHours     bool   `json:"quietHours"`
 	QuietFrom      string `json:"quietFrom"`
 	QuietTo        string `json:"quietTo"`
@@ -32,7 +33,7 @@ type NotificationPrefs struct {
 func DefaultNotificationPrefs() NotificationPrefs {
 	return NotificationPrefs{
 		LostNearby: true, FoundNearby: true, Comments: true, DirectMessages: true, Groups: true,
-		LifeCircle: true, AngelAlerts: true, QuietFrom: "22:00", QuietTo: "07:00", Push: true, Email: true,
+		LifeCircle: true, AngelAlerts: true, FriendAlerts: true, QuietFrom: "22:00", QuietTo: "07:00", Push: true, Email: true,
 	}
 }
 
@@ -113,10 +114,54 @@ var BadgeRules = []BadgeRule{
 	{"reporter", "help", []int{1, 5, 10}},
 	{"rescuer", "help", []int{1, 3, 10}},
 	{"eyes", "help", []int{1, 5, 20}},
+	{"quick", "help", []int{1, 5, 20}},
 	{"paw_angel", "reunions", []int{1, 3, 10}},
+	{"protector", "reunions", []int{1}},
 	{"reunion", "reunions", []int{1}},
 	{"spreader", "community", []int{1, 10, 50}},
 	{"community", "community", []int{3, 10, 25}},
+	{"popular", "community", []int{50, 100, 250, 500, 1000}},
+}
+
+// Calificación por ayudar en un caso. Toda cuenta empieza con RatingWindow calificaciones de 5
+// estrellas y cada una real va reemplazando a una de ellas: una mala nota no hunde a quien recién
+// empieza, y solo cuentan las RatingWindow más recientes.
+const (
+	RatingWindow = 20
+	// RatingStart es lo que vale cada calificación que aún no se ha dado.
+	RatingStart = 5
+	// ProtectorMinRatings: calificaciones reales que hacen falta para "Protector animal".
+	ProtectorMinRatings = 10
+	// MaxFollowDeclines rechazos suspenden el envío de solicitudes a esa persona por FollowRetryWait.
+	MaxFollowDeclines = 3
+	FollowRetryWait   = 30 * 24 * time.Hour
+)
+
+func ratingSum(stars []int) int {
+	n := min(len(stars), RatingWindow)
+	sum := (RatingWindow - n) * RatingStart
+	for _, s := range stars[:n] {
+		sum += s
+	}
+	return sum
+}
+
+// Rating es el promedio vigente; stars van de la más reciente a la más antigua.
+func Rating(stars []int) float64 {
+	return float64(ratingSum(stars)) / RatingWindow
+}
+
+// IsAnimalProtector dice si hoy se tiene "Protector animal": desde la décima calificación real,
+// sin contar las 5 estrellas iniciales, un promedio de más de 4,5. Se gana y se pierde según suba
+// o baje.
+func IsAnimalProtector(stars []int) bool {
+	n := min(len(stars), RatingWindow)
+	sum := 0
+	for _, s := range stars[:n] {
+		sum += s
+	}
+	// sum/n > 4,5, sin comparar decimales.
+	return n >= ProtectorMinRatings && sum*2 > n*9
 }
 
 // BadgeProgress es lo que devuelve la API por insignia.

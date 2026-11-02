@@ -4,6 +4,7 @@ import * as Location from "expo-location";
 
 import { ApiBackend } from "../apiBackend";
 import { BackendError } from "../backendTypes";
+import { userBadgeProgress } from "../selectors";
 import { ME_KEY } from "../sessionKeys";
 
 jest.mock("expo-secure-store", () => {
@@ -744,7 +745,7 @@ describe("publicaciones", () => {
 
     route("POST /v1/pets/max/reunite", { status: 200, body: pet("max", { state: "reunited" }) });
     await backend.markReunited("max", ["u_carlos"]);
-    expect(called("POST /v1/pets/max/reunite")[0]?.body).toEqual({ helperIds: ["u_carlos"] });
+    expect(called("POST /v1/pets/max/reunite")[0]?.body).toEqual({ helperIds: ["u_carlos"], ratings: {} });
     expect(backend.getPet("max")?.state).toBe("reunited");
     expect(backend.getSnapshot().stories).toHaveLength(0);
 
@@ -957,6 +958,101 @@ describe("perfil y preferencias", () => {
     await backend.toggleProfileLike("u_carlos");
     expect(backend.getSnapshot().profileLikes.u_carlos).toHaveLength(2);
     expect(backend.getSnapshot().profileLikes.u_carlos).not.toContain("u_ana");
+  });
+
+  it("busca personas, y la red trae las listas propias con su nombre de usuario", async () => {
+    const backend = await loggedIn();
+    const person = (id: string, username: string) => ({
+      id,
+      shortName: id,
+      username,
+      avatar: "dog",
+      verified: true,
+      createdAt: "2026-01-01T00:00:00Z",
+      lang: "es",
+    });
+    route("GET /v1/users/search?q=%40ana", { status: 200, body: [person("u_x", "ana_gomez")] });
+    const found = await backend.searchUsers("@ana");
+    expect(found.map((u) => u.username)).toEqual(["ana_gomez"]);
+
+    route("GET /v1/me/network", {
+      status: 200,
+      body: {
+        requests: [person("u_r", "pide")],
+        followers: [person("u_f", "sigue")],
+        following: [person("u_g", "sigo"), person("u_h", "tambien")],
+        sent: [person("u_s", "espera")],
+      },
+    });
+    await backend.loadNetwork();
+    let state = backend.getSnapshot();
+    expect(state.network).toEqual({ requests: ["u_r"], followers: ["u_f"], following: ["u_g", "u_h"], sent: ["u_s"] });
+    expect(state.users.u_r?.username).toBe("pide");
+    expect(state.followInfo.u_ana).toEqual({ followers: 1, following: 2, status: "none", mutual: false });
+
+    route("POST /v1/me/followers/u_r/accept", { status: 204 });
+    await backend.acceptFollower("u_r");
+    expect(called("POST /v1/me/followers/u_r/accept")).toHaveLength(1);
+    route("DELETE /v1/me/followers/u_f", { status: 204 });
+    await backend.removeFollower("u_f");
+    expect(called("DELETE /v1/me/followers/u_f")).toHaveLength(1);
+
+    const { email: _email, ...publicUser } = user({ id: "u_t", name: "Tercera" });
+    route("GET /v1/users/u_t", {
+      status: 200,
+      body: {
+        user: publicUser,
+        likes: 0,
+        likedByMe: false,
+        rating: 4.75,
+        ratingCount: 3,
+        followers: 7,
+        following: 2,
+        followStatus: "pending",
+        mutual: false,
+        badges: [],
+        pets: [],
+      },
+    });
+    route("POST /v1/users/u_t/follow", { status: 200, body: { status: "pending" } });
+    await expect(backend.followUser("u_t")).resolves.toBe("pending");
+    state = backend.getSnapshot();
+    expect(state.followInfo.u_t).toEqual({ followers: 7, following: 2, status: "pending", mutual: false });
+    expect(state.remoteRatings.u_t).toEqual({ average: 4.75, count: 3 });
+    route("DELETE /v1/users/u_t/follow", { status: 204 });
+    await backend.unfollowUser("u_t");
+    expect(called("DELETE /v1/users/u_t/follow")).toHaveLength(1);
+  });
+
+  it("explica por qué no se pudo enviar la solicitud", async () => {
+    const backend = await loggedIn();
+    route("POST /v1/users/u_t/follow", { status: 409, body: { error: { code: "follow_wait" } } });
+    await expect(backend.followUser("u_t")).rejects.toMatchObject({ code: "follow_wait" });
+  });
+
+  it("ignora las insignias que esta versión de la app todavía no conoce", async () => {
+    const backend = await loggedIn();
+    const { email: _email, ...publicUser } = user({ id: "u_n", name: "Nueva" });
+    route("GET /v1/users/u_n", {
+      status: 200,
+      body: {
+        user: publicUser,
+        likes: 0,
+        likedByMe: false,
+        rating: 5,
+        ratingCount: 0,
+        followers: 0,
+        following: 0,
+        followStatus: "none",
+        badges: [
+          { id: "verified", tier: 1 },
+          { id: "del_futuro", tier: 1 },
+        ],
+        pets: [],
+      },
+    });
+    await backend.loadProfile("u_n");
+    expect(userBadgeProgress(backend.getSnapshot(), "u_n").map((b) => b.id)).toEqual(["verified"]);
   });
 
   it("reporta a una persona y carga su perfil público sin datos privados", async () => {

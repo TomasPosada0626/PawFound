@@ -30,6 +30,8 @@ import { reunionHelperCandidates, type HelperCandidate } from "./selectors";
 
 import {
   BackendError,
+  type FollowEdge,
+  type FollowStatus,
   type BackendState,
   type NewReportInput,
   type NewSightingInput,
@@ -72,6 +74,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   groups: true,
   lifeCircle: true,
   angelAlerts: true,
+  friendAlerts: true,
   quietHours: false,
   quietFrom: "22:00",
   quietTo: "07:00",
@@ -216,8 +219,6 @@ export class MockBackend {
       bio: "",
       city: "Medellín",
       createdAt: this.iso(),
-      ratingSum: 0,
-      ratingCount: 0,
       lang: "es",
     };
   }
@@ -475,7 +476,7 @@ export class MockBackend {
    * ("Ángel de patas"): solo cuentan personas que de verdad participaron en el caso
    * (avistamientos, grupo o mensaje directo), para que la insignia no se pueda regalar.
    */
-  async markReunited(petId: string, helperIds: string[] = []): Promise<void> {
+  async markReunited(petId: string, helperIds: string[] = [], ratings: Record<string, number> = {}): Promise<void> {
     const user = this.requireUser();
     const pet = this.requirePet(petId);
     if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
@@ -490,7 +491,13 @@ export class MockBackend {
     const recipients = [...new Set([...(thread?.memberIds ?? []), ...sharers])].filter(
       (id) => id !== user.id && !helpers.includes(id) && this.state.users[id],
     );
+    const ratingStars = { ...this.state.ratingStars };
+    for (const id of helpers) {
+      const stars = ratings[id];
+      if (stars) ratingStars[id] = [stars, ...(ratingStars[id] ?? [])];
+    }
     this.commit({
+      ratingStars,
       pets: this.replacePet({
         ...pet,
         state: "reunited",
@@ -498,8 +505,10 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
-      // El grupo se cierra solo: queda para leer, sin mensajes nuevos.
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      // El grupo y los mensajes directos del caso se cierran solos: quedan para leer.
+      threads: this.state.threads.map((t) =>
+        t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
+      ),
       // La historia del caso se quita: ya está en casa.
       stories: this.state.stories.filter((s) => s.petId !== petId),
       // Las ubicaciones compartidas en los mensajes directos del caso dejan de verse.
@@ -515,14 +524,16 @@ export class MockBackend {
     });
   }
 
-  /** Elimina la publicación: deja de verse para todas las personas y su grupo se cierra. */
+  /** Elimina la publicación: deja de verse para todas las personas y sus chats se cierran. */
   async withdrawPet(petId: string): Promise<void> {
     const user = this.requireUser();
     const pet = this.requirePet(petId);
     if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
     this.commit({
       pets: this.state.pets.filter((p) => p.id !== petId),
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      threads: this.state.threads.map((t) =>
+        t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
+      ),
       stories: this.state.stories.filter((s) => s.petId !== petId),
       notifications: this.state.notifications.filter((n) => n.petId !== petId),
       messages: this.hideLocations((m) =>
@@ -710,6 +721,7 @@ export class MockBackend {
     if (otherId === user.id) throw new BackendError("not_allowed");
     const other = this.state.users[otherId];
     if (!other) throw new BackendError("not_found");
+    if (pet.state !== "active") throw new BackendError("not_allowed");
     const prefs = this.state.privacyPrefs[otherId] ?? DEFAULT_PRIVACY_PREFS;
     if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.verified)) {
       throw new BackendError("cannot_message");
@@ -1049,7 +1061,126 @@ export class MockBackend {
 
   async loadThread(_threadId: string): Promise<void> {}
 
-  async loadProfile(_userId: string): Promise<void> {}
+  /** Lo que la API le daría a esta cuenta: su propia red y solo el número de los demás. */
+  private networkSnapshot(follows = this.state.follows): Pick<BackendState, "follows" | "network" | "followInfo"> {
+    const me = this.state.sessionUserId;
+    const ids = (status: FollowEdge["status"], incoming: boolean) =>
+      follows
+        .filter((f) => f.status === status && (incoming ? f.followedId === me : f.followerId === me))
+        .map((f) => (incoming ? f.followerId : f.followedId));
+    const count = (userId: string, incoming: boolean) =>
+      follows.filter((f) => f.status === "accepted" && (incoming ? f.followedId === userId : f.followerId === userId)).length;
+    const followsMe = (userId: string) =>
+      follows.some((f) => f.followerId === userId && f.followedId === me && f.status === "accepted");
+    const statusOf = (userId: string): FollowStatus => {
+      const edge = follows.find((f) => f.followerId === me && f.followedId === userId);
+      return edge && edge.status !== "declined" ? edge.status : "none";
+    };
+    return {
+      follows,
+      network: {
+        requests: ids("pending", true),
+        followers: ids("accepted", true),
+        following: ids("accepted", false),
+        sent: ids("pending", false),
+      },
+      followInfo: Object.fromEntries(
+        Object.keys(this.state.users).map((id) => [
+          id,
+          {
+            followers: count(id, true),
+            following: count(id, false),
+            status: statusOf(id),
+            mutual: statusOf(id) === "accepted" && followsMe(id),
+          },
+        ]),
+      ),
+    };
+  }
+
+  /** Quita un solo sentido: la otra persona sigue siguiendo. Los "me gusta" se conservan. */
+  private withoutEdge(followerId: string, followedId: string, follows = this.state.follows): FollowEdge[] {
+    return follows.filter((f) => !(f.followerId === followerId && f.followedId === followedId));
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    const me = this.requireUser();
+    const q = query.trim().replace(/^@/, "").toLowerCase();
+    if (q.length < 3) return [];
+    return Object.values(this.state.users)
+      .filter((u) => u.id !== me.id && u.username.startsWith(q))
+      .slice(0, 20);
+  }
+
+  async loadNetwork(): Promise<void> {
+    this.commit(this.networkSnapshot());
+  }
+
+  async followUser(userId: string): Promise<FollowStatus> {
+    const me = this.requireVerified();
+    if (userId === me.id || !this.state.users[userId]) throw new BackendError("not_allowed");
+    const edge = this.state.follows.find((f) => f.followerId === me.id && f.followedId === userId);
+    if (edge && edge.status !== "declined") return edge.status;
+    if ((edge?.declines ?? 0) >= 3) throw new BackendError("follow_wait");
+    const crossed = this.state.follows.some((f) => f.followerId === userId && f.followedId === me.id && f.status === "pending");
+    if (crossed) {
+      this.commit(this.networkSnapshot(this.mutualEdges(me.id, userId)));
+      return "accepted";
+    }
+    this.commit(
+      this.networkSnapshot([
+        ...this.withoutEdge(me.id, userId),
+        { followerId: me.id, followedId: userId, status: "pending", declines: edge?.declines ?? 0 },
+      ]),
+    );
+    return "pending";
+  }
+
+  /** Las relaciones con las dos cuentas siguiéndose. */
+  private mutualEdges(one: string, other: string): FollowEdge[] {
+    return [
+      ...this.withoutEdge(other, one, this.withoutEdge(one, other)),
+      { followerId: one, followedId: other, status: "accepted" },
+      { followerId: other, followedId: one, status: "accepted" },
+    ];
+  }
+
+  async unfollowUser(userId: string): Promise<void> {
+    const me = this.requireUser();
+    const edge = this.state.follows.find((f) => f.followerId === me.id && f.followedId === userId);
+    if (edge?.status === "accepted") {
+      this.commit(this.networkSnapshot(this.withoutEdge(me.id, userId)));
+    } else if (edge?.status === "pending") {
+      this.commit(this.networkSnapshot(this.state.follows.map((f) => (f === edge ? { ...f, status: "declined" as const } : f))));
+    }
+  }
+
+  async acceptFollower(userId: string): Promise<void> {
+    const me = this.requireUser();
+    const pending = this.state.follows.some((f) => f.followerId === userId && f.followedId === me.id && f.status === "pending");
+    if (pending) this.commit(this.networkSnapshot(this.mutualEdges(me.id, userId)));
+  }
+
+  /** Rechaza una solicitud (al tercer rechazo se suspende el envío) o elimina a un seguidor. */
+  async removeFollower(userId: string): Promise<void> {
+    const me = this.requireUser();
+    const edge = this.state.follows.find((f) => f.followerId === userId && f.followedId === me.id);
+    if (edge?.status === "accepted") {
+      this.commit(this.networkSnapshot(this.withoutEdge(userId, me.id)));
+    } else if (edge?.status === "pending") {
+      this.commit(
+        this.networkSnapshot(
+          this.state.follows.map((f) =>
+            f === edge ? { ...f, status: "declined" as const, declines: (f.declines ?? 0) + 1 } : f,
+          ),
+        ),
+      );
+    }
+  }
+
+  async loadProfile(_userId: string): Promise<void> {
+    this.commit(this.networkSnapshot());
+  }
 
   async loadStories(_center: LatLng): Promise<void> {}
 
@@ -1090,6 +1221,7 @@ export class MockBackend {
         .map(([target, likers]) => [target, likers.filter((id) => id !== user.id)]),
     );
     this.commit({
+      follows: this.state.follows.filter((f) => f.followerId !== user.id && f.followedId !== user.id),
       profileLikes,
       alertZones,
       shareLog,

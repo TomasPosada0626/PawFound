@@ -22,6 +22,9 @@ const (
 
 var alertKinds = map[string]bool{"angel_alert": true, "life_circle": true}
 
+// urgentKinds suenan por el canal de alertas: alguien puede ayudar ahora mismo.
+var urgentKinds = map[string]bool{"angel_alert": true, "life_circle": true, "friend_lost": true, "found_nearby": true}
+
 // notify crea notificaciones en la bandeja y las entrega en vivo y por push. Nunca falla la
 // operación que la originó: un aviso perdido se registra en el log.
 func (a *App) notify(ctx context.Context, userIDs []string, kind, petID string, ownedPetID *string) {
@@ -102,26 +105,27 @@ func (a *App) deliver(ctx context.Context, list []Notification) {
 		userIDs[i] = n.UserID
 	}
 	people := a.recipients(ctx, dedupe(userIDs))
-	names := map[string]string{}
+	pets := map[string]pushPet{}
 	var messages []providers.PushMessage
 	for _, n := range list {
-		if _, ok := names[n.PetID]; !ok {
-			var name *string
-			_ = a.DB.QueryRow(ctx, `SELECT name FROM pets WHERE id = $1`, n.PetID).Scan(&name)
-			names[n.PetID] = deref(name)
+		if _, ok := pets[n.PetID]; !ok {
+			var pet pushPet
+			_ = a.DB.QueryRow(ctx, `SELECT coalesce(name, ''), kind, species, sex, owner_short_name FROM pets WHERE id = $1`, n.PetID).
+				Scan(&pet.Name, &pet.Kind, &pet.Species, &pet.Sex, &pet.Owner)
+			pets[n.PetID] = pet
 		}
 		person, ok := people[n.UserID]
 		if !ok || !person.Prefs.Push {
 			continue
 		}
-		name := names[n.PetID]
+		pet := pets[n.PetID]
 		if n.OwnedPetID != nil {
 			// "¿Es Rocky?": el nombre es el de la mascota propia, no el del reporte encontrado.
-			_ = a.DB.QueryRow(ctx, `SELECT name FROM owned_pets WHERE id = $1`, *n.OwnedPetID).Scan(&name)
+			_ = a.DB.QueryRow(ctx, `SELECT name FROM owned_pets WHERE id = $1`, *n.OwnedPetID).Scan(&pet.Name)
 		}
-		title, body := pushText(n.Kind, person.Lang, name)
+		title, body := pushText(n.Kind, person.Lang, pet)
 		channel := channelUpdates
-		if alertKinds[n.Kind] {
+		if urgentKinds[n.Kind] {
 			channel = channelAngel
 		}
 		for _, token := range person.Tokens {
@@ -157,6 +161,9 @@ var pushTexts = map[string]map[string][2]string{
 		"possible_match": {"Posible coincidencia", "Un reporte nuevo podría ser {name}"},
 		"owned_match":    {"¿Es {name}?", "Alguien encontró una mascota parecida a {name} cerca de tu zona. Revisa las fotos."},
 		"thanked":        {"¡Una familia te agradeció!", "La familia de {name} dice que fuiste clave en el reencuentro. Ganaste «Ángel de patas»."},
+		"found_nearby":   {"🐾 Encontraron una mascota cerca de ti", "{name} está cerca de ti. ¿Sabes de quién es?"},
+		"friend_lost":    {"🚨 Se perdió la mascota de {owner}", "Ayuda a {owner} a buscar a {name}."},
+		"friend_found":   {"🎉 ¡Buenas noticias de {owner}!", "{name} ya está en casa."},
 	},
 	"en": {
 		"angel_alert":    {"🚨 Angel Alert", "A pet went missing near you: {name}. Help find them."},
@@ -166,23 +173,69 @@ var pushTexts = map[string]map[string][2]string{
 		"possible_match": {"Possible match", "A new report could be {name}"},
 		"owned_match":    {"Is it {name}?", "Someone found a pet that looks like {name} near your area. Check the photos."},
 		"thanked":        {"A family thanked you!", "{name}'s family says you were key to the reunion. You earned “Paw angel”."},
+		"found_nearby":   {"🐾 A pet was found near you", "{name} is near you. Do you know whose it is?"},
+		"friend_lost":    {"🚨 {owner}'s pet is missing", "Help {owner} look for {name}."},
+		"friend_found":   {"🎉 Good news from {owner}!", "{name} is back home."},
 	},
 }
 
-var unnamed = map[string]string{"es": "Sin nombre", "en": "No name"}
+// Sin nombre conocido se habla de "el perrito encontrado" (unnamedPet en los textos de la app).
+var (
+	petNouns = map[string]map[string]string{
+		"es": {"dog_m": "perrito", "dog_f": "perrita", "cat_m": "gatico", "cat_f": "gatica", "other_f": "mascota"},
+		"en": {"dog_m": "dog", "dog_f": "dog", "cat_m": "cat", "cat_f": "cat", "other_f": "pet"},
+	}
+	petPhrases = map[string]map[string]string{
+		"es": {"lost_m": "el {pet} perdido", "lost_f": "la {pet} perdida", "found_m": "el {pet} encontrado", "found_f": "la {pet} encontrada"},
+		"en": {"lost_m": "the lost {pet}", "lost_f": "the lost {pet}", "found_m": "the found {pet}", "found_f": "the found {pet}"},
+	}
+	spanishContractions = strings.NewReplacer(" a el ", " al ", " de el ", " del ")
+)
 
-func pushText(kind, lang, name string) (string, string) {
+// pushPet son los datos de la mascota que entran en el texto de un push.
+type pushPet struct {
+	Name, Kind, Species, Sex, Owner string
+}
+
+// phrase nombra a la mascota sin nombre. Sin sexo conocido usa el masculino genérico; "mascota"
+// siempre es femenino.
+func (p pushPet) phrase(lang string) string {
+	species, gender := "other", "f"
+	if p.Species == "dog" || p.Species == "cat" {
+		species, gender = p.Species, "m"
+		if p.Sex == "female" {
+			gender = "f"
+		}
+	}
+	kind := "found"
+	if p.Kind == "lost" {
+		kind = "lost"
+	}
+	return strings.ReplaceAll(petPhrases[lang][kind+"_"+gender], "{pet}", petNouns[lang][species+"_"+gender])
+}
+
+func pushText(kind, lang string, pet pushPet) (string, string) {
 	if _, ok := pushTexts[lang]; !ok {
 		lang = "es"
-	}
-	if name == "" {
-		name = unnamed[lang]
 	}
 	t, ok := pushTexts[lang][kind]
 	if !ok {
 		t = [2]string{"PawFound", "{name}"}
 	}
-	return strings.ReplaceAll(t[0], "{name}", name), strings.ReplaceAll(t[1], "{name}", name)
+	t[0], t[1] = strings.ReplaceAll(t[0], "{owner}", pet.Owner), strings.ReplaceAll(t[1], "{owner}", pet.Owner)
+	if pet.Name != "" {
+		return strings.ReplaceAll(t[0], "{name}", pet.Name), strings.ReplaceAll(t[1], "{name}", pet.Name)
+	}
+	return fillUnnamed(t[0], pet.phrase(lang)), fillUnnamed(t[1], pet.phrase(lang))
+}
+
+// fillUnnamed pone la frase en el texto: contrae "a el" y "de el" y lleva mayúscula si la abre.
+func fillUnnamed(text, phrase string) string {
+	filled := spanishContractions.Replace(strings.ReplaceAll(text, "{name}", phrase))
+	if strings.HasPrefix(text, "{name}") {
+		return strings.ToUpper(filled[:1]) + filled[1:]
+	}
+	return filled
 }
 
 // alertAudience envía la Alerta Ángel a las zonas que quedaron dentro del círculo de vida:
@@ -201,8 +254,8 @@ func (a *App) alertAudience(ctx context.Context, row petRow, kind string) (int, 
 		  AND coalesce((u.notification_prefs->>'angelAlerts')::boolean, true)
 		  AND z.updated_at > $8
 		  AND ST_DWithin(z.location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
-		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5 AND n.kind IN ('angel_alert', 'life_circle'))
-		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle') AND n.at > $6) < $7`,
+		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5 AND n.kind IN ('angel_alert', 'life_circle', 'friend_lost'))
+		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle', 'found_nearby') AND n.at > $6) < $7`,
 		deref(row.OwnerID), row.Lat, row.Lng, radius, row.ID, now.Add(-24*time.Hour), domain.MaxAlertsPerDay, now.Add(-domain.AlertLocationTTL))
 	audience, err := pgx.CollectRows(rows, pgx.RowTo[string])
 	if err != nil {
@@ -210,6 +263,32 @@ func (a *App) alertAudience(ctx context.Context, row petRow, kind string) (int, 
 	}
 	a.notify(ctx, audience, kind, row.ID, nil)
 	return len(audience), nil
+}
+
+// notifyFoundNearby avisa una sola vez a los celulares cercanos cuando alguien reporta una mascota
+// encontrada, para que la familia se entere. Comparte el límite diario con la Alerta Ángel y no
+// le llega a quien ya recibió otro aviso de este reporte.
+func (a *App) notifyFoundNearby(ctx context.Context, row petRow) error {
+	if row.Kind != "found" || row.State != "active" || row.ModerationRemoved {
+		return nil
+	}
+	now := a.now()
+	rows, _ := a.DB.Query(ctx, `
+		SELECT z.user_id FROM alert_zones z JOIN users u ON u.id = z.user_id
+		WHERE z.user_id IS DISTINCT FROM $1 AND u.suspended_at IS NULL
+		  AND coalesce((u.notification_prefs->>'foundNearby')::boolean, true)
+		  AND z.updated_at > $8
+		  AND ST_DWithin(z.location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
+		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5)
+		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle', 'found_nearby') AND n.at > $6) < $7`,
+		deref(row.OwnerID), row.Lat, row.Lng, max(domain.AlertMinRadius, domain.CurrentRadius(row.domainCase(), now)), row.ID,
+		now.Add(-24*time.Hour), domain.MaxAlertsPerDay, now.Add(-domain.AlertLocationTTL))
+	audience, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	a.notify(ctx, audience, "found_nearby", row.ID, nil)
+	return nil
 }
 
 // RunAlertJob es el job periódico: a medida que el círculo de vida crece, la Alerta Ángel

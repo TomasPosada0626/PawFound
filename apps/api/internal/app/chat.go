@@ -160,7 +160,7 @@ func (a *App) OpenDirect(ctx context.Context, ac Actor, petID string) (string, e
 	if other == "" {
 		return "", ErrNotFound
 	}
-	if other == ac.ID {
+	if other == ac.ID || row.State != "active" {
 		return "", ErrNotAllowed
 	}
 	_, who, err := a.prefs(ctx, other)
@@ -570,6 +570,12 @@ func hideLocations(ctx context.Context, tx pgx.Tx, filter string, arg any, now t
 
 // hideCaseLocations: al cerrar un caso (reencuentro, retiro o moderación) dejan de verse las
 // ubicaciones compartidas en los mensajes directos de ese caso.
+// closeCaseChats cierra el grupo y los mensajes directos del caso. Quedan para leer, sin mensajes nuevos.
+func closeCaseChats(ctx context.Context, tx pgx.Tx, petID, groupID string) error {
+	_, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $2 OR (kind = 'dm' AND pet_id = $1)`, petID, groupID)
+	return err
+}
+
 func hideCaseLocations(ctx context.Context, tx pgx.Tx, petID string, now time.Time) ([]string, error) {
 	return hideLocations(ctx, tx, `thread_id IN (SELECT id FROM threads WHERE kind = 'dm' AND pet_id = $1)`, petID, now)
 }

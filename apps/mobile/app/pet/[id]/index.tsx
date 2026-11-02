@@ -8,6 +8,7 @@ import { BackButton } from "@/components/layout";
 import { LifeCircleCard } from "@/components/lifeCircle";
 import { PetMap } from "@/components/map/PetMap";
 import { PetPhoto, PetRow, StatusBadge, petDisplayName } from "@/components/pets";
+import { petSentence } from "@/features/petNames";
 import { ReunionSheet } from "@/components/ReunionSheet";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Divider, EmptyState, ListRow } from "@/components/ui/Controls";
@@ -127,12 +128,16 @@ export default function PetDetailScreen() {
     router.push(`/pet/${pet.id}/story`);
   };
 
-  const reunite = (helperIds: string[]) =>
+  const reunite = (helperIds: string[], ratings: Record<string, number>) =>
     run("reunite", async () => {
-      await backend.markReunited(pet.id, helperIds);
+      await backend.markReunited(pet.id, helperIds, ratings);
       setConfirmReunite(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      toast(helperIds.length ? t("pet.thankedToast", { name, count: helperIds.length }) : t("pet.reunitedBanner", { name }));
+      toast(
+        helperIds.length
+          ? petSentence(t, "pet.thankedToast", pet, { count: helperIds.length })
+          : petSentence(t, "pet.reunitedBanner", pet),
+      );
     });
 
   return (
@@ -212,20 +217,20 @@ export default function PetDetailScreen() {
           <View className="mx-auto w-full max-w-[720px]">
             {!active ? (
               <View className="mb-4">
-                <Banner icon="home" title={t("pet.reunitedBanner", { name })} body={t("chat.archived")} />
+                <Banner icon="home" title={petSentence(t, "pet.reunitedBanner", pet)} body={t("chat.archived")} />
               </View>
             ) : null}
 
             {/* Foto + identidad */}
             <View className="flex-row gap-4">
               <View>
-                <PetPhoto full pet={pet} className="h-44 w-36" label={t("pet.photoOf", { name })} />
+                <PetPhoto full pet={pet} className="h-44 w-36" label={petSentence(t, "pet.photoOf", pet)} />
                 <View className="absolute left-2 top-2">
                   <StatusBadge kind={pet.kind} state={pet.state} />
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={favorite ? t("common.unfollowCase", { name }) : t("common.followCase", { name })}
+                  accessibilityLabel={petSentence(t, favorite ? "common.unfollowCase" : "common.followCase", pet)}
                   accessibilityState={{ selected: favorite }}
                   onPress={() => toggleFavorite(pet.id)}
                   className="absolute bottom-1 right-1 h-12 w-12 items-center justify-center"
@@ -336,7 +341,7 @@ export default function PetDetailScreen() {
                       testID="join-group"
                     />
                   </View>
-                  {!isOwner ? (
+                  {!isOwner && active ? (
                     <View className="flex-1">
                       <Button
                         label={pet.kind === "lost" ? t("pet.contactOwner") : t("pet.contactFinder")}
@@ -541,10 +546,9 @@ export default function PetDetailScreen() {
 
       <ReunionSheet
         pet={pet}
-        name={name}
         visible={confirmReunite}
         loading={busy === "reunite"}
-        onConfirm={(helperIds) => void reunite(helperIds)}
+        onConfirm={(helperIds, ratings) => void reunite(helperIds, ratings)}
         onCancel={() => setConfirmReunite(false)}
       />
     </View>

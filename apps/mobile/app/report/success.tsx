@@ -4,7 +4,8 @@ import { Share, View } from "react-native";
 
 import { LogoMark } from "@/components/brand";
 import { Screen } from "@/components/layout";
-import { PetRow, petDisplayName } from "@/components/pets";
+import { PetRow } from "@/components/pets";
+import { petSentence, petShareMessage } from "@/features/petNames";
 import { Button } from "@/components/ui/Button";
 import { Card, IconBubble } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
@@ -27,7 +28,6 @@ export default function ReportSuccessScreen() {
   const matches = useMemo(() => (pet ? findPossibleMatches(pet, state.pets, now) : []), [pet, state.pets, now]);
 
   if (!pet) return <Redirect href="/" />;
-  const name = petDisplayName(pet, t);
   const isLost = pet.kind === "lost";
   const hurt = pet.foundCondition === "injured" || pet.foundCondition === "needs_vet";
   const findVet = (
@@ -42,13 +42,7 @@ export default function ReportSuccessScreen() {
 
   const share = async () => {
     const result = await Share.share({
-      message: t("pet.shareMessage", {
-        status: (isLost ? t("status.lost") : t("status.found")).toUpperCase(),
-        name,
-        species: t(`speciesLower.${pet.species}`),
-        zone: pet.zone,
-        url: `${SHARE_BASE_URL}${pet.id}`,
-      }),
+      message: petShareMessage(pet, t, `${SHARE_BASE_URL}${pet.id}`),
     });
     if (result.action !== Share.dismissedAction) {
       await backend.sharePet(pet.id);
@@ -64,7 +58,7 @@ export default function ReportSuccessScreen() {
           {isLost ? t("report.successTitleLost") : t("report.successTitleFound")}
         </Text>
         <Text variant="body" tone="muted" className="mt-1 text-center">
-          {isLost ? t("report.successBodyLost", { name }) : t("report.successBodyFound")}
+          {isLost ? petSentence(t, "report.successBodyLost", pet) : t("report.successBodyFound")}
         </Text>
       </View>
 

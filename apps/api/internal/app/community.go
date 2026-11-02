@@ -19,16 +19,24 @@ type ProfilePet struct {
 	Photo   *string `json:"photo,omitempty"`
 }
 
-// PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, mascotas y "me gusta".
+// PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, "me gusta" y calificación. La
+// ubicación no se muestra a nadie, las mascotas solo a quienes se siguen mutuamente, y de los
+// seguidores solo el número: las listas son de la propia cuenta.
 type PublicProfile struct {
-	User       PublicUser             `json:"user"`
-	MemberDays int                    `json:"memberDays"`
-	Likes      int                    `json:"likes"`
-	LikedByMe  bool                   `json:"likedByMe"`
-	Badges     []domain.BadgeProgress `json:"badges"`
-	Pets       []ProfilePet           `json:"pets"`
-	Reported   int                    `json:"reported"`
-	Found      int                    `json:"found"`
+	User         PublicUser             `json:"user"`
+	MemberDays   int                    `json:"memberDays"`
+	Likes        int                    `json:"likes"`
+	LikedByMe    bool                   `json:"likedByMe"`
+	Rating       float64                `json:"rating"`
+	RatingCount  int                    `json:"ratingCount"`
+	Followers    int                    `json:"followers"`
+	Following    int                    `json:"following"`
+	FollowStatus string                 `json:"followStatus"`
+	Mutual       bool                   `json:"mutual"`
+	Badges       []domain.BadgeProgress `json:"badges"`
+	Pets         []ProfilePet           `json:"pets"`
+	Reported     int                    `json:"reported"`
+	Found        int                    `json:"found"`
 }
 
 // Profile arma el perfil público de una cuenta.
@@ -41,14 +49,37 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	if err != nil {
 		return PublicProfile{}, err
 	}
-	p := PublicProfile{User: publicOf(u), MemberDays: domain.MemberDays(u.CreatedAt, a.now()), Badges: domain.Badges(facts), Pets: []ProfilePet{}}
+	stars, ratingCount, err := a.rating(ctx, userID)
+	if err != nil {
+		return PublicProfile{}, err
+	}
+	p := PublicProfile{
+		User: publicOf(u), MemberDays: domain.MemberDays(u.CreatedAt, a.now()), Badges: domain.Badges(facts), Pets: []ProfilePet{},
+		Rating: domain.Rating(stars), RatingCount: ratingCount,
+	}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*), coalesce(bool_or(liker_id = $2), false) FROM profile_likes WHERE target_id = $1`,
 		userID, viewerID).Scan(&p.Likes, &p.LikedByMe); err != nil {
 		return PublicProfile{}, err
 	}
+	// Un rechazo no se le muestra a quien lo recibió: para esa persona el perfil sigue en "Seguir".
+	if err := a.DB.QueryRow(ctx, `SELECT
+			count(*) FILTER (WHERE followed_id = $1 AND status = 'accepted'),
+			count(*) FILTER (WHERE follower_id = $1 AND status = 'accepted'),
+			coalesce(max(status) FILTER (WHERE follower_id = $2 AND followed_id = $1 AND status <> 'declined'), 'none'),
+			coalesce(bool_or(follower_id = $1 AND followed_id = $2 AND status = 'accepted'), false)
+		FROM follows WHERE followed_id = $1 OR follower_id = $1`, userID, viewerID).Scan(&p.Followers, &p.Following, &p.FollowStatus, &p.Mutual); err != nil {
+		return PublicProfile{}, err
+	}
+	p.Mutual = p.Mutual && p.FollowStatus == "accepted"
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
 		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
 		return PublicProfile{}, err
+	}
+	if viewerID != userID {
+		p.User.City, p.User.Neighborhood = "", nil
+		if !p.Mutual {
+			return p, nil
+		}
 	}
 	rows, _ := a.DB.Query(ctx, `SELECT id, name, species, photos FROM owned_pets WHERE owner_id = $1 ORDER BY created_at`, userID)
 	var pet ProfilePet
@@ -64,30 +95,42 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	return p, err
 }
 
-// badgeFacts cuenta los hechos reales de cada insignia (selectors.ts → badgeFacts). Los
-// reportes retirados por moderación no cuentan.
+// badgeFacts cuenta los hechos reales de cada insignia (selectors.ts → badgeFacts). Los reportes
+// retirados por moderación o eliminados no cuentan: publicar y borrar no sube de nivel.
 func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map[string]int, error) {
 	f := map[string]int{}
 	if verified {
 		f["verified"] = 1
 	}
-	var reporter, rescuer, eyes, angel, reunion, spreader, community int
+	var reporter, rescuer, eyes, quick, angel, reunion, spreader, community, likes int
 	err := a.DB.QueryRow(ctx, `SELECT
-		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed),
-		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed),
-		(SELECT count(*) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1 AND NOT p.moderation_removed),
-		(SELECT count(*) FROM pet_helpers h JOIN pets p ON p.id = h.pet_id WHERE h.user_id = $1 AND NOT p.moderation_removed),
-		(SELECT count(*) FROM pets WHERE owner_id = $1 AND state = 'reunited' AND NOT moderation_removed),
+		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL),
+		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed AND withdrawn_at IS NULL),
+		(SELECT count(*) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
+			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
+		(SELECT count(DISTINCT s.pet_id) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
+			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL AND s.created_at <= p.created_at + interval '1 hour'),
+		(SELECT count(*) FROM pet_helpers h JOIN pets p ON p.id = h.pet_id WHERE h.user_id = $1 AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
+		(SELECT count(*) FROM pets WHERE owner_id = $1 AND state = 'reunited' AND NOT moderation_removed AND withdrawn_at IS NULL),
 		(SELECT count(*) FROM pet_shares WHERE user_id = $1),
 		(SELECT count(*) FROM thread_members tm JOIN threads t ON t.id = tm.thread_id WHERE tm.user_id = $1 AND t.kind = 'group'
-			AND NOT EXISTS (SELECT 1 FROM pets p WHERE p.group_id = t.id AND p.owner_id = $1))`, userID).
-		Scan(&reporter, &rescuer, &eyes, &angel, &reunion, &spreader, &community)
-	f["reporter"], f["rescuer"], f["eyes"], f["paw_angel"], f["reunion"], f["spreader"], f["community"] = reporter, rescuer, eyes, angel, reunion, spreader, community
+			AND NOT EXISTS (SELECT 1 FROM pets p WHERE p.group_id = t.id AND p.owner_id = $1)),
+		(SELECT count(*) FROM profile_likes WHERE target_id = $1)`, userID).
+		Scan(&reporter, &rescuer, &eyes, &quick, &angel, &reunion, &spreader, &community, &likes)
+	if err != nil {
+		return f, err
+	}
+	f["reporter"], f["rescuer"], f["eyes"], f["quick"] = reporter, rescuer, eyes, quick
+	f["paw_angel"], f["reunion"], f["spreader"], f["community"], f["popular"] = angel, reunion, spreader, community, likes
+	stars, _, err := a.rating(ctx, userID)
+	if domain.IsAnimalProtector(stars) {
+		f["protector"] = 1
+	}
 	return f, err
 }
 
-// ToggleLike da o quita un "me gusta" de perfil: solo cuentas verificadas, uno por persona
-// y nunca a uno mismo, para que el contador refleje confianza real.
+// ToggleLike da o quita un "me gusta" de perfil: solo cuentas verificadas, uno por persona y nunca
+// a uno mismo. No depende de seguirse.
 func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, int, error) {
 	if err := requireVerified(ac); err != nil {
 		return false, 0, err

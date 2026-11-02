@@ -4,6 +4,7 @@ import { Pressable, View } from "react-native";
 
 import { formatDistance } from "@/domain/geo";
 import type { AvatarId, CaseKind, CaseState, PetCase, User } from "@/domain/types";
+import { petDisplayName, petSentence } from "@/features/petNames";
 import { relativeTime } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useDevicePrefs } from "@/store/devicePrefs";
@@ -13,9 +14,7 @@ import { statusColor } from "@/theme/tokens";
 import { Icon, type IconName } from "./ui/Icon";
 import { cn, Text } from "./ui/Text";
 
-export function petDisplayName(pet: PetCase, t: (k: "common.unnamed") => string): string {
-  return pet.name ?? t("common.unnamed");
-}
+export { petDisplayName };
 
 /** Insignia de estado: color + texto siempre (nunca solo color, docs/accesibilidad.md). */
 export function StatusBadge({ kind, state = "active", size = "md" }: { kind: CaseKind; state?: CaseState; size?: "sm" | "md" }) {
@@ -271,7 +270,7 @@ export function PetCard({
       {/* Área táctil propia para el favorito: no dispara la navegación (docs/flujos/mapa-e-inicio.md §4). */}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={favorite ? t("common.unfollowCase", { name }) : t("common.followCase", { name })}
+        accessibilityLabel={petSentence(t, favorite ? "common.unfollowCase" : "common.followCase", pet)}
         accessibilityState={{ selected: favorite }}
         onPress={() => toggleFavorite(pet.id)}
         className={`absolute right-0 ${compact ? "top-[92px]" : "top-[124px]"} h-12 w-12 items-center justify-center`}

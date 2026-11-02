@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { useEffect, useMemo } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
+import { petSentence } from "@/features/petNames";
 import { useSeenStories } from "@/hooks/useSeenStories";
 import { useI18n } from "@/i18n/I18nProvider";
 import { storyFeed, storySlideIds } from "@/services/selectors";
@@ -46,7 +47,7 @@ export function StoriesBar({ now }: { now: Date }) {
             <Pressable
               key={pet.id}
               accessibilityRole="button"
-              accessibilityLabel={`${t("stories.view", { name })}${unseen ? `. ${t("stories.new")}` : ""}`}
+              accessibilityLabel={`${petSentence(t, "stories.view", pet)}${unseen ? `. ${t("stories.new")}` : ""}`}
               onPress={() => router.push(`/historias/${pet.id}`)}
               className="w-[76px] items-center gap-1 active:opacity-80"
               testID={`story-${pet.id}`}
