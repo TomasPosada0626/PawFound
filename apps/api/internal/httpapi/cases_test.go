@@ -363,8 +363,8 @@ func TestSightingsChatPhotosAndReunion(t *testing.T) {
 		t.Fatalf("insignias de la familia = %+v", badge)
 	}
 	h.must(http.StatusOK, http.MethodGet, "/v1/users/"+sharer.ID, "", nil, &profile)
-	if profile.Badges[6].ID != "spreader" || profile.Badges[6].Count != 1 {
-		t.Fatalf("Megáfono = %+v", profile.Badges[6])
+	if profile.Badges[8].ID != "spreader" || profile.Badges[8].Count != 1 {
+		t.Fatalf("Megáfono = %+v", profile.Badges[8])
 	}
 	h.must(http.StatusOK, http.MethodGet, "/v1/users/"+witness.ID, "", nil, &profile)
 	if profile.Badges[3].ID != "eyes" || profile.Badges[3].Count != 2 {

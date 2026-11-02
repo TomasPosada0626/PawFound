@@ -122,6 +122,8 @@ type Export struct {
 	Messages   []Message      `json:"messages"`
 	OwnedPets  []OwnedPet     `json:"ownedPets"`
 	Consents   []ConsentEntry `json:"consents"`
+	Network    Network        `json:"network"`
+	Ratings    []int          `json:"ratingsReceived"`
 }
 
 // ConsentEntry es una fila del historial de consentimientos.
@@ -162,7 +164,16 @@ func (a *App) ExportData(ctx context.Context, ac Actor) (Export, error) {
 	if err != nil {
 		return Export{}, err
 	}
-	return Export{ExportedAt: a.now(), Me: me, Reports: reports, Messages: messages, OwnedPets: owned, Consents: consents}, nil
+	network, err := a.MyNetwork(ctx, ac)
+	if err != nil {
+		return Export{}, err
+	}
+	sr, _ := a.DB.Query(ctx, `SELECT stars FROM pet_helpers WHERE user_id = $1 AND stars IS NOT NULL ORDER BY rated_at DESC`, ac.ID)
+	ratings, err := pgx.CollectRows(sr, pgx.RowTo[int])
+	if err != nil {
+		return Export{}, err
+	}
+	return Export{ExportedAt: a.now(), Me: me, Reports: reports, Messages: messages, OwnedPets: owned, Consents: consents, Network: network, Ratings: ratings}, nil
 }
 
 // DeleteAccount es el derecho al olvido: borra perfil, mensajes escritos, chats directos,

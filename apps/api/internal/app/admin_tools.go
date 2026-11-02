@@ -28,7 +28,7 @@ var errDryRun = errors.New("simulación")
 // sesiones, celulares, ubicación de alertas, "Mis mascotas", consentimientos ni fotos de perfil.
 var testDataTables = []string{
 	"moderation_actions", "reports", "notifications", "stories", "messages", "thread_members", "threads",
-	"sightings", "pet_helpers", "pet_shares", "pets", "profile_likes", "place_reports",
+	"sightings", "pet_helpers", "pet_shares", "pets", "profile_likes", "follows", "place_reports",
 }
 
 // ResetTestData deja las cuentas como recién creadas: sin reportes, chats, likes ni insignias

@@ -13,12 +13,17 @@ import {
   userBadgeProgress,
   userNotifications,
   userStats,
+  followInfoOf,
+  networkOf,
+  ratingOf,
 } from "../selectors";
 
 let clock = new Date("2026-10-27T12:00:00Z");
 const advance = (minutes: number) => {
   clock = new Date(clock.getTime() + minutes * 60_000);
 };
+
+const signInAs = (backend: { restoreSession: (id: string) => Promise<boolean> }, id: string) => backend.restoreSession(id);
 
 function makeBackend(translator?: (text: string, from: "es" | "en", to: "es" | "en") => string | null) {
   clock = new Date("2026-10-27T12:00:00Z");
@@ -291,7 +296,7 @@ describe("mensajería", () => {
     backend.restoreSession("u_carlos");
     await backend.updatePrivacy({ whoCanMessage: "nobody" });
     backend.restoreSession("u_valentina");
-    await expectCode(backend.openDirect("terry"), "cannot_message");
+    await expectCode(backend.openDirect("simba"), "cannot_message");
   });
 
   it("traduce una vez por idioma de los miembros y guarda el idioma original", async () => {
@@ -399,10 +404,102 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     await expectCode(backend.login(DEMO_EMAIL, DEMO_PASSWORD), "invalid_credentials");
   });
 
+  it("seguir es mutuo al aceptar; los me gusta no dependen de seguirse", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    await expect(backend.toggleProfileLike("u_daniel")).resolves.toBe(true);
+    await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+    await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+    await expect(backend.followUser("u_valentina")).rejects.toMatchObject({ code: "not_allowed" });
+    expect(networkOf(backend.getSnapshot()).sent).toContain("u_daniel");
+
+    await signInAs(backend, "u_daniel");
+    await backend.loadNetwork();
+    expect(networkOf(backend.getSnapshot()).requests).toContain("u_valentina");
+    await backend.acceptFollower("u_valentina");
+    expect(networkOf(backend.getSnapshot())).toMatchObject({ followers: ["u_valentina"], following: ["u_valentina"] });
+
+    await signInAs(backend, "u_valentina");
+    await backend.loadNetwork();
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({ status: "accepted", followers: 1, following: 1 });
+    await expect(backend.followUser("u_daniel")).resolves.toBe("accepted");
+
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel").mutual).toBe(true);
+
+    // Eliminar es de un solo lado, se puede volver a pedir y el me gusta se mantiene.
+    await signInAs(backend, "u_daniel");
+    await backend.removeFollower("u_valentina");
+    expect(backend.getSnapshot().profileLikes.u_daniel).toContain("u_valentina");
+    await signInAs(backend, "u_valentina");
+    await backend.loadNetwork();
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({
+      status: "none",
+      followers: 0,
+      following: 1,
+      mutual: false,
+    });
+    await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+  });
+
+  it("tres rechazos suspenden el envío de solicitudes", async () => {
+    const backend = makeBackend();
+    for (let i = 0; i < 3; i++) {
+      await signInAs(backend, "u_valentina");
+      await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+      await signInAs(backend, "u_daniel");
+      await backend.removeFollower("u_valentina");
+    }
+    await signInAs(backend, "u_valentina");
+    await expect(backend.followUser("u_daniel")).rejects.toMatchObject({ code: "follow_wait" });
+  });
+
+  it("si los dos se piden seguir quedan siguiéndose, y cancelar no borra los rechazos", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    await backend.followUser("u_daniel");
+    await signInAs(backend, "u_daniel");
+    await expect(backend.followUser("u_valentina")).resolves.toBe("accepted");
+    await backend.unfollowUser("u_valentina");
+    await backend.followUser("u_valentina");
+    await backend.unfollowUser("u_valentina");
+    await backend.loadNetwork();
+    expect(networkOf(backend.getSnapshot()).sent).not.toContain("u_valentina");
+  });
+
+  it("cerrar el caso o eliminarlo cierra sus chats y ya no se puede escribir desde ahí", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_daniel");
+    const dm = await backend.openDirect("rocky");
+    await signInAs(backend, "u_valentina");
+    await backend.markReunited("rocky", []);
+    const state = backend.getSnapshot();
+    expect(state.threads.find((t) => t.id === dm)?.archived).toBe(true);
+    await signInAs(backend, "u_daniel");
+    await expect(backend.openDirect("rocky")).rejects.toMatchObject({ code: "not_allowed" });
+  });
+
+  it("busca por nombre de usuario sin importar el @", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    const username = backend.getSnapshot().users.u_maria?.username ?? "";
+    expect((await backend.searchUsers(`@${username.slice(0, 3)}`)).map((u) => u.id)).toContain("u_maria");
+    expect(await backend.searchUsers("ma")).toEqual([]);
+  });
+
+  it("las estrellas al cerrar el caso cambian la calificación y la insignia Protector animal", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    await backend.markReunited("rocky", ["u_daniel"], { u_daniel: 3 });
+    const state = backend.getSnapshot();
+    expect(ratingOf(state, "u_daniel")).toEqual({ average: 4.9, count: 1 });
+    expect(userStats(state, "u_daniel")).toMatchObject({ ratingAvg: 4.9, ratingCount: 1 });
+    expect(userBadgeProgress(state, "u_daniel").find((b) => b.id === "protector")?.tier).toBe(0);
+  });
+
   it("estadísticas, insignias y actividad salen de datos reales", () => {
     const backend = makeBackend();
     const state = backend.getSnapshot();
-    expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 4.8, ratingCount: 9 });
+    expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 5, ratingCount: 0 });
     const earned = userBadgeProgress(state, "u_valentina")
       .filter((b) => b.tier > 0)
       .map((b) => `${b.id}:${b.tier}`);

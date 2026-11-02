@@ -128,9 +128,9 @@ export default function PetDetailScreen() {
     router.push(`/pet/${pet.id}/story`);
   };
 
-  const reunite = (helperIds: string[]) =>
+  const reunite = (helperIds: string[], ratings: Record<string, number>) =>
     run("reunite", async () => {
-      await backend.markReunited(pet.id, helperIds);
+      await backend.markReunited(pet.id, helperIds, ratings);
       setConfirmReunite(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       toast(
@@ -341,7 +341,7 @@ export default function PetDetailScreen() {
                       testID="join-group"
                     />
                   </View>
-                  {!isOwner ? (
+                  {!isOwner && active ? (
                     <View className="flex-1">
                       <Button
                         label={pet.kind === "lost" ? t("pet.contactOwner") : t("pet.contactFinder")}
@@ -548,7 +548,7 @@ export default function PetDetailScreen() {
         pet={pet}
         visible={confirmReunite}
         loading={busy === "reunite"}
-        onConfirm={(helperIds) => void reunite(helperIds)}
+        onConfirm={(helperIds, ratings) => void reunite(helperIds, ratings)}
         onCancel={() => setConfirmReunite(false)}
       />
     </View>

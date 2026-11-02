@@ -151,8 +151,6 @@ export type User = {
   city: string;
   neighborhood?: string;
   createdAt: string;
-  ratingSum: number;
-  ratingCount: number;
   /** Sanción temporal de moderación: no puede enviar mensajes hasta esta fecha. */
   mutedUntil?: string;
   /** Idioma preferido: el servidor traduce hacia este idioma los mensajes de chat. */
@@ -262,7 +260,11 @@ export type NotificationKind =
   /** La familia te agradeció al cerrar el caso (insignia "Ángel de patas"). */
   | "thanked"
   /** Alguien encontró una mascota parecida a una de "Mis mascotas": "¿Es Rocky?". */
-  | "owned_match";
+  | "owned_match"
+  /** Se perdió la mascota de alguien que sigues (si no te llegó ya la Alerta Ángel). */
+  | "friend_lost"
+  /** Apareció la mascota de alguien que sigues. */
+  | "friend_found";
 
 export type AppNotification = {
   id: string;
@@ -284,6 +286,7 @@ export type NotificationPrefs = {
   lifeCircle: boolean;
   /** Alertas Ángel: mascotas perdidas dentro de la zona de alertas. */
   angelAlerts: boolean;
+  friendAlerts: boolean;
   quietHours: boolean;
   quietFrom: string;
   quietTo: string;

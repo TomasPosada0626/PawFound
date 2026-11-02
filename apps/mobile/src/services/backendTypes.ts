@@ -44,8 +44,20 @@ export type ErrorCode =
   | "unauthorized"
   | "storage_unavailable"
   | "invalid_image"
+  | "follow_wait"
   | "network"
   | "unknown";
+
+export type FollowStatus = "none" | "pending" | "accepted";
+export type Network = { requests: string[]; followers: string[]; following: string[]; sent: string[] };
+export type FollowInfo = { followers: number; following: number; status: FollowStatus; mutual: boolean };
+export type RatingInfo = { average: number; count: number };
+export type FollowEdge = {
+  followerId: string;
+  followedId: string;
+  status: "pending" | "accepted" | "declined";
+  declines?: number;
+};
 
 /** Error de negocio con código traducible (nunca un texto armado en el backend). */
 export class BackendError extends Error {
@@ -98,6 +110,16 @@ export type BackendState = {
   places: Place[];
   /** Insignias de otras cuentas calculadas por la API (en demostración se calculan aquí). */
   remoteBadges: Record<string, BadgeProgress[]>;
+  /** Red de la propia cuenta (ids). Solo ella la ve: en otros perfiles únicamente el número. */
+  network: Network;
+  /** Número de seguidores y mi relación con cada perfil visitado. */
+  followInfo: Record<string, FollowInfo>;
+  /** Calificación de cada perfil visitado, calculada por la API. */
+  remoteRatings: Record<string, RatingInfo>;
+  /** Solo en demostración: todas las relaciones (la API nunca las entrega). */
+  follows: FollowEdge[];
+  /** Solo en demostración: estrellas recibidas, de la más reciente a la más antigua. */
+  ratingStars: Record<string, number[]>;
   /** Ya llegó la primera carga de mascotas cercanas (mientras tanto se muestran esqueletos). */
   /** Personas con la app abierta ahora; null hasta saberlo. */
   onlineCount: number | null;

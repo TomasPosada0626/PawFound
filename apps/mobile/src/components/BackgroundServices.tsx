@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
 
 import { isQuietTime } from "@/domain/alerts";
-import { notificationTexts, notificationUrl } from "@/features/notifications";
+import { notificationTexts, notificationUrl, URGENT_KINDS } from "@/features/notifications";
 import { useI18n } from "@/i18n/I18nProvider";
 import { currentPoint, setAlertLocationSink, syncAlertLocation } from "@/services/alertLocation";
 import {
@@ -130,7 +130,7 @@ export function BackgroundServices() {
         void presentLocal({
           ...notificationTexts(n, pet, owned?.name, t),
           url: notificationUrl(n),
-          channel: n.kind === "angel_alert" || n.kind === "life_circle" ? CHANNELS.angel : CHANNELS.updates,
+          channel: URGENT_KINDS.has(n.kind) ? CHANNELS.angel : CHANNELS.updates,
           silent,
         });
       }

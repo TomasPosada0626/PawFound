@@ -317,12 +317,13 @@ func (s *Server) setContactPhone(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) reunite(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		HelperIDs []string `json:"helperIds"`
+		HelperIDs []string       `json:"helperIds"`
+		Ratings   map[string]int `json:"ratings"`
 	}
 	if !decode(w, r, &in) {
 		return
 	}
-	pet, err := s.App.Reunite(r.Context(), actor(r), chi.URLParam(r, "id"), in.HelperIDs)
+	pet, err := s.App.Reunite(r.Context(), actor(r), chi.URLParam(r, "id"), in.HelperIDs, in.Ratings)
 	respond(w, http.StatusOK, pet, err)
 }
 
@@ -428,6 +429,33 @@ func (s *Server) profile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) like(w http.ResponseWriter, r *http.Request) {
 	liked, count, err := s.App.ToggleLike(r.Context(), actor(r), chi.URLParam(r, "id"))
 	respond(w, http.StatusOK, map[string]any{"liked": liked, "likes": count}, err)
+}
+
+func (s *Server) searchUsers(w http.ResponseWriter, r *http.Request) {
+	list, err := s.App.SearchUsers(r.Context(), actor(r), r.URL.Query().Get("q"))
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) myNetwork(w http.ResponseWriter, r *http.Request) {
+	network, err := s.App.MyNetwork(r.Context(), actor(r))
+	respond(w, http.StatusOK, network, err)
+}
+
+func (s *Server) follow(w http.ResponseWriter, r *http.Request) {
+	status, err := s.App.Follow(r.Context(), actor(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, map[string]string{"status": status}, err)
+}
+
+func (s *Server) unfollow(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.Unfollow(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
+
+func (s *Server) acceptFollower(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.AcceptFollower(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
+
+func (s *Server) removeFollower(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.RemoveFollower(r.Context(), actor(r), chi.URLParam(r, "id")))
 }
 
 func (s *Server) reportUser(w http.ResponseWriter, r *http.Request) {

@@ -87,6 +87,16 @@ export default function NotificationSettingsScreen() {
           value={prefs.lifeCircle}
           onChange={(v) => set({ lifeCircle: v })}
         />
+        <Divider />
+        <ToggleRow
+          icon="people-circle-outline"
+          tone="blue"
+          title={t("notificationSettings.friendAlerts")}
+          description={t("notificationSettings.friendAlertsDesc")}
+          value={prefs.friendAlerts}
+          onChange={(v) => set({ friendAlerts: v })}
+          testID="pref-friends"
+        />
       </SettingsCard>
 
       <SettingsCard title={t("notificationSettings.quietTitle")} subtitle={t("notificationSettings.quietSubtitle")}>
