@@ -92,8 +92,10 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 		FROM owned_pets WHERE owner_id = $1 ORDER BY created_at`, userID)
 	var pet ProfilePet
 	var photos []string
-	_, err = pgx.ForEachRow(rows, []any{&pet.ID, &pet.Name, &pet.Species, &photos, &pet.Breed, &pet.Sex, &pet.Age, &pet.Size,
-		&pet.Color, &pet.Collar, &pet.Description, &pet.ShyOrIndoor}, func() error {
+	_, err = pgx.ForEachRow(rows, []any{
+		&pet.ID, &pet.Name, &pet.Species, &photos, &pet.Breed, &pet.Sex, &pet.Age, &pet.Size,
+		&pet.Color, &pet.Collar, &pet.Description, &pet.ShyOrIndoor,
+	}, func() error {
 		item := pet
 		item.Photos = make([]string, len(photos))
 		for i, photo := range photos {
