@@ -12,12 +12,14 @@ describe("calificación", () => {
     expect(ratingAverage(stars)).toBe(4);
   });
 
-  it("Protector animal mira solo las calificaciones reales, sin las 5 estrellas iniciales", () => {
+  it("Protector animal llega con la décima calificación real si el promedio pasa de 4,5", () => {
+    const five = (n: number) => Array<number>(n).fill(5);
     expect(isAnimalProtector([])).toBe(false);
-    expect(isAnimalProtector([5])).toBe(true);
-    expect(isAnimalProtector([5, 5, 5, 5, 4])).toBe(true);
-    expect(isAnimalProtector([1])).toBe(false);
-    expect(isAnimalProtector([5, 5, 5, 5, 3])).toBe(false);
+    expect(isAnimalProtector(five(9))).toBe(false);
+    expect(isAnimalProtector(five(10))).toBe(true);
+    expect(isAnimalProtector([...five(9), 1])).toBe(true);
+    // 4,5 exacto no alcanza: debe ser más.
+    expect(isAnimalProtector([...five(5), ...Array<number>(5).fill(4)])).toBe(false);
   });
 
   it("muestra los decimales que hacen falta para que coincida con la regla", () => {

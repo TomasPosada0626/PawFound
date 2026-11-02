@@ -52,7 +52,7 @@ Decreto 1377 de 2013 y demás normas concordantes. Contacto:
   calificaciones que recibes cuando una familia te agradece al cerrar su caso. Las demás personas
   ven solo tus números de seguidores y seguidos y tu calificación promedio; las listas son visibles
   únicamente para ti. Tu ciudad, tu barrio y tu ubicación no se muestran en tu perfil, y tus
-  mascotas guardadas solo las ven las personas con las que te sigues.
+  mascotas guardadas solo las ven las personas con las que te sigues mutuamente.
 - **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push y
   registros técnicos del servidor, sin el contenido de tus mensajes ni tus datos de cuenta.
 - **Consentimientos**: registro de qué autorizaste o retiraste, cuándo y con qué versión de

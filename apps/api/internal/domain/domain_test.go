@@ -140,7 +140,7 @@ func TestBadges(t *testing.T) {
 	for _, p := range progress {
 		byID[p.ID] = p
 	}
-	if len(progress) != 12 || progress[0].ID != "verified" {
+	if len(progress) != 11 || progress[0].ID != "verified" {
 		t.Fatalf("orden o cantidad: %+v", progress)
 	}
 	if r := byID["reporter"]; r.Tier != 2 || r.Next == nil || *r.Next != 10 {
@@ -174,11 +174,15 @@ func TestRatingStartsAtFiveAndCountsTheLastTwenty(t *testing.T) {
 	if IsAnimalProtector(nil) {
 		t.Fatal("las 5 estrellas iniciales no cuentan")
 	}
-	if !IsAnimalProtector([]int{5}) || !IsAnimalProtector([]int{5, 5, 5, 5, 4}) {
-		t.Fatal("con 4,8 o más en las reales la tiene")
+	five := []int{5, 5, 5, 5, 5, 5, 5, 5, 5}
+	if IsAnimalProtector(five) {
+		t.Fatal("con nueve calificaciones todavía no la tiene")
 	}
-	if IsAnimalProtector([]int{1}) || IsAnimalProtector([]int{5, 5, 5, 5, 3}) {
-		t.Fatal("con menos de 4,8 en las reales no la tiene")
+	if !IsAnimalProtector(append(five, 5)) || !IsAnimalProtector(append(five, 1)) {
+		t.Fatal("desde la décima, con más de 4,5, la tiene")
+	}
+	if IsAnimalProtector([]int{5, 5, 5, 5, 5, 4, 4, 4, 4, 4}) {
+		t.Fatal("con 4,5 exacto no la tiene: debe ser más de 4,5")
 	}
 }
 

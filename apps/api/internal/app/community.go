@@ -20,8 +20,8 @@ type ProfilePet struct {
 }
 
 // PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, "me gusta" y calificación. La
-// ubicación no se muestra a nadie, las mascotas solo a quienes se siguen, y de los seguidores solo
-// el número: las listas son de la propia cuenta.
+// ubicación no se muestra a nadie, las mascotas solo a quienes se siguen mutuamente, y de los
+// seguidores solo el número: las listas son de la propia cuenta.
 type PublicProfile struct {
 	User         PublicUser             `json:"user"`
 	MemberDays   int                    `json:"memberDays"`
@@ -32,6 +32,7 @@ type PublicProfile struct {
 	Followers    int                    `json:"followers"`
 	Following    int                    `json:"following"`
 	FollowStatus string                 `json:"followStatus"`
+	Mutual       bool                   `json:"mutual"`
 	Badges       []domain.BadgeProgress `json:"badges"`
 	Pets         []ProfilePet           `json:"pets"`
 	Reported     int                    `json:"reported"`
@@ -64,17 +65,19 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	if err := a.DB.QueryRow(ctx, `SELECT
 			count(*) FILTER (WHERE followed_id = $1 AND status = 'accepted'),
 			count(*) FILTER (WHERE follower_id = $1 AND status = 'accepted'),
-			coalesce(max(status) FILTER (WHERE follower_id = $2 AND followed_id = $1 AND status <> 'declined'), 'none')
-		FROM follows WHERE followed_id = $1 OR follower_id = $1`, userID, viewerID).Scan(&p.Followers, &p.Following, &p.FollowStatus); err != nil {
+			coalesce(max(status) FILTER (WHERE follower_id = $2 AND followed_id = $1 AND status <> 'declined'), 'none'),
+			coalesce(bool_or(follower_id = $1 AND followed_id = $2 AND status = 'accepted'), false)
+		FROM follows WHERE followed_id = $1 OR follower_id = $1`, userID, viewerID).Scan(&p.Followers, &p.Following, &p.FollowStatus, &p.Mutual); err != nil {
 		return PublicProfile{}, err
 	}
+	p.Mutual = p.Mutual && p.FollowStatus == "accepted"
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
 		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
 		return PublicProfile{}, err
 	}
 	if viewerID != userID {
 		p.User.City, p.User.Neighborhood = "", nil
-		if p.FollowStatus != "accepted" {
+		if !p.Mutual {
 			return p, nil
 		}
 	}
@@ -94,19 +97,15 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 
 // badgeFacts cuenta los hechos reales de cada insignia (selectors.ts → badgeFacts). Los reportes
 // retirados por moderación o eliminados no cuentan: publicar y borrar no sube de nivel.
-//
-// "Hogar de paso": quien reportó dijo que la tenía consigo y cerró el caso devolviéndola.
 func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map[string]int, error) {
 	f := map[string]int{}
 	if verified {
 		f["verified"] = 1
 	}
-	var reporter, rescuer, foster, eyes, quick, angel, reunion, spreader, community, likes int
+	var reporter, rescuer, eyes, quick, angel, reunion, spreader, community, likes int
 	err := a.DB.QueryRow(ctx, `SELECT
 		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL),
 		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed AND withdrawn_at IS NULL),
-		(SELECT count(*) FROM pets p WHERE p.owner_id = $1 AND p.kind = 'found' AND p.found_custody = 'with_me' AND p.state = 'reunited'
-			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
 		(SELECT count(*) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
 			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
 		(SELECT count(DISTINCT s.pet_id) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
@@ -117,11 +116,11 @@ func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map
 		(SELECT count(*) FROM thread_members tm JOIN threads t ON t.id = tm.thread_id WHERE tm.user_id = $1 AND t.kind = 'group'
 			AND NOT EXISTS (SELECT 1 FROM pets p WHERE p.group_id = t.id AND p.owner_id = $1)),
 		(SELECT count(*) FROM profile_likes WHERE target_id = $1)`, userID).
-		Scan(&reporter, &rescuer, &foster, &eyes, &quick, &angel, &reunion, &spreader, &community, &likes)
+		Scan(&reporter, &rescuer, &eyes, &quick, &angel, &reunion, &spreader, &community, &likes)
 	if err != nil {
 		return f, err
 	}
-	f["reporter"], f["rescuer"], f["foster"], f["eyes"], f["quick"] = reporter, rescuer, foster, eyes, quick
+	f["reporter"], f["rescuer"], f["eyes"], f["quick"] = reporter, rescuer, eyes, quick
 	f["paw_angel"], f["reunion"], f["spreader"], f["community"], f["popular"] = angel, reunion, spreader, community, likes
 	stars, _, err := a.rating(ctx, userID)
 	if domain.IsAnimalProtector(stars) {

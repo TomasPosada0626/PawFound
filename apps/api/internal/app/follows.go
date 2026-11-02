@@ -90,7 +90,7 @@ func (a *App) MyNetwork(ctx context.Context, ac Actor) (Network, error) {
 	return n, err
 }
 
-// befriend deja a las dos cuentas siguiéndose: seguir es mutuo.
+// befriend deja a las dos cuentas siguiéndose: al aceptar una solicitud se siguen mutuamente.
 func befriend(ctx context.Context, tx pgx.Tx, one, other string, now time.Time) error {
 	_, err := tx.Exec(ctx, `INSERT INTO follows (follower_id, followed_id, status, declines, created_at, updated_at)
 		VALUES ($1, $2, 'accepted', 0, $3, $3), ($2, $1, 'accepted', 0, $3, $3)
@@ -179,9 +179,10 @@ func (a *App) AcceptFollower(ctx context.Context, ac Actor, followerID string) e
 	return nil
 }
 
-// unfriend termina la relación en los dos sentidos. Los "me gusta" se conservan.
-func unfriend(ctx context.Context, tx pgx.Tx, one, other string) error {
-	_, err := tx.Exec(ctx, `DELETE FROM follows WHERE (follower_id = $1 AND followed_id = $2) OR (follower_id = $2 AND followed_id = $1)`, one, other)
+// stopFollowing borra un solo sentido: la otra persona sigue siguiendo hasta que decida otra
+// cosa. Los "me gusta" se conservan.
+func stopFollowing(ctx context.Context, tx pgx.Tx, followerID, followedID string) error {
+	_, err := tx.Exec(ctx, `DELETE FROM follows WHERE follower_id = $1 AND followed_id = $2`, followerID, followedID)
 	return err
 }
 
@@ -196,8 +197,8 @@ func followStatus(ctx context.Context, tx pgx.Tx, followerID, followedID string)
 	return status, declines, err
 }
 
-// Unfollow deja de seguir, para los dos, o cancela la solicitud propia. Cancelar no borra los
-// rechazos acumulados: si no, bastaría cancelar para no llegar nunca a la suspensión.
+// Unfollow deja de seguir o cancela la solicitud propia. Cancelar no borra los rechazos
+// acumulados: si no, bastaría cancelar para no llegar nunca a la suspensión.
 func (a *App) Unfollow(ctx context.Context, ac Actor, targetID string) error {
 	return a.withTx(ctx, func(tx pgx.Tx) error {
 		status, _, err := followStatus(ctx, tx, ac.ID, targetID)
@@ -206,7 +207,7 @@ func (a *App) Unfollow(ctx context.Context, ac Actor, targetID string) error {
 		}
 		switch status {
 		case "accepted":
-			return unfriend(ctx, tx, ac.ID, targetID)
+			return stopFollowing(ctx, tx, ac.ID, targetID)
 		case "pending":
 			_, err = tx.Exec(ctx, `UPDATE follows SET status = 'declined' WHERE follower_id = $1 AND followed_id = $2`, ac.ID, targetID)
 			return err
@@ -215,8 +216,8 @@ func (a *App) Unfollow(ctx context.Context, ac Actor, targetID string) error {
 	})
 }
 
-// RemoveFollower rechaza una solicitud (cuenta para la suspensión) o elimina a un seguidor, y en
-// ese caso dejan de seguirse los dos. No le avisa a la otra persona.
+// RemoveFollower rechaza una solicitud (cuenta para la suspensión) o elimina a un seguidor. La
+// cuenta puede seguir siguiendo a esa persona. No le avisa.
 func (a *App) RemoveFollower(ctx context.Context, ac Actor, followerID string) error {
 	return a.withTx(ctx, func(tx pgx.Tx) error {
 		status, declines, err := followStatus(ctx, tx, followerID, ac.ID)
@@ -225,7 +226,7 @@ func (a *App) RemoveFollower(ctx context.Context, ac Actor, followerID string) e
 		}
 		switch status {
 		case "accepted":
-			return unfriend(ctx, tx, ac.ID, followerID)
+			return stopFollowing(ctx, tx, followerID, ac.ID)
 		case "pending":
 			_, err = tx.Exec(ctx, `UPDATE follows SET status = 'declined', declines = $3, updated_at = $4 WHERE follower_id = $1 AND followed_id = $2`,
 				followerID, ac.ID, declines+1, a.now())

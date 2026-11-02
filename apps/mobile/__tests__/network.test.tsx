@@ -95,7 +95,9 @@ describe("seguirse", () => {
   it("las mascotas de un perfil solo las ven quienes se siguen", async () => {
     await loginAs("u_daniel");
     await open("/user/u_valentina");
-    expect(await screen.findByText("Solo quienes se siguen con esta persona pueden ver sus mascotas.")).toBeOnTheScreen();
+    expect(
+      await screen.findByText("Solo quienes se siguen mutuamente con esta persona pueden ver sus mascotas."),
+    ).toBeOnTheScreen();
     expect(screen.queryByTestId("public-pets")).not.toBeOnTheScreen();
   });
 
@@ -146,6 +148,9 @@ describe("mis seguidores", () => {
     // La solicitud enviada aparece aquí y se puede cancelar.
     await fireEvent.press(await screen.findByTestId("cancel-u_laura"));
     await waitFor(() => expect(screen.queryByTestId("cancel-u_laura")).not.toBeOnTheScreen());
+    // Eliminar a María como seguidora no cambia que yo la siga.
+    await fireEvent.press(await screen.findByTestId("unfollow-u_maria"));
+    await fireEvent.press(await screen.findByTestId("confirm-accept"));
     await fireEvent.press(await screen.findByTestId("unfollow-u_carlos"));
     await fireEvent.press(await screen.findByTestId("confirm-accept"));
     expect(await screen.findByText("Aún no sigues a nadie.")).toBeOnTheScreen();

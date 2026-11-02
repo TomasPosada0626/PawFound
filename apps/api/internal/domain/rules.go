@@ -113,7 +113,6 @@ var BadgeRules = []BadgeRule{
 	{"verified", "identity", []int{1}},
 	{"reporter", "help", []int{1, 5, 10}},
 	{"rescuer", "help", []int{1, 3, 10}},
-	{"foster", "help", []int{1, 3, 10}},
 	{"eyes", "help", []int{1, 5, 20}},
 	{"quick", "help", []int{1, 5, 20}},
 	{"paw_angel", "reunions", []int{1, 3, 10}},
@@ -131,6 +130,8 @@ const (
 	RatingWindow = 20
 	// RatingStart es lo que vale cada calificación que aún no se ha dado.
 	RatingStart = 5
+	// ProtectorMinRatings: calificaciones reales que hacen falta para "Protector animal".
+	ProtectorMinRatings = 10
 	// MaxFollowDeclines rechazos suspenden el envío de solicitudes a esa persona por FollowRetryWait.
 	MaxFollowDeclines = 3
 	FollowRetryWait   = 30 * 24 * time.Hour
@@ -150,16 +151,17 @@ func Rating(stars []int) float64 {
 	return float64(ratingSum(stars)) / RatingWindow
 }
 
-// IsAnimalProtector dice si hoy se tiene "Protector animal": 4,8 o más en las calificaciones reales,
-// sin contar las 5 estrellas iniciales. Se gana y se pierde según suba o baje.
+// IsAnimalProtector dice si hoy se tiene "Protector animal": desde la décima calificación real,
+// sin contar las 5 estrellas iniciales, un promedio de más de 4,5. Se gana y se pierde según suba
+// o baje.
 func IsAnimalProtector(stars []int) bool {
 	n := min(len(stars), RatingWindow)
 	sum := 0
 	for _, s := range stars[:n] {
 		sum += s
 	}
-	// sum/n >= 4,8, sin comparar decimales.
-	return n > 0 && sum*5 >= n*24
+	// sum/n > 4,5, sin comparar decimales.
+	return n >= ProtectorMinRatings && sum*2 > n*9
 }
 
 // BadgeProgress es lo que devuelve la API por insignia.

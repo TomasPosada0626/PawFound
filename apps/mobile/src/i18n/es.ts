@@ -524,9 +524,9 @@ export const es = {
     unfollow: "Dejar de seguir",
     cancelRequest: "Cancelar",
     removeTitle: "¿Eliminar a {name}?",
-    removeBody: "Dejarán de seguirse los dos: ya no verán sus mascotas ni recibirán sus avisos. No le avisaremos.",
+    removeBody: "Dejará de seguirte: no recibirá tus avisos ni verá tus mascotas. No le avisaremos.",
     unfollowTitle: "¿Dejar de seguir a {name}?",
-    unfollowBody: "Dejarán de seguirse los dos: ya no verán sus mascotas ni recibirán sus avisos.",
+    unfollowBody: "Dejarás de recibir sus avisos y de ver sus mascotas. Esta persona te seguirá siguiendo hasta que la elimines.",
     emptyRequests: "No tienes solicitudes por ahora.",
     emptyFollowers: "Aún no tienes seguidores.",
     emptyFollowing: "Aún no sigues a nadie.",
@@ -674,7 +674,6 @@ export const es = {
     reunion: "De vuelta a casa",
     spreader: "Megáfono",
     community: "Manada unida",
-    foster: "Hogar de paso",
     quick: "Respuesta rápida",
     protector: "Protector animal",
     popular: "Popular",
@@ -694,18 +693,14 @@ export const es = {
     reunion: { one: "Cierra un caso tuyo con un reencuentro.", other: "Cierra {count} casos tuyos con un reencuentro." },
     spreader: { one: "Comparte un caso.", other: "Comparte {count} casos distintos." },
     community: { one: "Únete al grupo de un caso.", other: "Únete a {count} grupos de casos de otras familias." },
-    foster: {
-      one: "Reporta una mascota encontrada como «Conmigo, en un lugar seguro» y cierra el caso al devolverla.",
-      other: "Cuida {count} mascotas que encontraste y cierra sus casos al devolverlas.",
-    },
     quick: {
       one: "Reporta un avistamiento en la primera hora del caso de otra familia.",
       other: "Reporta avistamientos en la primera hora de {count} casos de otras familias.",
     },
     protector: {
-      one: "Ten 4,8 estrellas o más en las calificaciones que has recibido; las 5 estrellas iniciales no cuentan. Se pierde si bajas de 4,8 y se recupera si vuelves a subir.",
+      one: "Desde tu décima calificación, sin contar las 5 estrellas iniciales, ten un promedio de más de 4,5. Se pierde si bajas y se recupera si vuelves a subir.",
       other:
-        "Ten 4,8 estrellas o más en las calificaciones que has recibido; las 5 estrellas iniciales no cuentan. Se pierde si bajas de 4,8 y se recupera si vuelves a subir.",
+        "Desde tu décima calificación, sin contar las 5 estrellas iniciales, ten un promedio de más de 4,5. Se pierde si bajas y se recupera si vuelves a subir.",
     },
     popular: { one: "Llega a {count} me gusta.", other: "Llega a {count} me gusta." },
     title: "Todas las insignias",
@@ -961,7 +956,7 @@ export const es = {
     otherPet: "Otra mascota (llenar desde cero)",
     prefilled: "Usamos el perfil de {name}. Solo confirma dónde y cuándo se perdió.",
     privateNote:
-      "Solo las personas con las que te sigues ven su foto, nombre y especie. Las señas completas aparecen únicamente si publicas un reporte.",
+      "Solo las personas con las que te sigues mutuamente ven su foto, nombre y especie. Las señas completas aparecen únicamente si publicas un reporte.",
   },
   publicProfile: {
     title: "Perfil",
@@ -974,7 +969,7 @@ export const es = {
     likeVerify: "Verifica tu correo para dar me gusta.",
     pets: "Sus mascotas",
     noPets: "No muestra mascotas en su perfil.",
-    petsPrivate: "Solo quienes se siguen con esta persona pueden ver sus mascotas.",
+    petsPrivate: "Solo quienes se siguen mutuamente con esta persona pueden ver sus mascotas.",
     badges: "Insignias",
     noBadges: "Todavía no tiene insignias.",
     view: "Ver perfil de {name}",

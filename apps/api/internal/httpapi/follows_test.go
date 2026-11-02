@@ -171,19 +171,28 @@ func TestFollowIsMutualAndListsArePrivate(t *testing.T) {
 		t.Fatalf("tras solicitudes cruzadas = %+v", p)
 	}
 
-	// Dejar de seguir o eliminar termina la relación para las dos, sin importar quién lo haga.
+	// Dejar de seguir es de un solo lado: la otra persona sigue siguiendo.
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/users/"+ana.ID+"/follow", fan.Token, nil, nil)
-	if p := h.profile(ana, fan.Token); p.Followers != 0 || p.Following != 0 || p.FollowStatus != "none" {
+	if p := h.profile(ana, fan.Token); p.Followers != 0 || p.Following != 1 || p.FollowStatus != "none" || p.Mutual {
 		t.Fatalf("tras dejar de seguir = %+v", p)
 	}
+	if p := h.profile(fan, ana.Token); p.Followers != 1 || p.Following != 0 || p.FollowStatus != "accepted" || p.Mutual {
+		t.Fatalf("la otra persona sigue siguiendo = %+v", p)
+	}
+	// Eliminar a un seguidor tampoco cambia a quién sigue la cuenta.
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me/followers/"+stranger.ID, other.Token, nil, nil)
-	if p := h.profile(other, stranger.Token); p.Followers != 0 || p.Following != 0 || p.FollowStatus != "none" {
+	if p := h.profile(other, stranger.Token); p.Followers != 0 || p.Following != 1 || p.FollowStatus != "none" {
 		t.Fatalf("tras eliminar = %+v", p)
 	}
-	// Tras eliminar a alguien se puede volver a pedir sin esperar.
+	// Tras eliminar a alguien puede volver a pedirlo sin esperar, y hace falta que lo acepten:
+	// no basta con que la otra persona lo siga.
 	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+other.ID+"/follow", stranger.Token, nil, &sent)
 	if sent["status"] != "pending" {
 		t.Fatalf("volver a pedir = %v", sent)
+	}
+	h.must(http.StatusNoContent, http.MethodPost, "/v1/me/followers/"+stranger.ID+"/accept", other.Token, nil, nil)
+	if p := h.profile(other, stranger.Token); p.Followers != 1 || p.Following != 1 || !p.Mutual {
+		t.Fatalf("al aceptar se siguen de nuevo = %+v", p)
 	}
 }
 
@@ -243,6 +252,24 @@ func TestThreeDeclinesSuspendRequestsForThirtyDays(t *testing.T) {
 	}
 }
 
+func TestFollowerStillHearsAfterTheOtherStopsFollowing(t *testing.T) {
+	h := newHarness(t)
+	owner := h.user("Valentina Arango", true)
+	fan := h.user("Fan Uno", true)
+	h.befriend(fan, owner)
+	// Valentina deja de seguir a Fan; Fan sigue a Valentina y le siguen llegando sus avisos.
+	h.must(http.StatusNoContent, http.MethodDelete, "/v1/users/"+fan.ID+"/follow", owner.Token, nil, nil)
+	h.report(owner, lostReport("Max", laureles, nil))
+	if got := kinds(h.notifications(fan)); got != "friend_lost" {
+		t.Fatalf("quien sigue = %q", got)
+	}
+	// Al revés no: Valentina ya no sigue a Fan.
+	h.report(fan, lostReport("Luna", laureles, nil))
+	if got := kinds(h.notifications(owner)); got != "" {
+		t.Fatalf("quien dejó de seguir = %q", got)
+	}
+}
+
 func TestProfileHidesLocationAndPetsFromStrangers(t *testing.T) {
 	h := newHarness(t)
 	ana := h.user("Ana Gómez", true)
@@ -276,14 +303,24 @@ func TestProfileHidesLocationAndPetsFromStrangers(t *testing.T) {
 	if p := h.profile(ana, ana.Token); len(p.Pets) != 1 || p.User.City != "Medellín" || p.User.Neighborhood == nil {
 		t.Fatalf("propio perfil = %+v", p)
 	}
-	// Una solicitud sin aceptar no abre nada, y dejar de seguirse lo vuelve a cerrar.
+	// Una solicitud sin aceptar no abre nada.
 	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+ana.ID+"/follow", stranger.Token, nil, nil)
 	if p := h.profile(ana, stranger.Token); len(p.Pets) != 0 {
 		t.Fatalf("con solicitud pendiente ve mascotas: %+v", p.Pets)
 	}
+	// Las mascotas piden seguirse mutuamente: si cualquiera deja de seguir, ninguna ve las de la otra.
+	h.must(http.StatusCreated, http.MethodPost, "/v1/me/owned-pets", friend.Token, map[string]any{
+		"name": "Toby", "species": "dog", "sex": "male", "age": "adult", "size": "medium", "description": "", "photos": []string{},
+	}, nil)
+	if p := h.profile(friend, ana.Token); len(p.Pets) != 1 {
+		t.Fatalf("Ana debe ver las de su amiga: %+v", p.Pets)
+	}
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/users/"+ana.ID+"/follow", friend.Token, nil, nil)
 	if p := h.profile(ana, friend.Token); len(p.Pets) != 0 {
-		t.Fatalf("tras dejar de seguirse ve mascotas: %+v", p.Pets)
+		t.Fatalf("quien dejó de seguir ve mascotas: %+v", p.Pets)
+	}
+	if p := h.profile(friend, ana.Token); len(p.Pets) != 0 || p.FollowStatus != "accepted" {
+		t.Fatalf("quien sigue sin ser seguida ve mascotas: %+v", p)
 	}
 }
 
@@ -474,32 +511,35 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 		return pet
 	}
 
-	// Una mala nota entra sobre las 20 de 5 estrellas: se ve 4,8, pero Protector animal mira solo
-	// las calificaciones reales.
-	first := closeCase(1)
+	// Una mala nota entra sobre las 20 de 5 estrellas: se ve 4,8.
+	closeCase(1)
 	if p := h.profile(helper, ""); p.Rating != 4.8 || p.RatingCount != 1 {
 		t.Fatalf("una de 1 estrella = %+v", p)
-	}
-	if protector() != 0 {
-		t.Fatal("con un promedio real de 1 no debe tener Protector animal")
-	}
-	h.exec(`UPDATE pet_helpers SET stars = 5 WHERE pet_id = $1`, first.ID)
-	if protector() != 1 {
-		t.Fatal("con un promedio real de 5 debe tener Protector animal")
 	}
 	if count, _ := badgeOf(h.profile(helper, ""), "paw_angel"); count != 1 {
 		t.Fatalf("Ángel de patas = %d", count)
 	}
+	// Protector animal llega con la décima calificación real si el promedio pasa de 4,5.
+	for i := 0; i < 8; i++ {
+		closeCase(5)
+	}
+	if p := h.profile(helper, ""); p.RatingCount != 9 || protector() != 0 {
+		t.Fatalf("con nueve no la tiene aún: %+v", p)
+	}
+	closeCase(5)
+	if protector() != 1 {
+		t.Fatal("con diez y un promedio de 4,6 debe tenerla")
+	}
 	// Se pierde si baja y se recupera si sube: nada queda fijo.
 	worst := closeCase(1)
-	if p := h.profile(helper, ""); p.Rating != 4.8 || protector() != 0 {
-		t.Fatalf("debe perder la insignia al bajar: %+v", p)
+	if protector() != 0 {
+		t.Fatal("debe perder la insignia al bajar de 4,5")
 	}
 	// Solo cuentan las últimas 20: una nota vieja termina saliendo del promedio.
 	for i := 0; i < 20; i++ {
 		closeCase(5)
 	}
-	if p := h.profile(helper, ""); p.Rating != 5 || p.RatingCount != 22 || protector() != 1 {
+	if p := h.profile(helper, ""); p.Rating != 5 || p.RatingCount != 31 || protector() != 1 {
 		t.Fatalf("con más de 20 = %+v", p)
 	}
 
@@ -521,7 +561,7 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 	if p := h.profile(other, ""); p.Rating != 4.9 || p.RatingCount != 1 {
 		t.Fatalf("calificada una vez = %+v", p)
 	}
-	if p := h.profile(helper, ""); p.Rating != 5 || p.RatingCount != 22 {
+	if p := h.profile(helper, ""); p.Rating != 5 || p.RatingCount != 31 {
 		t.Fatalf("sin participar no recibe calificación = %+v", p)
 	}
 
@@ -536,7 +576,7 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 
 	// Borrar el caso quita la calificación: publicar, calificar y borrar no sirve de nada.
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/pets/"+worst.ID, h.ownerToken(worst), nil, nil)
-	if p := h.profile(helper, ""); p.RatingCount != 21 {
+	if p := h.profile(helper, ""); p.RatingCount != 30 {
 		t.Fatalf("caso retirado = %+v", p)
 	}
 }
@@ -595,40 +635,8 @@ func TestDeletedReportsDoNotEarnBadges(t *testing.T) {
 	}
 }
 
-func TestFosterAndQuickResponseBadges(t *testing.T) {
+func TestQuickResponseBadge(t *testing.T) {
 	h := newHarness(t)
-	finder := h.user("Quien Cuida", true)
-
-	foster := func() int {
-		count, _ := badgeOf(h.profile(finder, ""), "foster")
-		return count
-	}
-	report := func(custody string) app.Pet {
-		t.Helper()
-		return h.report(finder, foundReport(laureles, map[string]any{"foundCustody": custody}))
-	}
-	reunite := func(pet app.Pet) {
-		t.Helper()
-		h.must(http.StatusOK, http.MethodPost, "/v1/pets/"+pet.ID+"/reunite", finder.Token, map[string]any{"helperIds": []string{}}, nil)
-	}
-	// Se gana al reportarla "Conmigo, en un lugar seguro" y cerrar el caso devolviéndola.
-	kept := report("with_me")
-	if got := foster(); got != 0 {
-		t.Fatalf("sin cerrar el caso = %d", got)
-	}
-	reunite(kept)
-	if got := foster(); got != 1 {
-		t.Fatalf("Hogar de paso = %d", got)
-	}
-	// No cuenta si la mascota estaba en otra parte, ni si se elimina la publicación.
-	reunite(report("vet"))
-	if got := foster(); got != 1 {
-		t.Fatalf("en la veterinaria = %d", got)
-	}
-	h.must(http.StatusNoContent, http.MethodDelete, "/v1/pets/"+kept.ID, finder.Token, nil, nil)
-	if got := foster(); got != 0 {
-		t.Fatalf("publicación eliminada = %d", got)
-	}
 
 	// Respuesta rápida: dentro de la primera hora del caso, una vez por caso, nunca en el propio.
 	owner := h.user("Familia Perdida", true)

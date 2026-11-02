@@ -103,7 +103,7 @@ export function networkOf(state: BackendState): Network {
 }
 
 export function followInfoOf(state: BackendState, userId: string): FollowInfo {
-  return state.followInfo?.[userId] ?? { followers: 0, following: 0, status: "none" };
+  return state.followInfo?.[userId] ?? { followers: 0, following: 0, status: "none", mutual: false };
 }
 
 /** Toda cuenta empieza en 5 estrellas (rating.ts); con la API el promedio viene calculado. */
@@ -142,7 +142,6 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
       .reduce((sum, p) => sum + p.sightings.filter((s) => s.authorId === userId).length, 0),
     paw_angel: valid.filter((p) => p.helperIds?.includes(userId)).length,
     reunion: own.filter((p) => p.state === "reunited").length,
-    foster: own.filter((p) => p.kind === "found" && p.foundCustody === "with_me" && p.state === "reunited").length,
     quick: valid.filter(
       (p) =>
         p.ownerId !== userId &&

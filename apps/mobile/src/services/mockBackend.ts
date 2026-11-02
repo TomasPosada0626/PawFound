@@ -1070,6 +1070,8 @@ export class MockBackend {
         .map((f) => (incoming ? f.followerId : f.followedId));
     const count = (userId: string, incoming: boolean) =>
       follows.filter((f) => f.status === "accepted" && (incoming ? f.followedId === userId : f.followerId === userId)).length;
+    const followsMe = (userId: string) =>
+      follows.some((f) => f.followerId === userId && f.followedId === me && f.status === "accepted");
     const statusOf = (userId: string): FollowStatus => {
       const edge = follows.find((f) => f.followerId === me && f.followedId === userId);
       return edge && edge.status !== "declined" ? edge.status : "none";
@@ -1085,17 +1087,20 @@ export class MockBackend {
       followInfo: Object.fromEntries(
         Object.keys(this.state.users).map((id) => [
           id,
-          { followers: count(id, true), following: count(id, false), status: statusOf(id) },
+          {
+            followers: count(id, true),
+            following: count(id, false),
+            status: statusOf(id),
+            mutual: statusOf(id) === "accepted" && followsMe(id),
+          },
         ]),
       ),
     };
   }
 
-  /** Las dos cuentas dejan de seguirse. Los "me gusta" se conservan. */
-  private withoutEdges(one: string, other: string): FollowEdge[] {
-    return this.state.follows.filter(
-      (f) => !(f.followerId === one && f.followedId === other) && !(f.followerId === other && f.followedId === one),
-    );
+  /** Quita un solo sentido: la otra persona sigue siguiendo. Los "me gusta" se conservan. */
+  private withoutEdge(followerId: string, followedId: string, follows = this.state.follows): FollowEdge[] {
+    return follows.filter((f) => !(f.followerId === followerId && f.followedId === followedId));
   }
 
   async searchUsers(query: string): Promise<User[]> {
@@ -1118,24 +1123,23 @@ export class MockBackend {
     if (edge && edge.status !== "declined") return edge.status;
     if ((edge?.declines ?? 0) >= 3) throw new BackendError("follow_wait");
     const crossed = this.state.follows.some((f) => f.followerId === userId && f.followedId === me.id && f.status === "pending");
-    const others = this.withoutEdges(me.id, userId);
     if (crossed) {
-      this.commit(this.networkSnapshot([...others, ...this.mutualEdges(me.id, userId)]));
+      this.commit(this.networkSnapshot(this.mutualEdges(me.id, userId)));
       return "accepted";
     }
-    const reverse = this.state.follows.filter((f) => f.followerId === userId && f.followedId === me.id);
     this.commit(
       this.networkSnapshot([
-        ...others,
-        ...reverse,
+        ...this.withoutEdge(me.id, userId),
         { followerId: me.id, followedId: userId, status: "pending", declines: edge?.declines ?? 0 },
       ]),
     );
     return "pending";
   }
 
+  /** Las relaciones con las dos cuentas siguiéndose. */
   private mutualEdges(one: string, other: string): FollowEdge[] {
     return [
+      ...this.withoutEdge(other, one, this.withoutEdge(one, other)),
       { followerId: one, followedId: other, status: "accepted" },
       { followerId: other, followedId: one, status: "accepted" },
     ];
@@ -1145,7 +1149,7 @@ export class MockBackend {
     const me = this.requireUser();
     const edge = this.state.follows.find((f) => f.followerId === me.id && f.followedId === userId);
     if (edge?.status === "accepted") {
-      this.commit(this.networkSnapshot(this.withoutEdges(me.id, userId)));
+      this.commit(this.networkSnapshot(this.withoutEdge(me.id, userId)));
     } else if (edge?.status === "pending") {
       this.commit(this.networkSnapshot(this.state.follows.map((f) => (f === edge ? { ...f, status: "declined" as const } : f))));
     }
@@ -1154,7 +1158,7 @@ export class MockBackend {
   async acceptFollower(userId: string): Promise<void> {
     const me = this.requireUser();
     const pending = this.state.follows.some((f) => f.followerId === userId && f.followedId === me.id && f.status === "pending");
-    if (pending) this.commit(this.networkSnapshot([...this.withoutEdges(me.id, userId), ...this.mutualEdges(me.id, userId)]));
+    if (pending) this.commit(this.networkSnapshot(this.mutualEdges(me.id, userId)));
   }
 
   /** Rechaza una solicitud (al tercer rechazo se suspende el envío) o elimina a un seguidor. */
@@ -1162,7 +1166,7 @@ export class MockBackend {
     const me = this.requireUser();
     const edge = this.state.follows.find((f) => f.followerId === userId && f.followedId === me.id);
     if (edge?.status === "accepted") {
-      this.commit(this.networkSnapshot(this.withoutEdges(me.id, userId)));
+      this.commit(this.networkSnapshot(this.withoutEdge(userId, me.id)));
     } else if (edge?.status === "pending") {
       this.commit(
         this.networkSnapshot(

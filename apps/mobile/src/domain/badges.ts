@@ -14,7 +14,6 @@ export type BadgeId =
   | "verified"
   | "reporter"
   | "rescuer"
-  | "foster"
   | "eyes"
   | "quick"
   | "paw_angel"
@@ -35,7 +34,6 @@ export const BADGE_RULES: Record<BadgeId, BadgeRule> = {
   verified: { category: "identity", thresholds: [1] },
   reporter: { category: "help", thresholds: [1, 5, 10] },
   rescuer: { category: "help", thresholds: [1, 3, 10] },
-  foster: { category: "help", thresholds: [1, 3, 10] },
   eyes: { category: "help", thresholds: [1, 5, 20] },
   quick: { category: "help", thresholds: [1, 5, 20] },
   paw_angel: { category: "reunions", thresholds: [1, 3, 10] },
