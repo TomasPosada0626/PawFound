@@ -31,9 +31,13 @@ type User struct {
 	Lang         string     `json:"lang" db:"lang"`
 	Role         string     `json:"role" db:"role"`
 	Founder      bool       `json:"founder,omitempty" db:"founder"`
+	// Refugio de PawFamily: nombre y estado de la verificación con NIT (el NIT no se envía).
+	ShelterName   *string `json:"shelterName,omitempty" db:"shelter_name"`
+	ShelterStatus *string `json:"shelterStatus,omitempty" db:"shelter_status"`
 }
 
-const userCols = `id, name, username, email, phone, email_verified, avatar, photo_id, title, bio, city, neighborhood, created_at, muted_until, lang, role, founder`
+const userCols = `id, name, username, email, phone, email_verified, avatar, photo_id, title, bio, city, neighborhood, created_at, muted_until, lang, role, founder,
+	shelter_name, shelter_status`
 
 // PublicUser es lo que ven las demás personas: nombre corto, nunca correo ni celular.
 type PublicUser struct {
@@ -50,12 +54,22 @@ type PublicUser struct {
 	CreatedAt    time.Time `json:"createdAt"`
 	Lang         string    `json:"lang"`
 	Founder      bool      `json:"founder,omitempty"`
+	// Shelter: nombre del refugio, solo si está verificado.
+	Shelter *string `json:"shelter,omitempty"`
+}
+
+// verifiedShelter devuelve el nombre del refugio solo si moderación lo verificó.
+func verifiedShelter(name, status *string) *string {
+	if status != nil && *status == "verified" {
+		return name
+	}
+	return nil
 }
 
 func publicOf(u User) PublicUser {
 	return PublicUser{
-		Founder: u.Founder,
-		ID:      u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, PhotoURL: u.PhotoURL, Title: u.Title, Bio: u.Bio,
+		Founder: u.Founder, Shelter: verifiedShelter(u.ShelterName, u.ShelterStatus),
+		ID: u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, PhotoURL: u.PhotoURL, Title: u.Title, Bio: u.Bio,
 		City: u.City, Neighborhood: u.Neighborhood, Verified: u.Verified, CreatedAt: u.CreatedAt, Lang: u.Lang,
 	}
 }
@@ -117,6 +131,8 @@ type UserSummary struct {
 	Verified  bool      `json:"verified"`
 	CreatedAt time.Time `json:"createdAt"`
 	Lang      string    `json:"lang"`
+	// Shelter: nombre del refugio, solo si está verificado.
+	Shelter *string `json:"shelter,omitempty"`
 }
 
 // Pet es un reporte (caso) tal como lo ve la app.

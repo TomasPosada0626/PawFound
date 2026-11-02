@@ -29,6 +29,14 @@
       <div class="photos">{{range $p.Photos}}<img src="{{mediaPath .}}" alt="Foto de la publicación">{{end}}</div>
     </section>
     {{end}}
+    {{if $d.Adoption}}{{$a := $d.Adoption}}
+    <section class="card">
+      <h2>Adopción en PawFamily</h2>
+      <p><strong>{{$a.Name}}</strong> · {{$a.Zone}} · {{date $a.CreatedAt}} · estado: {{$a.Status}}</p>
+      <p>{{$a.Description}}</p>
+      <div class="photos">{{range $a.Photos}}<img src="{{mediaPath .}}" alt="Foto de la adopción">{{end}}</div>
+    </section>
+    {{end}}
     {{template "history" $d.History}}
   </div>
   <div class="stack">

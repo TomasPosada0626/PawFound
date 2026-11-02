@@ -16,6 +16,7 @@
     <a href="/admin/activity" {{if eq .Section "activity"}}aria-current="page"{{end}}>Actividad</a>
     <a href="/admin/reports" {{if eq .Section "reports"}}aria-current="page"{{end}}>Reportes</a>
     <a href="/admin/users" {{if eq .Section "users"}}aria-current="page"{{end}}>Cuentas</a>
+    <a href="/admin/shelters" {{if eq .Section "shelters"}}aria-current="page"{{end}}>Refugios</a>
     <a href="/admin/log" {{if eq .Section "log"}}aria-current="page"{{end}}>Bitácora</a>
   </nav>
   <form method="post" action="/admin/logout" class="who">

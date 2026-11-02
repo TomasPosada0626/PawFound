@@ -1,0 +1,27 @@
+{{define "content"}}
+<h1>Refugios verificados</h1>
+<p class="muted">La app los verifica al instante cuando el dígito de verificación del NIT es correcto (DIAN). Revisa en el RUES o la DIAN que el NIT corresponda al refugio; si no, quita la verificación: la cuenta no podrá volver a verificarse sola.</p>
+{{if .Data.Requests}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Refugio</th><th>NIT</th><th>Cuenta</th><th>Verificado</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Requests}}
+  <tr>
+    <td><strong>{{.ShelterName}}</strong></td>
+    <td>{{.NIT}}</td>
+    <td><a href="/admin/users/{{.UserID}}">{{.Name}}</a><br><span class="muted">@{{.Username}} · {{.Email}}</span></td>
+    <td>{{date .RequestedAt}}</td>
+    <td>
+      <form method="post" action="/admin/users/{{.UserID}}">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <button type="submit" name="action" value="reject_shelter" class="small">Quitar verificación</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}<p class="empty card">Todavía no hay refugios verificados.</p>{{end}}
+{{end}}

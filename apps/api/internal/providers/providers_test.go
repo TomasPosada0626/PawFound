@@ -35,6 +35,9 @@ func TestLogProvidersNeverLeakFullEmail(t *testing.T) {
 	if err := (LogMailer{Log: log}).SendPasswordReset(ctx, "a@b.co", "https://pawfound.app/reset?t=x"); err != nil {
 		t.Fatal(err)
 	}
+	if err := (LogMailer{Log: log}).SendNotice(ctx, "a@b.co", "", AdoptionRequestNotice("Luna", "https://x", "es")); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // fakeSMTP responde como un servidor SMTP sin STARTTLS: PawFound debe negarse a enviar en
@@ -83,6 +86,9 @@ func TestSMTPMailerSafety(t *testing.T) {
 		t.Fatalf("inyección de cabeceras = %v", err)
 	}
 	if err := m.SendPasswordReset(ctx, "a@b.co", "https://x"); err == nil {
+		t.Fatal("servidor caído")
+	}
+	if err := m.SendNotice(ctx, "a@b.co", "", AdoptionRequestNotice("Luna", "https://x", "en")); err == nil {
 		t.Fatal("servidor caído")
 	}
 	host, port, _ := net.SplitHostPort(fakeSMTP(t))
