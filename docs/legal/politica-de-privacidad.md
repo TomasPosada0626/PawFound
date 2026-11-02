@@ -1,6 +1,6 @@
 # Política de privacidad
 
-Última actualización: 2 de noviembre de 2026. Versión: 1.2.
+Última actualización: 2 de noviembre de 2026. Versión: 1.3.
 
 ## 1. Quién trata tus datos
 
@@ -105,9 +105,14 @@ OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
 
 ## 5. Cuánto tiempo conservamos tus datos
 
-- **Cuenta**: hasta que la elimines. Al eliminarla se borran tu perfil, tus mensajes escritos,
-  tus chats directos, tus mascotas registradas y tu ubicación. Tus reportes quedan archivados
-  y sin autor, porque hacen parte de casos en los que participaron otras personas.
+- **Cuenta**: hasta que la elimines, desde tu perfil o en Ajustes › Privacidad y seguridad,
+  después de confirmarlo. Al eliminarla borramos todo lo de la cuenta: tu perfil, tus reportes
+  (con su grupo, sus avistamientos, sus historias y las alertas que generaron), tus
+  publicaciones y solicitudes de PawFamily, tus avistamientos en casos de otras personas, tus
+  mensajes, tus chats directos, tus seguidores y seguidos, tus me gusta, tus calificaciones,
+  tus mascotas registradas, tu ubicación y todas tus fotos. En los grupos de otros casos solo
+  quedan los avisos automáticos, sin tu nombre. Te enviamos un correo para confirmarlo. Lo
+  que ya esté en los respaldos se borra cuando estos venzan.
 - **Ubicación para alertas**: solo el último punto. Se borra al desactivarla, al cerrar tu
   última sesión o si no se actualiza en 30 días.
 - **Códigos y enlaces de seguridad**: el código de verificación se borra en un día y los
@@ -118,7 +123,7 @@ OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
 
 Un reporte se archiva al marcar la mascota como encontrada, y deja de verse si eliges
 eliminar la publicación desde tu perfil; la información se conserva para atender
-reclamos y moderación, hasta que elimines tu cuenta. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
+reclamos y moderación, hasta que elimines tu cuenta, y entonces se borra. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
 directos no se cierran ni se borran solos: cada persona decide archivarlos
 o eliminarlos de su lista, y un mensaje directo lo cierra cualquiera de las dos personas. Al
 cerrarse un caso se quitan sus historias y dejan de verse las ubicaciones compartidas en sus
@@ -128,7 +133,8 @@ mensajes directos.
 
 Puedes conocer, actualizar, rectificar y suprimir tus datos, revocar los consentimientos que
 hayas dado y pedir prueba de tu autorización. Exportar tus datos y eliminar tu cuenta están
-disponibles como autoservicio en Ajustes › Privacidad y seguridad. Para lo demás, escríbenos
+disponibles como autoservicio: exportar en Ajustes › Privacidad y seguridad, y eliminar desde
+tu perfil o en ese mismo lugar. Para lo demás, escríbenos
 a [pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com).
 
 Respondemos las consultas en un máximo de 10 días hábiles y los reclamos en un máximo de 15

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { BadgeCatalog, BadgeTile } from "@/components/badges";
+import { DeleteAccountSheet } from "@/components/DeleteAccountSheet";
 import { DeletePetButton } from "@/components/DeletePetButton";
 import { FounderTag } from "@/components/FounderTag";
 import { AppHeader, Screen } from "@/components/layout";
@@ -41,6 +42,7 @@ export default function ProfileScreen() {
   // "Ver mis insignias" desde la celebración abre el catálogo directamente.
   const [badgesOpen, setBadgesOpen] = useState(params.badges === "open");
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const stats = useMemo(() => (user ? userStats(state, user.id) : null), [state, user]);
   const progress = useMemo(() => (user ? userBadgeProgress(state, user.id) : []), [state, user]);
@@ -368,6 +370,18 @@ export default function ProfileScreen() {
         <ListRow icon="log-out-outline" danger title={t("settings.logout")} onPress={() => setLogoutOpen(true)} testID="logout" />
       </Card>
 
+      {/* Aparte de "Cerrar sesión" para no tocarlo sin querer; igual pide confirmar escribiendo. */}
+      <Card className="mt-4">
+        <ListRow
+          icon="trash-outline"
+          danger
+          title={t("privacy.deleteMine")}
+          description={t("privacy.deleteDesc")}
+          onPress={() => setDeleteOpen(true)}
+          testID="profile-delete-account"
+        />
+      </Card>
+
       <Sheet
         visible={badgesOpen}
         onClose={() => setBadgesOpen(false)}
@@ -385,6 +399,7 @@ export default function ProfileScreen() {
         onConfirm={() => void logout()}
         onCancel={() => setLogoutOpen(false)}
       />
+      <DeleteAccountSheet visible={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </Screen>
   );
 }

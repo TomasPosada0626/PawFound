@@ -159,7 +159,7 @@ paths:
     delete:
       operationId: deleteAccount
       tags: [me]
-      summary: Derecho al olvido. Los reportes activos se archivan sin autor.
+      summary: Derecho al olvido. Borra la cuenta y todo lo que publicó (reportes, PawFamily, mensajes, chats, red y fotos) y confirma por correo.
       responses:
         "204": { description: Cuenta eliminada }
   /v1/me/export:

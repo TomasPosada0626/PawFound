@@ -48,6 +48,12 @@ func TestBrevoMailer(t *testing.T) {
 		if !strings.Contains(got["subject"].(string), "Luna") || !strings.Contains(got["htmlContent"].(string), "https://x") {
 			t.Fatalf("aviso %s = %v", lang, got)
 		}
+		if err := m.SendNotice(ctx, "ana@x.co", "Ana", AccountDeletedNotice("https://x", lang)); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got["subject"].(string), "PawFound") || !strings.Contains(got["textContent"].(string), "https://x") {
+			t.Fatalf("cuenta eliminada %s = %v", lang, got)
+		}
 	}
 
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
