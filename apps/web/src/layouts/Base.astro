@@ -13,7 +13,8 @@ const { title, description, section = "inicio", isPrivate = false } = Astro.prop
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const nav = [
   { href: "/#como-funciona", label: "Cómo funciona", key: "inicio" },
-  { href: "/#tutorial", label: "Tutorial", key: "tutorial" },
+  { href: "/#pawfamily", label: "PawFamily", key: "pawfamily" },
+  { href: "/#comunidad", label: "Comunidad", key: "comunidad" },
   { href: "/guia", label: "Guía", key: "guia" },
   { href: "/ayuda", label: "Ayuda", key: "ayuda" },
 ];
@@ -64,8 +65,8 @@ const nav = [
         <div>
           <a class="brand" href="/" style="color:#fff"><img src="/logo.png" alt="" width="34" height="34" /> PawFound</a>
           <p style="margin-top:0.8rem;max-width:26rem">
-            La red de vecinos que ayuda a que las mascotas perdidas vuelvan a casa. Gratis, sin publicidad, hecha en Medellín para el Valle de
-            Aburrá.
+            La red de vecinos que ayuda a que las mascotas perdidas vuelvan a casa, y PawFamily, la adopción 100 % gratuita. Sin publicidad,
+            hecha en Medellín para el Valle de Aburrá.
           </p>
         </div>
         <div>
@@ -73,6 +74,8 @@ const nav = [
           <ul>
             <li><a href="/#como-funciona">Cómo funciona</a></li>
             <li><a href="/#tutorial">Tutorial</a></li>
+            <li><a href="/#pawfamily">PawFamily: adopción gratuita</a></li>
+            <li><a href="/#comunidad">Comunidad, estrellas e insignias</a></li>
             <li><a href="/guia">Guía: se perdió, encontré una</a></li>
             <li><a href="/ayuda">Ayuda y preguntas</a></li>
           </ul>
@@ -83,6 +86,7 @@ const nav = [
             <li><a href="/privacidad">Política de privacidad</a></li>
             <li><a href="/terminos">Términos y condiciones</a></li>
             <li><a href="/ayuda#seguridad">Seguridad y convivencia</a></li>
+            <li><a href="/eliminar-cuenta">Eliminar tu cuenta</a></li>
           </ul>
         </div>
         <p class="legal">
