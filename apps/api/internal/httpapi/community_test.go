@@ -344,26 +344,54 @@ func TestExportAndDeleteAccount(t *testing.T) {
 		t.Fatalf("exportación = %+v", export)
 	}
 
+	// Lo que la cuenta hizo en lo ajeno: un avistamiento y un mensaje en otro caso, seguir, me gusta,
+	// una publicación de PawFamily y una denuncia que alguien hizo sobre ella.
+	other := h.report(stays, lostReport("Luna", belen, nil))
+	h.must(http.StatusCreated, http.MethodPost, "/v1/pets/"+other.ID+"/sightings", gone.Token, map[string]any{
+		"at": h.clock.Now(), "location": belen, "zone": "Belén", "note": "Iba hacia el parque",
+	}, nil)
+	h.must(http.StatusOK, http.MethodPost, "/v1/pets/"+other.ID+"/join", gone.Token, nil, nil)
+	h.must(http.StatusCreated, http.MethodPost, "/v1/threads/"+other.GroupID+"/messages", gone.Token, map[string]string{"text": "la vi en el parque"}, nil)
+	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+stays.ID+"/follow", gone.Token, nil, nil)
+	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+stays.ID+"/like", gone.Token, nil, nil)
+	h.acceptTerms(gone)
+	ad := h.publishAdoption(gone, laureles, "Laureles", nil)
+	h.must(http.StatusNoContent, http.MethodPost, "/v1/users/"+gone.ID+"/report", stays.Token, map[string]string{"reason": "spam"}, nil)
+
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me", gone.Token, nil, nil)
 	h.expectError(http.StatusUnauthorized, "unauthorized", http.MethodGet, "/v1/me", gone.Token, nil)
-	var archived app.Pet
-	h.must(http.StatusOK, http.MethodGet, "/v1/pets/"+pet.ID, stays.Token, nil, &archived)
-	if archived.State != "archived" || archived.OwnerID != "" {
-		t.Fatalf("el reporte se archiva sin autor: %+v", archived)
+	// Sus publicaciones desaparecen del todo, con su grupo y su chat directo.
+	h.expectError(http.StatusNotFound, "not_found", http.MethodGet, "/v1/pets/"+pet.ID, stays.Token, nil)
+	h.expectError(http.StatusNotFound, "not_found", http.MethodGet, "/v1/adoptions/"+ad.ID, stays.Token, nil)
+	if n := h.count(`SELECT count(*) FROM threads WHERE id = ANY($1)`, []string{pet.GroupID, dm["threadId"]}); n != 0 {
+		t.Fatal("el grupo del caso y el chat directo se borran")
+	}
+	// En el caso ajeno no queda su avistamiento ni lo que escribió.
+	var luna app.Pet
+	h.must(http.StatusOK, http.MethodGet, "/v1/pets/"+other.ID, stays.Token, nil, &luna)
+	if len(luna.Sightings) != 0 {
+		t.Fatalf("el avistamiento se borra: %+v", luna.Sightings)
 	}
 	var history []app.Message
-	h.must(http.StatusOK, http.MethodGet, "/v1/threads/"+pet.GroupID+"/messages", stays.Token, nil, &history)
+	h.must(http.StatusOK, http.MethodGet, "/v1/threads/"+other.GroupID+"/messages", stays.Token, nil, &history)
 	for _, m := range history {
-		if m.Text == "gracias" || m.AuthorID == gone.ID {
+		if m.Kind != "system" || m.AuthorID == gone.ID {
 			t.Fatalf("quedó un rastro de la cuenta: %+v", m)
 		}
 	}
-	h.expectError(http.StatusForbidden, "not_allowed", http.MethodGet, "/v1/threads/"+dm["threadId"]+"/messages", stays.Token, nil)
-	if n := h.count(`SELECT count(*) FROM media WHERE id = $1`, photo.ID); n != 0 {
-		t.Fatal("las fotos de Mis mascotas se borran")
+	for table, sql := range map[string]string{
+		"fotos":     `SELECT count(*) FROM media WHERE owner_id IS NULL OR id = $1`,
+		"zona":      `SELECT count(*) FROM alert_zones WHERE $1 <> ''`,
+		"red":       `SELECT count(*) FROM follows WHERE $1 <> ''`,
+		"me gusta":  `SELECT count(*) FROM profile_likes WHERE $1 <> ''`,
+		"denuncias": `SELECT count(*) FROM reports WHERE status = 'open' AND $1 <> ''`,
+	} {
+		if n := h.count(sql, photo.ID); n != 0 {
+			t.Fatalf("%s: quedan %d", table, n)
+		}
 	}
-	if n := h.count(`SELECT count(*) FROM alert_zones`); n != 0 {
-		t.Fatal("la zona de alertas se borra")
+	if got := strings.Join(h.mailer.notices, "\n"); !strings.Contains(got, gone.ID+"@pawfound.test: Tu cuenta de PawFound fue eliminada") {
+		t.Fatalf("correo de confirmación = %q", got)
 	}
 }
 

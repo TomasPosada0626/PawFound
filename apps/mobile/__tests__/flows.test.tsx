@@ -5,6 +5,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
 
+import { MockBackend } from "@/services/mockBackend";
 import { STORAGE_KEYS } from "@/services/storage";
 
 const loginAs = async (userId: string) => AsyncStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userId));
@@ -171,13 +172,42 @@ describe("mensajes, mapa, ajustes e idioma", () => {
     expect(await screen.findByText("Usa de 3 a 20 letras, números o _")).toBeOnTheScreen();
   });
 
-  it("elimina la cuenta tras confirmar y vuelve a modo exploración", async () => {
+  it("elimina la cuenta desde Privacidad solo tras escribir la palabra y vuelve a modo exploración", async () => {
     await loginAs("u_valentina");
     const app = await open("/settings/privacy");
     await fireEvent.press(await screen.findByTestId("delete-account"));
-    await fireEvent.press(await screen.findByText("Sí, eliminar mi cuenta"));
+    expect(await screen.findByText(/Tus publicaciones y solicitudes de PawFamily/)).toBeOnTheScreen();
+    // Sin la palabra no se puede: un toque sin querer no borra nada.
+    await fireEvent.press(screen.getByTestId("delete-account-confirm"));
+    expect(app.getPathname()).toBe("/settings/privacy");
+    await fireEvent.changeText(screen.getByTestId("delete-account-word"), "eliminar");
+    await fireEvent.press(screen.getByTestId("delete-account-confirm"));
     await waitFor(() => expect(app.getPathname()).toBe("/"));
     expect(await screen.findByText("¡Hola!")).toBeOnTheScreen();
+  });
+
+  it("si no se puede eliminar la cuenta, lo dice y la cuenta sigue", async () => {
+    const failing = jest.spyOn(MockBackend.prototype, "deleteAccount").mockRejectedValueOnce(new Error("network"));
+    await loginAs("u_valentina");
+    const app = await open("/profile");
+    await fireEvent.press(await screen.findByTestId("profile-delete-account"));
+    await fireEvent.changeText(await screen.findByLabelText("Para confirmar, escribe ELIMINAR"), "ELIMINAR");
+    await fireEvent.press(screen.getByTestId("delete-account-confirm"));
+    expect(await screen.findByText("No pudimos eliminar tu cuenta. Revisa tu conexión e intenta de nuevo.")).toBeOnTheScreen();
+    expect(app.getPathname()).toBe("/profile");
+    expect(await AsyncStorage.getItem(STORAGE_KEYS.session)).toBe(JSON.stringify("u_valentina"));
+    failing.mockRestore();
+  });
+
+  it("Perfil tiene «Eliminar mi cuenta»; cancelar no borra nada", async () => {
+    await loginAs("u_valentina");
+    await open("/profile");
+    await fireEvent.press(await screen.findByTestId("profile-delete-account"));
+    await fireEvent.changeText(await screen.findByLabelText("Para confirmar, escribe ELIMINAR"), "ELIMINA");
+    await fireEvent.press(screen.getByTestId("delete-account-confirm"));
+    await fireEvent.press(screen.getByText("Cancelar"));
+    await waitFor(() => expect(screen.queryByTestId("delete-account-sheet")).not.toBeOnTheScreen());
+    expect(screen.getByTestId("profile-delete-account")).toBeOnTheScreen();
   });
 
   it("los enlaces de Alerta Ángel abren la alerta, con aviso comunitario y acceso al caso", async () => {

@@ -2,17 +2,17 @@ import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import { Share, View } from "react-native";
 
+import { DeleteAccountSheet } from "@/components/DeleteAccountSheet";
 import { SettingsCard, SettingsLayout } from "@/components/SettingsLayout";
 import { Divider, IconBubble, ListRow, ToggleRow } from "@/components/ui/Controls";
 import { Icon } from "@/components/ui/Icon";
-import { ConfirmSheet, OptionList, Sheet } from "@/components/ui/Sheet";
+import { OptionList, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { maskEmail } from "@/domain/privacy";
 import type { WhoCanMessage } from "@/domain/types";
 import { useI18n } from "@/i18n/I18nProvider";
 import { DEFAULT_PRIVACY_PREFS } from "@/services/mockBackend";
-import { STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -53,14 +53,6 @@ export default function PrivacyScreen() {
     } finally {
       setSendingReset(false);
     }
-  };
-
-  const deleteAccount = async () => {
-    setDeleteOpen(false);
-    await backend.deleteAccount();
-    await writeJSON(STORAGE_KEYS.session, null);
-    toast(t("privacy.deleted"), "info");
-    router.replace("/");
   };
 
   return (
@@ -160,15 +152,7 @@ export default function PrivacyScreen() {
         />
       </Sheet>
 
-      <ConfirmSheet
-        visible={deleteOpen}
-        title={t("privacy.deleteConfirmTitle")}
-        body={t("privacy.deleteConfirmBody")}
-        confirmLabel={t("privacy.deleteConfirm")}
-        danger
-        onConfirm={() => void deleteAccount()}
-        onCancel={() => setDeleteOpen(false)}
-      />
+      <DeleteAccountSheet visible={deleteOpen} onClose={() => setDeleteOpen(false)} />
     </SettingsLayout>
   );
 }
