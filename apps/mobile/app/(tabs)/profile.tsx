@@ -122,9 +122,10 @@ export default function ProfileScreen() {
             <View className="flex-row items-center gap-1" accessible testID="my-rating">
               <Icon name="star" size={15} color="#F5A524" />
               <Text variant="captionStrong">{formatRating(stats.ratingAvg, locale)}</Text>
-              <Text variant="caption">
-                {stats.ratingCount > 0 ? t("profile.ratingCount", { count: stats.ratingCount }) : t("profile.noRatings")}
-              </Text>
+              {/* Sin calificaciones reales solo se ven las estrellas y el número. */}
+              {stats.ratingCount > 0 ? (
+                <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text>
+              ) : null}
             </View>
           ) : null}
           <View className="self-start rounded-full border border-border px-3 py-1">

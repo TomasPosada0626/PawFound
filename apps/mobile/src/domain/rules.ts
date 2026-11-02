@@ -64,6 +64,21 @@ export type ImpactStats = {
   reunitedWithin14DaysPct: number;
 };
 
+/** Normaliza una ciudad para comparar sin tildes ni mayúsculas ("Medellín" → "medellin"), igual que la API. */
+export function cityKey(city: string): string {
+  return city
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Ciudad de una zona "Barrio, Ciudad"; sin coma no hay ciudad. */
+export function cityFromZone(zone: string): string {
+  const i = zone.lastIndexOf(",");
+  return i < 0 ? "" : zone.slice(i + 1).trim();
+}
+
 /** Debajo de este volumen de casos, los porcentajes engañan: la UI muestra otro estado. */
 export const MIN_CASES_FOR_STATS = 5;
 

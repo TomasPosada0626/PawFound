@@ -207,7 +207,7 @@ export default function ReportScreen() {
   const isLost = draft.kind === "lost";
 
   return (
-    <Screen testID="report-screen" header={<AppHeader left={<BackButton />} right={<ThemeButton mode="dark" />} />}>
+    <Screen testID="report-screen" header={<AppHeader left={<BackButton />} right={<ThemeButton />} />}>
       <Text variant="title" className="mt-1 text-center" accessibilityRole="header">
         {t("report.title")}
       </Text>

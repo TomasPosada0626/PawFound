@@ -193,3 +193,22 @@ func Badges(facts map[string]int) []BadgeProgress {
 	}
 	return out
 }
+
+// MinCasesForStats: con menos casos en una ciudad, las cifras de "Nuestro impacto" engañan.
+const MinCasesForStats = 5
+
+var cityAccents = strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u", "ü", "u", "ñ", "n")
+
+// CityKey normaliza el nombre de una ciudad para comparar sin tildes ni mayúsculas ("Medellín" → "medellin").
+func CityKey(city string) string {
+	return cityAccents.Replace(strings.ToLower(strings.TrimSpace(city)))
+}
+
+// CityFromZone saca la ciudad de una zona "Barrio, Ciudad"; sin coma no hay ciudad.
+func CityFromZone(zone string) string {
+	i := strings.LastIndex(zone, ",")
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimSpace(zone[i+1:])
+}

@@ -129,9 +129,8 @@ export default function PublicProfileScreen() {
         <View className="mt-1 flex-row items-center gap-1" accessible testID="public-rating">
           <Icon name="star" size={16} color="#F5A524" />
           <Text variant="captionStrong">{formatRating(stats.ratingAvg, locale)}</Text>
-          <Text variant="caption">
-            {stats.ratingCount > 0 ? t("profile.ratingCount", { count: stats.ratingCount }) : t("profile.noRatings")}
-          </Text>
+          {/* Sin calificaciones reales solo se ven las estrellas y el número. */}
+          {stats.ratingCount > 0 ? <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text> : null}
         </View>
         {person.bio ? (
           <Text variant="body" className="mt-2 text-center">

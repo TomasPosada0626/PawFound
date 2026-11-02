@@ -76,7 +76,7 @@ export default function SightingScreen() {
   return (
     <Screen
       testID="sighting-screen"
-      header={<AppHeader left={<BackButton fallback={`/pet/${pet.id}`} />} right={<ThemeButton mode="dark" />} />}
+      header={<AppHeader left={<BackButton fallback={`/pet/${pet.id}`} />} right={<ThemeButton />} />}
     >
       <Text variant="title" className="text-center" accessibilityRole="header">
         {t("sighting.title")}

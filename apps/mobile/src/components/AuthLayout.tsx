@@ -27,8 +27,8 @@ export function AuthLayout({
       testID={testID}
       header={
         <View className="flex-row items-center justify-between px-4 pt-2">
-          {showBack ? <BackButton /> : <ThemeButton mode="light" />}
-          <ThemeButton mode="dark" />
+          {showBack ? <BackButton /> : <View />}
+          <ThemeButton />
         </View>
       }
     >

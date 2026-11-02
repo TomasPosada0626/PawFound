@@ -16,6 +16,16 @@ export async function zoneFromPoint(point: LatLng): Promise<string | null> {
   }
 }
 
+/** Ciudad de un punto ("Medellín"), si el dispositivo puede saberla. */
+export async function cityFromPoint(point: LatLng): Promise<string | null> {
+  try {
+    const [place] = await Location.reverseGeocodeAsync(point);
+    return place?.city ?? place?.subregion ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** "Usar mi ubicación actual" en reportes y avistamientos: punto + zona sugerida. */
 export function usePlacePicker() {
   const { request } = useUserLocation();
