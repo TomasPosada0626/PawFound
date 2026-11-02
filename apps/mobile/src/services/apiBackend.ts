@@ -2,7 +2,7 @@ import * as SecureStore from "expo-secure-store";
 
 import type { BadgeProgress } from "@/domain/badges";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
-import type { PublishAllowance } from "@/domain/rules";
+import type { ImpactStats, PublishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
   AppNotification,
@@ -655,6 +655,14 @@ export class ApiBackend {
   }
 
   /** Cuántas personas tienen la app abierta. Sin conexión en vivo se consulta en cada ronda. */
+  /** "Nuestro impacto" de una ciudad, con todos sus casos; null si todavía hay muy pocos. */
+  async loadImpact(city: string): Promise<ImpactStats | null> {
+    const impact = await this.request<ImpactStats & { enough: boolean }>("GET", `/v1/impact?city=${encodeURIComponent(city)}`);
+    if (!impact.enough) return null;
+    const { enough: _enough, ...stats } = impact;
+    return stats;
+  }
+
   private async loadOnline() {
     try {
       const { count } = await this.request<{ count: number }>("GET", "/v1/online");

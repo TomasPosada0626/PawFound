@@ -1,6 +1,6 @@
 import { APPROX_CELL_METERS, approximateLocation, distanceMeters, formatDistance, regionForRadius } from "../geo";
 import { initials, maskEmail, maskPhone, shortName } from "../privacy";
-import { caseGroupTitle, clusterPets, findPossibleMatches, impactStats, publishAllowance } from "../rules";
+import { caseGroupTitle, cityFromZone, cityKey, clusterPets, findPossibleMatches, impactStats, publishAllowance } from "../rules";
 import type { PetCase } from "../types";
 import {
   formatColombianMobile,
@@ -246,5 +246,14 @@ describe("rules", () => {
     expect(group?.id.startsWith("cluster:")).toBe(true);
     expect(clusters.find((c) => c.id === "solo")?.pets).toHaveLength(1);
     expect(clusterPets([pet({ id: "x" }), pet({ id: "y", kind: "found" })], region)[0]?.majority).toBe("mixed");
+  });
+});
+
+describe("ciudad de un caso", () => {
+  it("compara sin tildes ni mayúsculas y saca la ciudad de la zona", () => {
+    expect(cityKey(" Medellín ")).toBe("medellin");
+    expect(cityKey("BOGOTÁ")).toBe("bogota");
+    expect(cityFromZone("Laureles, Medellín")).toBe("Medellín");
+    expect(cityFromZone("Laureles")).toBe("");
   });
 });

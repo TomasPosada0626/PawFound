@@ -75,6 +75,7 @@ export const es = {
     nearby: "Mascotas cerca de ti",
     seeMap: "Ver mapa",
     impact: "Nuestro impacto",
+    impactIn: "Nuestro impacto en {city}",
     impactReunited: "Mascotas reunidas",
     impactReports: "Reportes este mes",
     impactActive: "Casos activos",

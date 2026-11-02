@@ -77,6 +77,7 @@ export const en: Translations = {
     nearby: "Pets near you",
     seeMap: "See map",
     impact: "Our impact",
+    impactIn: "Our impact in {city}",
     impactReunited: "Pets reunited",
     impactReports: "Reports this month",
     impactActive: "Active cases",

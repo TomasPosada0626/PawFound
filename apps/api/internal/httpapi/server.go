@@ -104,6 +104,11 @@ func (s *Server) routes(r chi.Router) {
 	r.Get("/online", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]int{"count": s.App.Hub.Online()})
 	})
+	// "Nuestro impacto" de una ciudad: cifras de todos sus casos, también los cerrados.
+	r.Get("/impact", func(w http.ResponseWriter, r *http.Request) {
+		impact, err := s.App.CityImpact(r.Context(), r.URL.Query().Get("city"))
+		respond(w, http.StatusOK, impact, err)
+	})
 	r.Group(func(r chi.Router) {
 		r.Use(s.optionalAuth)
 		r.Get("/pets", s.nearby)
