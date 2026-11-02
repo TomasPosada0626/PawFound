@@ -40,15 +40,11 @@ func (h *harness) helpOn(pet app.Pet, helper user) {
 	h.must(http.StatusCreated, http.MethodPost, "/v1/threads/"+pet.GroupID+"/messages", helper.Token, map[string]string{"text": "Lo vi"}, nil)
 }
 
-func foundReport(at map[string]float64, extra map[string]any) map[string]any {
-	r := map[string]any{
+func foundReport(at map[string]float64) map[string]any {
+	return map[string]any{
 		"kind": "found", "species": "dog", "sex": "female", "age": "adult", "size": "medium",
 		"description": "", "photos": []string{}, "location": at, "zone": "Laureles", "foundSearchRadius": 2000,
 	}
-	for k, v := range extra {
-		r[k] = v
-	}
-	return r
 }
 
 func TestSearchUsersByUsername(t *testing.T) {
@@ -449,7 +445,7 @@ func TestFoundPetAlertsNearbyPhonesOnce(t *testing.T) {
 	h.exec(`UPDATE users SET notification_prefs = notification_prefs || '{"foundNearby": false}' WHERE id = $1`, off.ID)
 	h.device(near)
 
-	h.report(finder, foundReport(laureles, nil))
+	h.report(finder, foundReport(laureles))
 	if got := kinds(h.notifications(near)); got != "found_nearby" {
 		t.Fatalf("vecina = %q", got)
 	}
@@ -469,7 +465,7 @@ func TestFoundPetAlertsNearbyPhonesOnce(t *testing.T) {
 	family := h.user("Familia", true)
 	h.alertZone(family, laureles, "Laureles")
 	h.report(family, lostReport("Luna", laureles, map[string]any{"sex": "female"}))
-	h.report(finder, foundReport(laureles, nil))
+	h.report(finder, foundReport(laureles))
 	got := kinds(h.notifications(family))
 	if strings.Contains(got, "found_nearby") || !strings.Contains(got, "possible_match") {
 		t.Fatalf("familia = %q", got)
@@ -477,7 +473,7 @@ func TestFoundPetAlertsNearbyPhonesOnce(t *testing.T) {
 
 	// Comparte el límite diario con la Alerta Ángel.
 	for i := 0; i < 6; i++ {
-		h.report(h.user("Reporta", true), foundReport(laureles, nil))
+		h.report(h.user("Reporta", true), foundReport(laureles))
 	}
 	if n := h.count(`SELECT count(*) FROM notifications WHERE user_id = $1 AND kind IN ('found_nearby', 'angel_alert')`, near.ID); n != 5 {
 		t.Fatalf("alertas en un día = %d", n)
@@ -595,7 +591,7 @@ func TestDeletedReportsDoNotEarnBadges(t *testing.T) {
 	h := newHarness(t)
 	owner := h.user("Quien Publica", true)
 	helper := h.user("Quien Ayuda", true)
-	found := h.report(owner, foundReport(laureles, nil))
+	found := h.report(owner, foundReport(laureles))
 	lost := h.report(owner, lostReport("Max", envigado, nil))
 	h.must(http.StatusCreated, http.MethodPost, "/v1/pets/"+lost.ID+"/sightings", helper.Token, map[string]any{
 		"at": h.clock.Now(), "location": envigado, "zone": "Envigado",
