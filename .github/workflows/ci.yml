@@ -57,7 +57,7 @@ jobs:
           total="$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')"
           echo "Cobertura total: ${total} %"
           awk -v t="$total" 'BEGIN { exit (t + 0 >= 90) ? 0 : 1 }'
-      - uses: golangci/golangci-lint-action@v7
+      - uses: golangci/golangci-lint-action@v9
         with:
           working-directory: apps/api
           version: v2.13.1
