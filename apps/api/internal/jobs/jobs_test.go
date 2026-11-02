@@ -96,3 +96,20 @@ func TestTickRunsAlertsAndCleanup(t *testing.T) {
 		t.Fatal("Run no se detuvo")
 	}
 }
+
+func TestDatabaseRestsWithoutActivity(t *testing.T) {
+	now := time.Date(2026, 11, 2, 12, 0, 0, 0, time.UTC)
+	a := &app.App{Now: func() time.Time { return now }}
+	if !due(a, time.Time{}, now) {
+		t.Fatal("al arrancar toca una pasada")
+	}
+	if due(a, now.Add(-10*time.Minute), now) {
+		t.Fatal("sin actividad la base descansa")
+	}
+	if !due(a, now.Add(-time.Hour), now) {
+		t.Fatal("tras la pausa toca una pasada")
+	}
+	if a.AlertsDue(now) {
+		t.Fatal("sin actividad no hay alertas pendientes")
+	}
+}

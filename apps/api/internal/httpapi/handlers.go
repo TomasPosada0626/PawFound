@@ -502,7 +502,7 @@ func (s *Server) upload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) media(w http.ResponseWriter, r *http.Request) {
-	f, contentType, private, err := s.App.OpenMedia(r.Context(), viewerID(r), chi.URLParam(r, "id"))
+	f, contentType, private, err := s.App.OpenMedia(r.Context(), viewerID(r), chi.URLParam(r, "id"), r.URL.Query().Get("size") == "thumb")
 	if err != nil {
 		if errors.Is(err, app.ErrNotFound) || errors.Is(err, media.ErrBadKey) {
 			writeError(w, app.ErrNotFound)

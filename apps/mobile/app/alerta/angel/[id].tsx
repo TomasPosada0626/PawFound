@@ -114,7 +114,7 @@ export default function AngelAlertScreen() {
             onPress={() => router.push(`/pet/${pet.id}`)}
             className="overflow-hidden rounded-[28px] border border-border bg-surface active:opacity-90"
           >
-            <PetPhoto pet={pet} className="h-64 w-full" rounded="rounded-none" />
+            <PetPhoto full pet={pet} className="h-64 w-full" rounded="rounded-none" />
             <View className="gap-2 p-4">
               <View className="flex-row items-center justify-between gap-2">
                 <Text variant="title" className="shrink" numberOfLines={1}>

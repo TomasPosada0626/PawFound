@@ -371,6 +371,9 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 		}
 		return err
 	})
+	if err == nil && in.Action == "suspend" {
+		a.Hub.Disconnect(in.UserID)
+	}
 	if err == nil && removedPhoto != "" {
 		a.deleteMedia(ctx, removedPhoto)
 	}

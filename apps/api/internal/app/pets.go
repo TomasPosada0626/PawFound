@@ -150,8 +150,11 @@ func (a *App) CreateReport(ctx context.Context, ac Actor, in ReportInput) (Pet, 
 	if err != nil {
 		return Pet{}, err
 	}
-	a.announcePet(ctx, row)
-	a.afterReport(ctx, row)
+	a.touchAlerts()
+	a.background(func(ctx context.Context) {
+		a.announcePet(ctx, row)
+		a.afterReport(ctx, row)
+	})
 	return a.toPet(ctx, row, ac.ID)
 }
 
@@ -438,8 +441,9 @@ func (a *App) AddSighting(ctx context.Context, ac Actor, petID string, in Sighti
 		return Pet{}, err
 	}
 	a.publishMessage(ctx, message)
+	a.touchAlerts()
 	if owner := deref(row.OwnerID); owner != "" && owner != ac.ID {
-		a.notify(ctx, []string{owner}, "sighting", petID, nil)
+		a.background(func(ctx context.Context) { a.notify(ctx, []string{owner}, "sighting", petID, nil) })
 	}
 	return a.GetPet(ctx, ac.ID, petID)
 }
@@ -582,8 +586,10 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 		return Pet{}, err
 	}
 	a.publishMessages(ctx, hidden)
-	a.notify(ctx, helpers, "thanked", petID, nil)
-	a.notify(ctx, closedFor, "case_closed", petID, nil)
+	a.background(func(ctx context.Context) {
+		a.notify(ctx, helpers, "thanked", petID, nil)
+		a.notify(ctx, closedFor, "case_closed", petID, nil)
+	})
 	a.Hub.Broadcast(realtime.Event{Type: "pet_closed", Data: petClosedEvent{ID: petID, At: now}})
 	return a.GetPet(ctx, ac.ID, petID)
 }

@@ -93,3 +93,5 @@ jest.mock("expo-clipboard", () => ({
 jest.mock("react-native-view-shot", () => ({
   captureRef: jest.fn(async () => "file:///poster.png"),
 }));
+
+jest.mock("@sentry/react-native", () => ({ init: jest.fn() }));

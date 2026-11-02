@@ -20,6 +20,7 @@ import (
 // activarla y al revocarla (issue #43), no en cada actualización del GPS. nil la borra.
 func (a *App) SetAlertZone(ctx context.Context, ac Actor, zone *AlertZone) error {
 	now := a.now()
+	a.touchAlerts()
 	var existed bool
 	if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM alert_zones WHERE user_id = $1)`, ac.ID).Scan(&existed); err != nil {
 		return err
@@ -195,12 +196,9 @@ func (a *App) DeleteAccount(ctx context.Context, ac Actor) error {
 		return err
 	}
 	for _, key := range keys {
-		if remover, ok := a.Media.(interface {
-			Remove(context.Context, string) error
-		}); ok {
-			_ = remover.Remove(ctx, key)
-		}
+		_ = a.RemoveStored(ctx, key)
 	}
+	a.Hub.Disconnect(ac.ID)
 	return nil
 }
 
@@ -242,6 +240,10 @@ func (a *App) Upload(ctx context.Context, ac Actor, purpose string, raw []byte) 
 		a.Log.Error("no se pudo guardar la foto", "err", err)
 		return UploadedMedia{}, newErr(http.StatusServiceUnavailable, "storage_unavailable", nil)
 	}
+	// Sin miniatura se sirve la foto completa: no vale la pena perder la subida por esto.
+	if err := a.Media.Put(ctx, media.ThumbKey(key), processed.Thumb); err != nil {
+		a.Log.Warn("no se pudo guardar la miniatura", "err", err)
+	}
 	if _, err := a.DB.Exec(ctx, `INSERT INTO media (id, owner_id, purpose, content_type, width, height, bytes, phash, storage_key, created_at)
 		VALUES ($1, $2, $3, 'image/jpeg', $4, $5, $6, $7, $8, $9)`, id, ac.ID, purpose, processed.Width, processed.Height,
 		len(processed.Data), processed.PHash, key, a.now()); err != nil {
@@ -252,7 +254,7 @@ func (a *App) Upload(ctx context.Context, ac Actor, purpose string, raw []byte) 
 
 // OpenMedia devuelve la foto si quien la pide puede verla: las de reportes y "Mis mascotas"
 // son públicas (están en perfiles y casos públicos); las de chat solo para miembros del chat.
-func (a *App) OpenMedia(ctx context.Context, viewerID, id string) (io.ReadCloser, string, bool, error) {
+func (a *App) OpenMedia(ctx context.Context, viewerID, id string, thumb bool) (io.ReadCloser, string, bool, error) {
 	var purpose, key, contentType string
 	var owner, threadID *string
 	err := a.DB.QueryRow(ctx, `SELECT purpose, storage_key, content_type, owner_id, thread_id FROM media WHERE id = $1`, id).
@@ -265,6 +267,12 @@ func (a *App) OpenMedia(ctx context.Context, viewerID, id string) (io.ReadCloser
 		allowed := viewerID != "" && (deref(owner) == viewerID || (threadID != nil && a.isMember(ctx, *threadID, viewerID)))
 		if !allowed {
 			return nil, "", true, ErrNotFound
+		}
+	}
+	if thumb {
+		// Las fotos subidas antes de las miniaturas no tienen una: se sirve la completa.
+		if f, err := a.Media.Open(ctx, media.ThumbKey(key)); err == nil {
+			return f, contentType, private, nil
 		}
 	}
 	f, err := a.Media.Open(ctx, key)

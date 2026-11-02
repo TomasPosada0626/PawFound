@@ -57,41 +57,77 @@ func dedupe(ids []string) []string {
 	return out
 }
 
+// recipient es lo necesario para avisarle a una cuenta.
+type recipient struct {
+	Prefs  domain.NotificationPrefs
+	Lang   string
+	Tokens []string
+}
+
+// recipients trae en una sola consulta las preferencias, el idioma y los celulares de varias cuentas.
+func (a *App) recipients(ctx context.Context, ids []string) map[string]recipient {
+	out := map[string]recipient{}
+	rows, _ := a.DB.Query(ctx, `SELECT u.id, u.lang, u.notification_prefs,
+		coalesce(array_agg(d.token) FILTER (WHERE d.token IS NOT NULL), '{}')
+		FROM users u LEFT JOIN devices d ON d.user_id = u.id WHERE u.id = ANY($1) GROUP BY u.id`, ids)
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var raw []byte
+		var r recipient
+		if err := rows.Scan(&id, &r.Lang, &raw, &r.Tokens); err != nil {
+			a.Log.Error("leer destinatarios", "err", err)
+			continue
+		}
+		r.Prefs = domain.DefaultNotificationPrefs()
+		_ = json.Unmarshal(raw, &r.Prefs) // lo guardado pisa los valores por defecto
+		out[id] = r
+	}
+	return out
+}
+
 // deliver publica por WebSocket y envía push a los dispositivos registrados, en el idioma de
 // cada persona. Respeta "push" desactivado y el modo descanso (llega sin sonar).
 func (a *App) deliver(ctx context.Context, list []Notification) {
 	if len(list) == 0 {
 		return
 	}
+	ids := make([]string, len(list))
+	for i, n := range list {
+		ids[i] = n.ID
+		a.Hub.Publish([]string{n.UserID}, realtime.Event{Type: "notification", Data: n})
+	}
+	userIDs := make([]string, len(list))
+	for i, n := range list {
+		userIDs[i] = n.UserID
+	}
+	people := a.recipients(ctx, dedupe(userIDs))
 	names := map[string]string{}
 	var messages []providers.PushMessage
 	for _, n := range list {
-		a.Hub.Publish([]string{n.UserID}, realtime.Event{Type: "notification", Data: n})
 		if _, ok := names[n.PetID]; !ok {
 			var name *string
 			_ = a.DB.QueryRow(ctx, `SELECT name FROM pets WHERE id = $1`, n.PetID).Scan(&name)
 			names[n.PetID] = deref(name)
 		}
-		prefs, _, err := a.prefs(ctx, n.UserID)
-		if err != nil || !prefs.Push {
+		person, ok := people[n.UserID]
+		if !ok || !person.Prefs.Push {
 			continue
 		}
-		var lang string
-		_ = a.DB.QueryRow(ctx, `SELECT lang FROM users WHERE id = $1`, n.UserID).Scan(&lang)
 		name := names[n.PetID]
 		if n.OwnedPetID != nil {
 			// "¿Es Rocky?": el nombre es el de la mascota propia, no el del reporte encontrado.
 			_ = a.DB.QueryRow(ctx, `SELECT name FROM owned_pets WHERE id = $1`, *n.OwnedPetID).Scan(&name)
 		}
-		title, body := pushText(n.Kind, lang, name)
+		title, body := pushText(n.Kind, person.Lang, name)
 		channel := channelUpdates
 		if alertKinds[n.Kind] {
 			channel = channelAngel
 		}
-		for _, token := range a.deviceTokens(ctx, n.UserID) {
+		for _, token := range person.Tokens {
 			messages = append(messages, providers.PushMessage{
 				Token: token, Title: title, Body: body, URL: notificationURL(n),
-				Channel: channel, Silent: domain.IsQuietTime(prefs, a.now()),
+				Channel: channel, Silent: domain.IsQuietTime(person.Prefs, a.now()),
 			})
 		}
 	}
@@ -100,21 +136,8 @@ func (a *App) deliver(ctx context.Context, list []Notification) {
 			a.Log.Error("enviar push", "count", len(messages), "err", err)
 			return
 		}
-		ids := make([]string, len(list))
-		for i, n := range list {
-			ids[i] = n.ID
-		}
 		_, _ = a.DB.Exec(ctx, `UPDATE notifications SET pushed = true WHERE id = ANY($1)`, ids)
 	}
-}
-
-func (a *App) deviceTokens(ctx context.Context, userID string) []string {
-	rows, _ := a.DB.Query(ctx, `SELECT token FROM devices WHERE user_id = $1`, userID)
-	tokens, err := pgx.CollectRows(rows, pgx.RowTo[string])
-	if err != nil {
-		return nil
-	}
-	return tokens
 }
 
 // notificationURL replica src/features/notifications.ts: las alertas abren su pantalla.

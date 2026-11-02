@@ -128,3 +128,36 @@ Si la actualización llega en los primeros segundos, la app se reinicia con ella
 la próxima vez que se abra. Los cambios nativos (permisos, librerías nuevas, ícono) cambian la
 huella (`runtimeVersion` por *fingerprint*) y necesitan un build nuevo: las actualizaciones
 nunca llegan a una app con una huella distinta.
+
+## 7. Mantener la API despierta
+
+El plan gratuito de Render duerme la API tras 15 minutos sin tráfico: la primera petición tarda de
+10 a 60 segundos y las tareas periódicas se detienen. El cron de GitHub Actions no alcanza, porque
+en la práctica corre cada varias horas. Por eso un servicio externo visita la API:
+
+1. En [cron-job.org](https://cron-job.org), crear un trabajo con la URL
+   `https://pawfound-api.onrender.com/health`.
+2. Programarlo cada 5 minutos, todo el día.
+
+`/health` no consulta la base de datos. Las tareas periódicas corren cada 10 minutos solo si hubo
+un reporte o un movimiento reciente, y cada hora si no, para no gastar la cuota de Neon. Con
+presupuesto, el plan pago de Render evita todo esto y da más CPU.
+
+## 8. Monitoreo de errores (opcional)
+
+Con una cuenta en [Sentry](https://sentry.io), definir `SENTRY_DSN` en Render y
+`EXPO_PUBLIC_SENTRY_DSN` en EAS. Sin esas variables no se envía nada. Nunca salen datos personales:
+ni IP, ni cuerpos de peticiones, ni direcciones.
+
+## 9. Enlaces directos a la app
+
+`apps/web/public/.well-known/assetlinks.json` lleva la huella SHA-256 del certificado con el que se
+firma la app. Al publicar en Google Play con firma de aplicaciones, hay que **agregar** la huella que
+muestra Play Console; si no, los enlaces no abren la app instalada desde la tienda.
+
+## 10. Respaldos
+
+Los datos viven en Neon y las fotos en Cloudflare R2. Antes del lanzamiento, confirmar en el panel de
+Neon cuánto tiempo atrás permite restaurar el plan actual y probar una restauración. Un respaldo
+manual se hace con `pg_dump` usando la cadena de conexión de Neon, y **nunca** se sube al repositorio
+ni a artefactos de GitHub Actions: el repositorio es público y contiene datos personales.

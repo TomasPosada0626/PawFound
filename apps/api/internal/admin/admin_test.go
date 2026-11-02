@@ -40,7 +40,7 @@ func setup(t *testing.T) *env {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	a := &app.App{
 		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("x"), Mailer: providers.LogMailer{Log: log}, Media: media.LocalStore{Dir: t.TempDir()},
-		Log: log, Now: now, APIBaseURL: "http://api.test",
+		Log: log, Now: now, APIBaseURL: "http://api.test", Inline: true, FixedCode: "123456",
 	}
 	a.Init()
 	panel := &Panel{App: a, Log: log}
@@ -112,7 +112,18 @@ func TestLoginRequiresModeratorRole(t *testing.T) {
 			t.Fatalf("%s: %d", creds[0], status)
 		}
 	}
-	status, body, landed := e.post("/admin/login", url.Values{"email": {"u_mod@pawfound.test"}, "password": {"Moderar2026"}})
+	// La contraseña sola no abre el panel: falta el código del correo.
+	_, _, landed := e.post("/admin/login", url.Values{"email": {"u_mod@pawfound.test"}, "password": {"Moderar2026"}})
+	if !strings.HasSuffix(landed, "/admin/login/code") {
+		t.Fatalf("tras la contraseña debe pedir el código: %s", landed)
+	}
+	if status, body := e.get("/admin/"); status != http.StatusOK || !strings.Contains(body, "Panel de moderación") || strings.Contains(body, "Moderadora Ana") {
+		t.Fatalf("sin el código no hay sesión: %d", status)
+	}
+	if status, _, _ := e.post("/admin/login/code", url.Values{"code": {"000000"}}); status != http.StatusUnauthorized {
+		t.Fatalf("código incorrecto = %d", status)
+	}
+	status, body, landed := e.post("/admin/login/code", url.Values{"code": {"123456"}})
 	if status != http.StatusOK || !strings.HasSuffix(landed, "/admin/") || !strings.Contains(body, "Moderadora Ana") {
 		t.Fatalf("login: %d %s", status, landed)
 	}
@@ -158,7 +169,8 @@ func TestReviewReportAndApplySanctions(t *testing.T) {
 	mustExec(`INSERT INTO reports (id, reporter_id, target_kind, reported_user_id, thread_id, message_id, reason, note) VALUES ('rep_1', 'u_fam', 'message', 'u_rudo', 'grp_1', 'm_1', 'rude', 'Me insultó')`)
 	mustExec(`INSERT INTO reports (id, reporter_id, target_kind, reported_user_id, pet_id, reason) VALUES ('rep_2', NULL, 'pet', 'u_fam', 'pet_1', 'scam')`)
 
-	_, body, _ := e.post("/admin/login", url.Values{"email": {"u_mod@pawfound.test"}, "password": {"Moderar2026"}})
+	e.post("/admin/login", url.Values{"email": {"u_mod@pawfound.test"}, "password": {"Moderar2026"}})
+	_, body, _ := e.post("/admin/login/code", url.Values{"code": {"123456"}})
 	if !strings.Contains(body, "2</strong><span>reportes abiertos") || !strings.Contains(body, "Groserías o acoso") {
 		t.Fatalf("resumen sin la cola: %s", body)
 	}
@@ -254,5 +266,42 @@ func TestLoginRateLimitAndHelpers(t *testing.T) {
 	}
 	if label(reasonLabels, "nuevo") != "nuevo" || label(reasonLabels, "scam") != "Estafa o fraude" {
 		t.Error("label")
+	}
+}
+
+func TestSecondFactorLocksAfterFiveAttemptsAndWorksOnce(t *testing.T) {
+	e := setup(t)
+	e.account("u_mod", "Moderadora Ana", "moderator")
+	ctx := context.Background()
+	if status, _ := e.get("/admin/login/code"); status != http.StatusOK {
+		t.Fatalf("sin código en curso lleva al login: %d", status)
+	}
+	if _, _, landed := e.post("/admin/login/code", url.Values{"code": {"123456"}}); !strings.HasSuffix(landed, "/admin/login") {
+		t.Fatalf("sin contraseña previa no vale un código: %s", landed)
+	}
+	token, err := e.app.StartAdminChallenge(ctx, "u_mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 5 {
+		if _, err := e.app.FinishAdminChallenge(ctx, token, "000000"); err == nil {
+			t.Fatal("un código incorrecto no entra")
+		}
+	}
+	if _, err := e.app.FinishAdminChallenge(ctx, token, "123456"); err == nil {
+		t.Fatal("tras 5 intentos el código deja de servir")
+	}
+	token, err = e.app.StartAdminChallenge(ctx, "u_mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id, err := e.app.FinishAdminChallenge(ctx, token, "123456"); err != nil || id != "u_mod" {
+		t.Fatalf("código correcto = %q, %v", id, err)
+	}
+	if _, err := e.app.FinishAdminChallenge(ctx, token, "123456"); err == nil {
+		t.Fatal("el código sirve una sola vez")
+	}
+	if _, err := e.app.StartAdminChallenge(ctx, "no-existe"); err == nil {
+		t.Fatal("una cuenta inexistente no recibe código")
 	}
 }

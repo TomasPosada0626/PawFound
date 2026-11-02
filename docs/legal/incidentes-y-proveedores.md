@@ -25,6 +25,7 @@
 | Brevo | correos de verificación y restablecimiento | correo, nombre y el código o enlace | en uso |
 | Expo (EAS Build y Update) | compilar la app y publicar actualizaciones | ninguno de las personas usuarias | en uso |
 | Expo Push Service | entregar notificaciones push | token push del celular y el texto de la notificación | en uso |
+| Sentry | errores técnicos de la API y la app, para corregirlos | mensaje de error y datos técnicos del celular; sin IP, cuentas, cuerpos ni direcciones | evaluado, inactivo hasta configurarlo |
 | Firebase Cloud Messaging (Google) | entregar las notificaciones en Android | token push del celular y el texto de la notificación | evaluado (ver abajo) |
 | Google Maps SDK (Android) | mapa dentro de la app | la zona del mapa que se ve y datos técnicos del celular, según los términos de Google | en uso |
 | OpenStreetMap / Overpass | importar veterinarias desde el servidor | ninguno de las personas usuarias | en uso |

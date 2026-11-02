@@ -36,6 +36,9 @@ const (
 	maxInputPixels = 50_000_000
 	minSide        = 64
 	jpegQuality    = 82
+	// ThumbSide es el lado mayor de las miniaturas.
+	ThumbSide    = 480
+	thumbQuality = 72
 )
 
 // ErrNotImage: el archivo no es JPEG, PNG ni WebP válido, o sus dimensiones no se aceptan.
@@ -43,11 +46,16 @@ var ErrNotImage = errors.New("el archivo no es una imagen válida")
 
 // Processed es la imagen lista para guardar.
 type Processed struct {
-	Data   []byte
+	Data []byte
+	// Thumb es la miniatura para listas y mapas, que no necesitan la foto completa.
+	Thumb  []byte
 	Width  int
 	Height int
 	PHash  int64
 }
+
+// ThumbKey es la clave de la miniatura de una foto.
+func ThumbKey(key string) string { return strings.TrimSuffix(key, ".jpg") + "_t.jpg" }
 
 // Process valida, orienta, redimensiona y re-codifica la imagen.
 func Process(raw []byte) (Processed, error) {
@@ -71,8 +79,12 @@ func Process(raw []byte) (Processed, error) {
 	if err := jpeg.Encode(&out, img, &jpeg.Options{Quality: jpegQuality}); err != nil {
 		return Processed{}, err
 	}
+	var thumb bytes.Buffer
+	if err := jpeg.Encode(&thumb, fit(img, ThumbSide), &jpeg.Options{Quality: thumbQuality}); err != nil {
+		return Processed{}, err
+	}
 	b := img.Bounds()
-	return Processed{Data: out.Bytes(), Width: b.Dx(), Height: b.Dy(), PHash: DHash(img)}, nil
+	return Processed{Data: out.Bytes(), Thumb: thumb.Bytes(), Width: b.Dx(), Height: b.Dy(), PHash: DHash(img)}, nil
 }
 
 func fit(img image.Image, maxSide int) image.Image {

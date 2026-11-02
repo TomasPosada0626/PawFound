@@ -114,7 +114,7 @@ func TestEveryOperationFailsCleanlyWithoutDatabase(t *testing.T) {
 			_, err := a.Upload(ctx, ac, "pet", []byte("x"))
 			return err
 		},
-		"OpenMedia":   func() error { _, _, _, err := a.OpenMedia(ctx, "", "m"); return err },
+		"OpenMedia":   func() error { _, _, _, err := a.OpenMedia(ctx, "", "m", false); return err },
 		"AlertJob":    func() error { _, err := a.RunAlertJob(ctx); return err },
 		"Queue":       func() error { _, err := a.ModerationQueue(ctx, "open", 0); return err },
 		"Stats":       func() error { _, err := a.ModerationStats(ctx); return err },

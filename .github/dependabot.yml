@@ -1,0 +1,27 @@
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /apps/api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    target-branch: develop
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    target-branch: develop
+  # La app sigue las versiones del SDK de Expo: solo avisos de seguridad, no actualizaciones sueltas.
+  - package-ecosystem: npm
+    directory: /apps/mobile
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    target-branch: develop
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    target-branch: develop
