@@ -82,7 +82,12 @@ export function createSeed(now: Date = new Date()): SeedResult {
       user("u_carlos", "Carlos Ramírez", { avatar: "bear" }),
       user("u_laura", "Laura Vélez", { avatar: "panda", title: "rescuer" }),
       user("u_sebastian", "Sebastián Ruiz", { avatar: "bear" }),
-      user("u_daniel", "Daniel Ochoa", { avatar: "bunny", title: "volunteer" }),
+      user("u_daniel", "Daniel Ochoa", {
+        avatar: "bunny",
+        title: "volunteer",
+        shelterName: "Fundación Huellitas",
+        shelterStatus: "verified",
+      }),
       user("u_sofia", "Sofía Montoya", { avatar: "cat", title: "foster" }),
       user("u_emily", "Emily Carter", { avatar: "fox", title: "neighbor", lang: "en", username: "emilyc" }),
     ].map((u) => [u.id, u]),

@@ -645,3 +645,11 @@ func (s *Server) acceptApplication(w http.ResponseWriter, r *http.Request) {
 func (s *Server) declineApplication(w http.ResponseWriter, r *http.Request) {
 	respond(w, 0, nil, s.App.DeclineApplication(r.Context(), actor(r), chi.URLParam(r, "id")))
 }
+
+func (s *Server) requestShelter(w http.ResponseWriter, r *http.Request) {
+	var in app.ShelterInput
+	if !decode(w, r, &in) {
+		return
+	}
+	respond(w, 0, nil, s.App.RequestShelterVerification(r.Context(), actor(r), in))
+}

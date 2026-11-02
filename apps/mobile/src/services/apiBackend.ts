@@ -94,6 +94,10 @@ type ApiUser = {
   mutedUntil?: string;
   lang: Lang;
   founder?: boolean;
+  shelterName?: string;
+  shelterStatus?: User["shelterStatus"];
+  /** Perfil público: nombre del refugio solo si está verificado. */
+  shelter?: string;
 };
 type ApiSummary = {
   id: string;
@@ -103,6 +107,7 @@ type ApiSummary = {
   verified: boolean;
   createdAt: string;
   lang: Lang;
+  shelter?: string;
 };
 type ApiMe = {
   user: ApiUser;
@@ -401,6 +406,8 @@ export class ApiBackend {
       mutedUntil: "mutedUntil" in u ? u.mutedUntil : undefined,
       lang: u.lang,
       founder: u.founder,
+      shelterName: u.shelterName ?? u.shelter,
+      shelterStatus: u.shelterStatus ?? (u.shelter ? "verified" : undefined),
     };
   }
 
@@ -411,7 +418,14 @@ export class ApiBackend {
       if (!s || s.id === this.state.sessionUserId) continue;
       const known = users[s.id];
       users[s.id] = known
-        ? { ...known, avatar: s.avatar, photoUrl: s.photoUrl, verified: s.verified }
+        ? {
+            ...known,
+            avatar: s.avatar,
+            photoUrl: s.photoUrl,
+            verified: s.verified,
+            shelterName: s.shelter ?? (known.shelterStatus === "verified" ? undefined : known.shelterName),
+            shelterStatus: s.shelter ? "verified" : known.shelterStatus === "verified" ? undefined : known.shelterStatus,
+          }
         : {
             id: s.id,
             name: s.shortName,
@@ -421,6 +435,7 @@ export class ApiBackend {
             avatar: s.avatar,
             photoUrl: s.photoUrl,
             title: "animal_lover",
+            ...(s.shelter ? { shelterName: s.shelter, shelterStatus: "verified" as const } : {}),
             bio: "",
             city: "",
             createdAt: s.createdAt,
@@ -707,6 +722,16 @@ export class ApiBackend {
 
   async loadAdoption(id: string): Promise<void> {
     this.mergeAdoptions([await this.request<ApiAdoption>("GET", `/v1/adoptions/${id}`)]);
+  }
+
+  /** Un refugio pide la verificación adicional con su NIT; queda pendiente de moderación. */
+  async requestShelterVerification(name: string, nit: string): Promise<void> {
+    await this.request("POST", "/v1/me/shelter", { name, nit });
+    const me = this.state.sessionUserId;
+    const user = me ? this.state.users[me] : undefined;
+    if (user) {
+      this.commit({ users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "pending" } } });
+    }
   }
 
   async acceptAdoptionTerms(): Promise<void> {

@@ -212,3 +212,41 @@ func CityFromZone(zone string) string {
 	}
 	return strings.TrimSpace(zone[i+1:])
 }
+
+// nitWeights son los pesos de la DIAN para el dígito de verificación, de derecha a izquierda.
+var nitWeights = []int{3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71}
+
+// NITCheckDigit calcula el dígito de verificación de un NIT colombiano (solo dígitos).
+func NITCheckDigit(base string) int {
+	sum := 0
+	for i := 0; i < len(base); i++ {
+		sum += int(base[len(base)-1-i]-'0') * nitWeights[i]
+	}
+	r := sum % 11
+	if r >= 2 {
+		return 11 - r
+	}
+	return r
+}
+
+// NormalizeNIT acepta "900.123.456-8", "900123456-8" o "9001234568" y devuelve "900123456-8" si el
+// dígito de verificación es correcto.
+func NormalizeNIT(raw string) (string, bool) {
+	digits := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		if r == '.' || r == ' ' || r == '-' {
+			return -1
+		}
+		return 'x'
+	}, strings.TrimSpace(raw))
+	if strings.ContainsRune(digits, 'x') || len(digits) < 7 || len(digits) > len(nitWeights)+1 {
+		return "", false
+	}
+	base, check := digits[:len(digits)-1], int(digits[len(digits)-1]-'0')
+	if NITCheckDigit(base) != check {
+		return "", false
+	}
+	return base + "-" + strconv.Itoa(check), true
+}

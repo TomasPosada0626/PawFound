@@ -76,6 +76,7 @@ func (p *Panel) Handler() http.Handler {
 		r.Get("/reports/{id}", p.report)
 		r.Post("/reports/{id}", p.act)
 		r.Get("/users", p.users)
+		r.Get("/shelters", p.shelters)
 		r.Get("/users/{id}", p.user)
 		r.Post("/users/{id}", p.act)
 		r.Get("/log", p.log)
@@ -107,7 +108,8 @@ var actionLabels = map[string]string{
 	"dismiss": "Descartó el reporte", "warn": "Envió un aviso", "mute": "Restringió los mensajes",
 	"unmute": "Levantó la restricción", "remove_message": "Retiró un mensaje", "restore_message": "Restauró un mensaje",
 	"remove_pet": "Retiró una publicación", "restore_pet": "Restauró una publicación",
-	"remove_adoption": "Retiró una adopción", "restore_adoption": "Restauró una adopción", "suspend": "Suspendió la cuenta",
+	"remove_adoption": "Retiró una adopción", "restore_adoption": "Restauró una adopción",
+	"verify_shelter": "Verificó un refugio", "reject_shelter": "Rechazó la verificación de un refugio", "suspend": "Suspendió la cuenta",
 	"unsuspend": "Reactivó la cuenta", "remove_photo": "Quitó la foto de perfil",
 }
 
@@ -218,7 +220,7 @@ func ago(d time.Duration) string {
 
 func parsePages() map[string]*template.Template {
 	pages := map[string]*template.Template{}
-	for _, name := range []string{"login", "login_code", "dashboard", "reports", "report", "users", "user", "log", "activity"} {
+	for _, name := range []string{"login", "login_code", "dashboard", "reports", "report", "users", "user", "log", "activity", "shelters"} {
 		pages[name] = template.Must(template.New("layout.html").Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/actions.html", "templates/"+name+".html"))
 	}
 	return pages
@@ -433,6 +435,16 @@ func (p *Panel) users(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p.render(w, r, http.StatusOK, "users", view{Title: "Cuentas", Section: "users", Data: map[string]any{"Q": q, "Users": found}})
+}
+
+// shelters lista los refugios que pidieron la verificación con NIT.
+func (p *Panel) shelters(w http.ResponseWriter, r *http.Request) {
+	requests, err := p.App.PendingShelters(r.Context())
+	if err != nil {
+		p.fail(w, err)
+		return
+	}
+	p.render(w, r, http.StatusOK, "shelters", view{Title: "Refugios", Section: "shelters", Data: map[string]any{"Requests": requests}})
 }
 
 func (p *Panel) user(w http.ResponseWriter, r *http.Request) {

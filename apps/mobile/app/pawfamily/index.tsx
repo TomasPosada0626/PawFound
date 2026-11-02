@@ -5,7 +5,7 @@ import { ScrollView, View } from "react-native";
 import { Screen } from "@/components/layout";
 import { AdoptionCard, PawFamilyHeader, PawFamilyMark, PawFamilyWordmark } from "@/components/pawfamily";
 import { Button } from "@/components/ui/Button";
-import { Banner, Checkbox, Chip, EmptyState } from "@/components/ui/Controls";
+import { Banner, Checkbox, Chip, EmptyState, ListRow } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
 import { ADOPTION_RADII, DEFAULT_ADOPTION_FILTERS, type AdoptionFilters } from "@/domain/adoption";
 import { distanceMeters } from "@/domain/geo";
@@ -109,6 +109,19 @@ export default function PawFamilyScreen() {
             />
           </>
         ) : null}
+      </View>
+
+      <View className="mt-3">
+        <ListRow
+          icon="shield-checkmark-outline"
+          tone="lost"
+          title={t("pawfamily.shelterQuestion")}
+          description={t("pawfamily.shelterQuestionBody")}
+          onPress={() => {
+            if (requireAccount("/pawfamily/refugio")) router.push("/pawfamily/refugio");
+          }}
+          testID="open-shelter"
+        />
       </View>
 
       <Text variant="captionStrong" className="mb-2 mt-4">

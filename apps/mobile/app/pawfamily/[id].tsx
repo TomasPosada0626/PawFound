@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { Screen } from "@/components/layout";
-import { PawFamilyHeader } from "@/components/pawfamily";
+import { PawFamilyHeader, ShelterTag } from "@/components/pawfamily";
 import { PetPhoto, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Chip, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
@@ -146,7 +146,10 @@ export default function AdoptionScreen() {
               <UserAvatar user={owner} size={44} />
               <View className="flex-1">
                 <Text variant="caption">{t("pawfamily.publishedBy")}</Text>
-                <Text variant="bodyStrong">{shortName(owner.name)}</Text>
+                <Text variant="bodyStrong">
+                  {owner.shelterStatus === "verified" && owner.shelterName ? owner.shelterName : shortName(owner.name)}
+                </Text>
+                {owner.shelterStatus === "verified" ? <ShelterTag /> : null}
               </View>
               <Icon name="chevron-forward" size={20} color={colors.muted} />
             </View>

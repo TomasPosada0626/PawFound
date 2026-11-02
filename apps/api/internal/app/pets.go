@@ -774,11 +774,12 @@ func (a *App) summaries(ctx context.Context, ids []string) (map[string]UserSumma
 	if len(ids) == 0 {
 		return out, nil
 	}
-	rows, _ := a.DB.Query(ctx, `SELECT id, name, avatar, photo_id, email_verified, created_at, lang FROM users WHERE id = ANY($1)`, ids)
+	rows, _ := a.DB.Query(ctx, `SELECT id, name, avatar, photo_id, email_verified, created_at, lang,
+		CASE WHEN shelter_status = 'verified' THEN shelter_name END FROM users WHERE id = ANY($1)`, ids)
 	var s UserSummary
 	var name string
 	var photo *string
-	_, err := pgx.ForEachRow(rows, []any{&s.ID, &name, &s.Avatar, &photo, &s.Verified, &s.CreatedAt, &s.Lang}, func() error {
+	_, err := pgx.ForEachRow(rows, []any{&s.ID, &name, &s.Avatar, &photo, &s.Verified, &s.CreatedAt, &s.Lang, &s.Shelter}, func() error {
 		s.ShortName = shortName(name)
 		s.PhotoURL = nil
 		if photo != nil {

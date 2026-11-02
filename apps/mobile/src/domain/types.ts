@@ -136,6 +136,9 @@ export type User = {
   id: string;
   /** Cuenta de quien creó PawFound. */
   founder?: boolean;
+  /** Refugio de PawFamily: nombre y estado de la verificación con NIT. */
+  shelterName?: string;
+  shelterStatus?: "pending" | "verified" | "rejected";
   name: string;
   username: string;
   email: string;

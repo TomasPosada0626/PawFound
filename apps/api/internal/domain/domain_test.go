@@ -295,3 +295,16 @@ func TestOwnedMatchesSharedFixture(t *testing.T) {
 		t.Error("un reporte de perdida nunca es coincidencia de una mascota propia")
 	}
 }
+
+func TestNIT(t *testing.T) {
+	for raw, want := range map[string]string{"900123456-8": "900123456-8", "900.123.456-8": "900123456-8", "9001234568": "900123456-8", " 860.034.313-7 ": "860034313-7"} {
+		if got, ok := NormalizeNIT(raw); !ok || got != want {
+			t.Errorf("%q = %q %v", raw, got, ok)
+		}
+	}
+	for _, raw := range []string{"900123456-1", "abc", "12", "9001234568x", ""} {
+		if _, ok := NormalizeNIT(raw); ok {
+			t.Errorf("%q debería ser inválido", raw)
+		}
+	}
+}

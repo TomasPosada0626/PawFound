@@ -681,12 +681,16 @@ var adoptionTexts = map[string]map[string][2]string{
 		"application_accepted": {"🎉 ¡Aceptaron tu solicitud!", "Puedes coordinar la adopción de {name} por el chat."},
 		"application_declined": {"Solicitud de adopción", "Esta vez {name} irá a otro hogar. ¡Gracias por querer adoptar!"},
 		"application_closed":   {"Solicitud de adopción", "{name} ya no está disponible. ¡Gracias por querer adoptar!"},
+		"shelter_verified":     {"✅ Refugio verificado", "{name} ya aparece como refugio verificado en PawFamily."},
+		"shelter_rejected":     {"Verificación de refugio", "No pudimos verificar a {name}. Revisa el NIT y vuelve a intentarlo."},
 	},
 	"en": {
 		"application_new":      {"🏡 New adoption request", "Someone wants to adopt {name}. Check the request in PawFamily."},
 		"application_accepted": {"🎉 Your request was accepted!", "You can arrange {name}'s adoption in the chat."},
 		"application_declined": {"Adoption request", "This time {name} will go to another home. Thanks for wanting to adopt!"},
 		"application_closed":   {"Adoption request", "{name} is no longer available. Thanks for wanting to adopt!"},
+		"shelter_verified":     {"✅ Shelter verified", "{name} now shows as a verified shelter in PawFamily."},
+		"shelter_rejected":     {"Shelter verification", "We couldn't verify {name}. Check the NIT and try again."},
 	},
 }
 

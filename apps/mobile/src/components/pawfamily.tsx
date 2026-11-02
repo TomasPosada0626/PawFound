@@ -96,6 +96,23 @@ export function PawFamilyHeader({ title, back }: { title?: string; back?: boolea
   );
 }
 
+/** Refugio verificado con NIT por moderación. */
+export function ShelterTag() {
+  const { t } = useI18n();
+  return (
+    <View
+      className="flex-row items-center gap-1.5 self-start rounded-full px-3 py-1"
+      style={{ backgroundColor: "#FDECF1" }}
+      testID="shelter-tag"
+    >
+      <Icon name="shield-checkmark" size={14} color={PAWFAMILY_COLOR} />
+      <Text variant="captionStrong" style={{ color: "#B42850" }}>
+        {t("pawfamily.shelterTag")}
+      </Text>
+    </View>
+  );
+}
+
 /** Tarjeta de la lista de adopción. */
 export function AdoptionCard({ adoption, distanceMeters }: { adoption: Adoption; distanceMeters?: number }) {
   const { t, locale } = useI18n();

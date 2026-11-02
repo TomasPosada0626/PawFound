@@ -1,0 +1,28 @@
+{{define "content"}}
+<h1>Refugios por verificar</h1>
+<p class="muted">Confirma en el RUES o en la DIAN que el NIT corresponda al refugio antes de aprobarlo. El dígito de verificación ya se comprobó.</p>
+{{if .Data.Requests}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Refugio</th><th>NIT</th><th>Cuenta</th><th>Pedido</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Requests}}
+  <tr>
+    <td><strong>{{.ShelterName}}</strong></td>
+    <td>{{.NIT}}</td>
+    <td><a href="/admin/users/{{.UserID}}">{{.Name}}</a><br><span class="muted">@{{.Username}} · {{.Email}}</span></td>
+    <td>{{date .RequestedAt}}</td>
+    <td>
+      <form method="post" action="/admin/users/{{.UserID}}" class="row">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <button type="submit" name="action" value="verify_shelter" class="primary small">Aprobar</button>
+        <button type="submit" name="action" value="reject_shelter" class="small">Rechazar</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}<p class="empty card">No hay refugios esperando verificación.</p>{{end}}
+{{end}}

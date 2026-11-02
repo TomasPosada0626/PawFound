@@ -178,3 +178,28 @@ describe("dar en adopción", () => {
     expect(await screen.findByText("Todavía no has enviado solicitudes.")).toBeOnTheScreen();
   });
 });
+
+describe("refugios", () => {
+  it("piden la verificación con un NIT válido y quedan pendientes", async () => {
+    await loginAs("u_valentina");
+    await acceptedTerms();
+    await open("/pawfamily");
+    await fireEvent.press(await screen.findByTestId("open-shelter"));
+    expect(await screen.findByTestId("shelter-screen")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("shelter-name"), "Fundación Patitas");
+    await fireEvent.changeText(screen.getByTestId("shelter-nit"), "900.123.456-1");
+    await fireEvent.press(screen.getByTestId("shelter-send"));
+    expect(await screen.findByText("Revisa el NIT: el dígito de verificación no coincide.")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("shelter-nit"), "900.123.456-8");
+    await fireEvent.press(screen.getByTestId("shelter-send"));
+    expect(await screen.findByTestId("shelter-pending")).toBeOnTheScreen();
+    expect(screen.queryByTestId("shelter-send")).not.toBeOnTheScreen();
+  });
+
+  it("un refugio verificado se ve en sus publicaciones", async () => {
+    await acceptedTerms();
+    await open("/pawfamily/ad_simon");
+    expect(await screen.findByTestId("shelter-tag")).toBeOnTheScreen();
+    expect(screen.getByText("Fundación Huellitas")).toBeOnTheScreen();
+  });
+});

@@ -305,3 +305,28 @@ func TestSecondFactorLocksAfterFiveAttemptsAndWorksOnce(t *testing.T) {
 		t.Fatal("una cuenta inexistente no recibe código")
 	}
 }
+
+func TestShelterRequestsPage(t *testing.T) {
+	e := setup(t)
+	ctx := context.Background()
+	e.account("u_mod", "Moderadora Ana", "moderator")
+	e.account("u_ref", "Fundación Huellitas", "user")
+	if _, err := e.app.DB.Exec(ctx, `UPDATE users SET shelter_name = 'Fundación Huellitas', shelter_nit = '900123456-8',
+		shelter_status = 'pending', shelter_requested_at = now() WHERE id = 'u_ref'`); err != nil {
+		t.Fatal(err)
+	}
+	e.post("/admin/login", url.Values{"email": {"u_mod@pawfound.test"}, "password": {"Moderar2026"}})
+	e.post("/admin/login/code", url.Values{"code": {"123456"}})
+	status, body := e.get("/admin/shelters")
+	if status != http.StatusOK || !strings.Contains(body, "Fundación Huellitas") || !strings.Contains(body, "900123456-8") {
+		t.Fatalf("refugios = %d %s", status, body)
+	}
+	e.post("/admin/users/u_ref", url.Values{"csrf": {csrf(t, body)}, "action": {"verify_shelter"}})
+	var shelterStatus string
+	if err := e.app.DB.QueryRow(ctx, `SELECT shelter_status FROM users WHERE id = 'u_ref'`).Scan(&shelterStatus); err != nil || shelterStatus != "verified" {
+		t.Fatalf("estado = %q %v", shelterStatus, err)
+	}
+	if _, body := e.get("/admin/shelters"); !strings.Contains(body, "No hay refugios esperando") {
+		t.Fatalf("lista vacía = %s", body)
+	}
+}
