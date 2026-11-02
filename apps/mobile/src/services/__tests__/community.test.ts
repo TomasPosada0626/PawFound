@@ -41,9 +41,10 @@ const lostReport = (extra: Partial<NewReportInput> = {}): NewReportInput => ({
 });
 
 /** Otra cuenta verificada que publica un reporte. */
-async function asNewVerifiedUser(backend: MockBackend, email = "kira@x.co", phone = "3105550000") {
+async function asNewVerifiedUser(backend: MockBackend, email = "kira@x.co") {
   await backend.logout();
-  await backend.register({ name: "Camila Torres", email, phone, password: "Clave1234" });
+  const username = `u_${email.split("@")[0]}`;
+  await backend.register({ name: "Camila Torres", email, username, password: "Clave1234" });
   await backend.verifyCode(DEMO_CODE);
   return backend.currentUser!;
 }
@@ -55,7 +56,7 @@ describe("Alerta Ángel (notificación push, no SMS)", () => {
   it("al publicar una perdida avisa a los celulares dentro del círculo inicial", async () => {
     const backend = makeBackend();
     await asNewVerifiedUser(backend);
-    // Perro tranquilo cerca del estadio: círculo inicial de 500 m.
+    // Cerca del estadio: círculo inicial de 250 m. Carlos está allí; Valentina, a ~1 km.
     const pet = await backend.createReport(lostReport());
     expect(angelAlertsFor(backend, "u_carlos").filter((n) => n.petId === pet.id)).toHaveLength(1);
     expect(angelAlertsFor(backend, "u_valentina").some((n) => n.petId === pet.id)).toBe(false);
@@ -70,7 +71,7 @@ describe("Alerta Ángel (notificación push, no SMS)", () => {
     await backend.logout();
     await backend.login(DEMO_EMAIL, DEMO_PASSWORD);
     await backend.updateNotificationPrefs({ angelAlerts: false });
-    await asNewVerifiedUser(backend, "otra@x.co", "3105550001");
+    await asNewVerifiedUser(backend, "otra@x.co");
     const off = await backend.createReport(lostReport({ location: LAURELES }));
     expect(angelAlertsFor(backend, "u_valentina").some((n) => n.petId === off.id)).toBe(false);
   });
@@ -90,14 +91,18 @@ describe("Alerta Ángel (notificación push, no SMS)", () => {
     await backend.login(DEMO_EMAIL, DEMO_PASSWORD);
     const exact = { latitude: 6.24512345, longitude: -75.59187654 };
     await backend.setAlertZone({ location: exact, zone: "Laureles" });
-    expect(backend.getSnapshot().alertZones.u_valentina).toEqual({ location: approximateLocation(exact), zone: "Laureles" });
+    expect(backend.getSnapshot().alertZones.u_valentina).toEqual({
+      location: approximateLocation(exact),
+      zone: "Laureles",
+      updatedAt: clock.toISOString(),
+    });
   });
 
   it(`nunca más de ${MAX_ALERTS_PER_DAY} alertas por persona en 24 horas`, async () => {
     const backend = makeBackend();
     // La cuenta demo ya recibió 1 Alerta Ángel (Max) en las últimas 24 h.
     for (let i = 0; i < MAX_ALERTS_PER_DAY; i++) {
-      await asNewVerifiedUser(backend, `p${i}@x.co`, `310555000${i}`);
+      await asNewVerifiedUser(backend, `p${i}@x.co`);
       await backend.createReport(lostReport({ name: `Perrito ${i}`, location: LAURELES }));
     }
     expect(angelAlertsFor(backend, "u_valentina")).toHaveLength(MAX_ALERTS_PER_DAY);
@@ -106,21 +111,23 @@ describe("Alerta Ángel (notificación push, no SMS)", () => {
   it("a medida que el círculo crece, la alerta llega a más celulares (una vez por persona)", async () => {
     const backend = makeBackend();
     await asNewVerifiedUser(backend);
-    // Perro asustado: círculo inicial de 1 km. Valentina (Laureles, ~1 km) entra al publicar;
-    // Laura (Belén, ~3 km) recién cuando el círculo crece.
+    // 250 m al publicar: Carlos (Estadio) entra de una. Valentina (Laureles, ~1 km) entra a los
+    // 10 minutos, cuando el círculo mide ~1,26 km. Laura (Belén, ~3 km) nunca: el tope es 2 km.
     const pet = await backend.createReport(lostReport({ traumaticEvent: true }));
     const alerted = (userId: string) =>
       backend.getSnapshot().notifications.filter((n) => n.userId === userId && n.petId === pet.id);
     expect(alerted("u_carlos").map((n) => n.kind)).toEqual(["angel_alert"]);
-    expect(alerted("u_laura")).toHaveLength(0);
+    expect(alerted("u_valentina")).toHaveLength(0);
     backend.runScheduledJobs();
-    expect(alerted("u_laura")).toHaveLength(0);
-    advance(6 * 60);
+    expect(alerted("u_valentina")).toHaveLength(0);
+    advance(10);
     expect(backend.runScheduledJobs()).toBeGreaterThan(0);
-    expect(alerted("u_laura").map((n) => n.kind)).toEqual(["life_circle"]);
+    expect(alerted("u_valentina").map((n) => n.kind)).toEqual(["life_circle"]);
+    advance(6 * 60);
     backend.runScheduledJobs();
-    expect(alerted("u_laura")).toHaveLength(1);
+    expect(alerted("u_valentina")).toHaveLength(1);
     expect(alerted("u_carlos")).toHaveLength(1);
+    expect(alerted("u_laura")).toHaveLength(0);
   });
 
   it("moderación puede limitar temporalmente a quien no respeta las normas; antispam por minuto", async () => {

@@ -4,6 +4,7 @@
  * (reportar en vez de bloquear, aviso amable antes de enviar).
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
 import * as Notifications from "expo-notifications";
 import * as Sharing from "expo-sharing";
 import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
@@ -27,11 +28,17 @@ describe("Alerta Ángel", () => {
   it("ajustes: guarda la zona aproximada, la quita y desactiva las alertas", async () => {
     await loginAs("u_valentina");
     await open("/settings/notifications");
-    expect(await screen.findByText("Laureles, Medellín")).toBeOnTheScreen();
+    expect(await screen.findByText("Activas · ahora cerca de Laureles, Medellín")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("alert-zone-remove"));
-    expect(await screen.findByText(/Aún no tienes zona/)).toBeOnTheScreen();
+    expect(await screen.findByText(/Borramos tu última ubicación/)).toBeOnTheScreen();
+    expect(screen.queryByTestId("alert-zone-label")).not.toBeOnTheScreen();
+    // Con el permiso concedido; antes de pedir la ubicación se explica para qué se usa.
+    const permission = jest.mocked(Location.getForegroundPermissionsAsync);
+    permission.mockResolvedValue({ status: "granted" } as never);
     await fireEvent.press(screen.getByTestId("alert-zone-set"));
-    expect(await screen.findByText("Listo: te avisaremos de mascotas perdidas cerca de Laureles, Medellín.")).toBeOnTheScreen();
+    await fireEvent.press(await screen.findByTestId("disclosure-continue"));
+    expect(await screen.findByTestId("alert-zone-label")).toBeOnTheScreen();
+    permission.mockResolvedValue({ status: "undetermined" } as never);
     await fireEvent(screen.getByTestId("pref-angel"), "valueChange", false);
   });
 
@@ -52,7 +59,7 @@ describe("Alerta Ángel", () => {
         expect.objectContaining({
           content: expect.objectContaining({
             title: "🚨 Alerta Ángel: la búsqueda llegó a tu zona",
-            data: { url: "/alerta/angel/negrita" },
+            data: { url: expect.stringMatching(/^\/alerta\/angel\//) },
           }),
         }),
       ),

@@ -2,7 +2,7 @@ import * as SecureStore from "expo-secure-store";
 
 import type { BadgeProgress } from "@/domain/badges";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
-import { publishAllowance, type PublishAllowance } from "@/domain/rules";
+import type { PublishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
   AppNotification,
@@ -597,7 +597,9 @@ export class ApiBackend {
   // --- Reportes --------------------------------------------------------------------------
 
   publishAllowanceFor(_userId: string): PublishAllowance {
-    return this.allowance.allowed ? this.allowance : publishAllowance([], new Date());
+    // Vencida la espera ya se puede publicar, aunque no se haya vuelto a consultar a la API.
+    if (!this.allowance.allowed && this.allowance.retryAt.getTime() <= Date.now()) return { allowed: true };
+    return this.allowance;
   }
 
   async createReport(input: NewReportInput): Promise<PetCase> {
