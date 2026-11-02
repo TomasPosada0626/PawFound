@@ -128,13 +128,13 @@ func (a *App) CreateReport(ctx context.Context, ac Actor, in ReportInput) (Pet, 
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO pets (id, kind, name, species, breed, sex, age, size, color, collar, marks, description,
 			photos, traumatic_event, shy_or_indoor, last_seen_at, lat, lng, zone, found_search_radius, reward, found_condition,
-			found_custody, owner_id, owner_short_name, owned_pet_id, group_id, created_at)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)`,
+			found_custody, owner_id, owner_short_name, owned_pet_id, group_id, created_at, city_key)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)`,
 			petID, in.Kind, optional(domain.Clean(in.Name, 40)), in.Species, optional(domain.Clean(in.Breed, 60)), in.Sex, in.Age, in.Size,
 			optional(domain.Clean(in.Color, 60)), optional(domain.Clean(in.Collar, 80)), optional(domain.Clean(in.Marks, 200)),
 			domain.Clean(in.Description, domain.DescriptionMax), photos, lost && in.TraumaticEvent, in.ShyOrIndoor, in.LastSeenAt.UTC(),
 			approx.Lat, approx.Lng, domain.Clean(in.Zone, 80), radius, lost && in.Reward, condition, custody, ac.ID, ac.ShortName(),
-			ownedPetID, groupID, now); err != nil {
+			ownedPetID, groupID, now, optional(domain.CityKey(domain.CityFromZone(domain.Clean(in.Zone, 80))))); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO threads (id, kind, pet_id, created_at) VALUES ($1, 'group', $2, $3)`, groupID, petID, now); err != nil {

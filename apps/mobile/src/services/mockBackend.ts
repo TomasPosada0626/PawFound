@@ -1,7 +1,7 @@
 import { alertAudience, type AlertCandidate } from "@/domain/alerts";
 import { approximateLocation } from "@/domain/geo";
 import { matchOwned } from "@/domain/matching";
-import { findPossibleMatches, publishAllowance } from "@/domain/rules";
+import { cityFromZone, cityKey, findPossibleMatches, impactStats, publishAllowance, type ImpactStats } from "@/domain/rules";
 import type {
   AlertZone,
   LatLng,
@@ -1173,6 +1173,15 @@ export class MockBackend {
         ),
       );
     }
+  }
+
+  /** En demostración las cifras salen de los casos cargados de esa ciudad. */
+  async loadImpact(city: string): Promise<ImpactStats | null> {
+    const key = cityKey(city);
+    return impactStats(
+      this.state.pets.filter((p) => cityKey(cityFromZone(p.zone)) === key),
+      this.now(),
+    );
   }
 
   async loadProfile(_userId: string): Promise<void> {

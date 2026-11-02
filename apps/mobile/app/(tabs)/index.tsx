@@ -15,7 +15,8 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
 import { OptionList, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
-import { impactStats } from "@/domain/rules";
+import type { ImpactStats } from "@/domain/rules";
+import { cityFromPoint } from "@/hooks/usePlacePicker";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useNow } from "@/hooks/useNow";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -42,7 +43,22 @@ export default function HomeScreen() {
   const [pickPetOpen, setPickPetOpen] = useState(false);
 
   const nearby = useMemo(() => filterPets(state.pets, location, now, DEFAULT_FILTERS).slice(0, 10), [state.pets, location, now]);
-  const stats = useMemo(() => impactStats(state.pets, now), [state.pets, now]);
+  // "Nuestro impacto" de la ciudad donde está la persona, con todos los casos (también los cerrados).
+  const [impact, setImpact] = useState<{ city: string; stats: ImpactStats | null } | null>(null);
+  const profileCity = user?.city;
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      const city = (await cityFromPoint(here)) ?? (profileCity || null);
+      if (!city) return;
+      const stats = await backend.loadImpact(city).catch(() => null);
+      if (live) setImpact({ city, stats });
+    })();
+    return () => {
+      live = false;
+    };
+  }, [backend, here, profileCity]);
+  const stats = impact?.stats ?? null;
   const notifications = useMemo(() => (user ? userNotifications(state, user.id) : []), [state, user]);
   const unreadNotifications = notifications.filter((n) => !n.read).length;
   const mostShared = useMemo(
@@ -230,7 +246,7 @@ export default function HomeScreen() {
         <View className="mb-3 flex-row items-center gap-2">
           <Icon name="trending-up" size={22} color={colors.primaryStrong} />
           <Text variant="subheading" accessibilityRole="header">
-            {t("home.impact")}
+            {impact ? t("home.impactIn", { city: impact.city }) : t("home.impact")}
           </Text>
         </View>
         {stats ? (
