@@ -143,7 +143,7 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	a.Init()
 
-	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development()}
+	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development(), ClientIPHeader: cfg.ClientIPHeader}
 	server := &httpapi.Server{App: a, Log: logger, ClientIPHeader: cfg.ClientIPHeader, Admin: panel.Handler()}
 	// Veterinarias: si la tabla está vacía se cargan solas. Las tareas periódicas lo hacen en su
 	// primera ronda (al arrancar) y lo reintentan cada ronda hasta lograrlo; sin tareas, se lanza
@@ -195,7 +195,9 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return srv.Shutdown(shutdown)
+	err = srv.Shutdown(shutdown)
+	a.WaitBackground(shutdown)
+	return err
 }
 
 // noPush: sin proveedor de push evaluado, las notificaciones quedan solo en la bandeja.

@@ -1,0 +1,11 @@
+{{define "content"}}
+<section class="card login">
+  <p class="brand big"><span class="paw" aria-hidden="true">🐾</span> PawFound</p>
+  <h1>Revisa tu correo</h1>
+  <p class="muted">Te enviamos un código de 6 dígitos. Vence en 10 minutos.</p>
+  <form method="post" action="/admin/login/code" class="stack">
+    <label>Código <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" required></label>
+    <button type="submit" class="primary">Entrar</button>
+  </form>
+</section>
+{{end}}

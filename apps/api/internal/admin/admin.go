@@ -16,7 +16,6 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -38,6 +37,8 @@ var assets embed.FS
 const (
 	cookieName = "pf_admin"
 	sessionTTL = 8 * time.Hour
+	// challengeCookie acompaña al código del segundo factor mientras se escribe.
+	challengeCookie = "pawfound_admin_challenge"
 )
 
 // Panel es el handler montado en /admin.
@@ -45,15 +46,19 @@ type Panel struct {
 	App          *app.App
 	Log          *slog.Logger
 	SecureCookie bool
+	// ClientIPHeader es la cabecera del proxy de confianza con la IP real.
+	ClientIPHeader string
 
 	pages  map[string]*template.Template
-	logins *ratelimit.Limiter
+	logins ratelimit.Allower
+	codes  ratelimit.Allower
 }
 
 // Handler arma las rutas del panel.
 func (p *Panel) Handler() http.Handler {
 	p.pages = parsePages()
-	p.logins = ratelimit.New(5, time.Minute, p.App.Now)
+	p.logins = p.App.NewLimiter("admin_login", 5, time.Minute)
+	p.codes = p.App.NewLimiter("admin_code", 10, time.Minute)
 	static, _ := fs.Sub(assets, "static")
 
 	r := chi.NewRouter()
@@ -61,6 +66,8 @@ func (p *Panel) Handler() http.Handler {
 	r.Handle("/static/*", http.StripPrefix("/admin/static/", http.FileServer(http.FS(static))))
 	r.Get("/login", p.loginForm)
 	r.Post("/login", p.login)
+	r.Get("/login/code", p.codeForm)
+	r.Post("/login/code", p.loginCode)
 	r.Group(func(r chi.Router) {
 		r.Use(p.requireSession)
 		r.Post("/logout", p.logout)
@@ -209,7 +216,7 @@ func ago(d time.Duration) string {
 
 func parsePages() map[string]*template.Template {
 	pages := map[string]*template.Template{}
-	for _, name := range []string{"login", "dashboard", "reports", "report", "users", "user", "log", "activity"} {
+	for _, name := range []string{"login", "login_code", "dashboard", "reports", "report", "users", "user", "log", "activity"} {
 		pages[name] = template.Must(template.New("layout.html").Funcs(funcs).ParseFS(assets, "templates/layout.html", "templates/actions.html", "templates/"+name+".html"))
 	}
 	return pages
@@ -292,8 +299,7 @@ func (p *Panel) loginForm(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Panel) login(w http.ResponseWriter, r *http.Request) {
-	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-	if ok, _ := p.logins.Allow(ip); !ok {
+	if ok, _ := p.logins.Allow(app.ClientIP(r, p.ClientIPHeader)); !ok {
 		p.render(w, r, http.StatusTooManyRequests, "login", view{Title: "Entrar", Error: "Demasiados intentos. Espera un minuto."})
 		return
 	}
@@ -313,15 +319,55 @@ func (p *Panel) login(w http.ResponseWriter, r *http.Request) {
 		p.render(w, r, http.StatusUnauthorized, "login", view{Title: "Entrar", Error: "Correo o contraseña incorrectos, o la cuenta no tiene acceso al panel."})
 		return
 	}
+	// La contraseña sola no abre el panel: falta el código que llega al correo.
+	token, err := p.App.StartAdminChallenge(r.Context(), session.Me.User.ID)
+	if err != nil {
+		p.render(w, r, http.StatusServiceUnavailable, "login", view{Title: "Entrar", Error: "No pudimos enviar el código a tu correo. Intenta de nuevo."})
+		return
+	}
+	p.setCookie(w, challengeCookie, token, int((10 * time.Minute).Seconds()))
+	http.Redirect(w, r, "/admin/login/code", http.StatusSeeOther)
+}
+
+func (p *Panel) setCookie(w http.ResponseWriter, name, value string, maxAge int) {
+	// Secure solo se apaga en development (http://localhost); HttpOnly y SameSite=Strict siempre.
+	http.SetCookie(w, &http.Cookie{
+		Name: name, Value: value, Path: "/admin", HttpOnly: true, Secure: p.SecureCookie,
+		SameSite: http.SameSiteStrictMode, MaxAge: maxAge,
+	})
+}
+
+func (p *Panel) codeForm(w http.ResponseWriter, r *http.Request) {
+	if _, err := r.Cookie(challengeCookie); err != nil {
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+		return
+	}
+	p.render(w, r, http.StatusOK, "login_code", view{Title: "Código"})
+}
+
+func (p *Panel) loginCode(w http.ResponseWriter, r *http.Request) {
+	if ok, _ := p.codes.Allow(app.ClientIP(r, p.ClientIPHeader)); !ok {
+		p.render(w, r, http.StatusTooManyRequests, "login_code", view{Title: "Código", Error: "Demasiados intentos. Espera un minuto."})
+		return
+	}
+	c, err := r.Cookie(challengeCookie)
+	if err != nil {
+		http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+		return
+	}
+	userID, err := p.App.FinishAdminChallenge(r.Context(), c.Value, strings.TrimSpace(r.PostFormValue("code")))
+	if err != nil {
+		p.render(w, r, http.StatusUnauthorized, "login_code", view{Title: "Código", Error: "Código incorrecto o vencido."})
+		return
+	}
 	token, csrf := auth.RandomToken(), auth.RandomToken()
 	if _, err := p.App.DB.Exec(r.Context(), `INSERT INTO admin_sessions (id_hash, user_id, csrf, created_at, expires_at) VALUES ($1, $2, $3, $4, $5)`,
-		auth.HashToken(token), session.Me.User.ID, csrf, p.App.Now(), p.App.Now().Add(sessionTTL)); err != nil {
+		auth.HashToken(token), userID, csrf, p.App.Now(), p.App.Now().Add(sessionTTL)); err != nil {
 		http.Error(w, "No se pudo iniciar la sesión", http.StatusInternalServerError)
 		return
 	}
-	// Secure solo se apaga en development (http://localhost); HttpOnly y SameSite=Strict siempre.
-	http.SetCookie(w, &http.Cookie{Name: cookieName, Value: token, Path: "/admin", HttpOnly: true, Secure: p.SecureCookie, //nolint:gosec // ver arriba
-		SameSite: http.SameSiteStrictMode, MaxAge: int(sessionTTL.Seconds())})
+	p.setCookie(w, challengeCookie, "", -1)
+	p.setCookie(w, cookieName, token, int(sessionTTL.Seconds()))
 	http.Redirect(w, r, "/admin/", http.StatusSeeOther)
 }
 

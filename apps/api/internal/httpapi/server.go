@@ -7,7 +7,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,22 +30,21 @@ type Server struct {
 	// Admin es el panel de moderación, montado en /admin.
 	Admin http.Handler
 
-	limits map[string]*ratelimit.Limiter
+	limits map[string]ratelimit.Allower
 }
 
 const maxJSONBody = 1 << 20
 
 // Handler devuelve el router completo.
 func (s *Server) Handler() http.Handler {
-	now := s.App.Now
-	s.limits = map[string]*ratelimit.Limiter{
-		"login":    ratelimit.New(10, time.Minute, now),
-		"email":    ratelimit.New(5, time.Minute, now),
-		"register": ratelimit.New(10, time.Hour, now),
-		"reset":    ratelimit.New(5, time.Hour, now),
-		"oauth":    ratelimit.New(20, time.Minute, now),
-		"refresh":  ratelimit.New(60, time.Minute, now),
-		"verify":   ratelimit.New(20, time.Minute, now),
+	s.limits = map[string]ratelimit.Allower{
+		"login":    s.App.NewLimiter("login", 10, time.Minute),
+		"email":    s.App.NewLimiter("email", 5, time.Minute),
+		"register": s.App.NewLimiter("register", 10, time.Hour),
+		"reset":    s.App.NewLimiter("reset", 5, time.Hour),
+		"oauth":    s.App.NewLimiter("oauth", 20, time.Minute),
+		"refresh":  s.App.NewLimiter("refresh", 60, time.Minute),
+		"verify":   s.App.NewLimiter("verify", 20, time.Minute),
 	}
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID, s.logRequests, middleware.Recoverer, securityHeaders)
@@ -225,18 +223,7 @@ func (s *Server) optionalAuth(next http.Handler) http.Handler {
 	})
 }
 
-func (s *Server) clientIP(r *http.Request) string {
-	if s.ClientIPHeader != "" {
-		if v := strings.TrimSpace(r.Header.Get(s.ClientIPHeader)); v != "" && net.ParseIP(v) != nil {
-			return v
-		}
-	}
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
-}
+func (s *Server) clientIP(r *http.Request) string { return app.ClientIP(r, s.ClientIPHeader) }
 
 func (s *Server) limited(name string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -278,7 +265,8 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "no-referrer")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Cross-Origin-Resource-Policy", "same-site")
-		if r.TLS != nil {
+		// Detrás del proxy la conexión llega sin TLS: el proxy dice cómo entró.
+		if r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https" {
 			h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 		}
 		if !strings.HasPrefix(r.URL.Path, "/admin") {

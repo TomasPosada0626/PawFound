@@ -21,9 +21,13 @@ const lockKey = 721_105_2027
 func Run(ctx context.Context, a *app.App, interval time.Duration, log *slog.Logger) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
+	var last time.Time
 	for {
-		if err := Tick(ctx, a); err != nil && ctx.Err() == nil {
-			log.Error("tareas periódicas", "err", err)
+		if now := a.Now(); due(a, last, now) {
+			if err := Tick(ctx, a); err != nil && ctx.Err() == nil {
+				log.Error("tareas periódicas", "err", err)
+			}
+			last = now
 		}
 		select {
 		case <-ctx.Done():
@@ -31,6 +35,15 @@ func Run(ctx context.Context, a *app.App, interval time.Duration, log *slog.Logg
 		case <-ticker.C:
 		}
 	}
+}
+
+// idleInterval es la pausa entre pasadas cuando no hay actividad: con el servidor despierto todo el
+// día, despertar la base cada 10 minutos gastaría casi toda la cuota mensual de Neon.
+const idleInterval = time.Hour
+
+// due dice si toca una pasada: al arrancar, con actividad reciente o tras la pausa.
+func due(a *app.App, last, now time.Time) bool {
+	return last.IsZero() || a.AlertsDue(now) || now.Sub(last) >= idleInterval
 }
 
 // Tick hace una pasada si consigue el lock; si otra instancia lo tiene, no hace nada.
@@ -76,6 +89,8 @@ func Cleanup(ctx context.Context, a *app.App) error {
 		{`DELETE FROM password_resets WHERE expires_at < $1`, now},
 		{`DELETE FROM email_verifications WHERE sent_at < $1::timestamptz - interval '1 day'`, now},
 		{`DELETE FROM alert_zones WHERE updated_at < $1`, now.Add(-domain.AlertLocationTTL)},
+		{`DELETE FROM rate_limit_hits WHERE at < $1::timestamptz - interval '1 day'`, now},
+		{`DELETE FROM admin_login_challenges WHERE expires_at < $1`, now},
 	}
 	for _, s := range stmts {
 		if _, err := a.DB.Exec(ctx, s.sql, s.arg); err != nil {
@@ -100,12 +115,8 @@ func Cleanup(ctx context.Context, a *app.App) error {
 		keys = append(keys, key)
 	}
 	rows.Close()
-	if remover, ok := a.Media.(interface {
-		Remove(context.Context, string) error
-	}); ok {
-		for _, key := range keys {
-			_ = remover.Remove(ctx, key)
-		}
+	for _, key := range keys {
+		_ = a.RemoveStored(ctx, key)
 	}
 	return rows.Err()
 }
