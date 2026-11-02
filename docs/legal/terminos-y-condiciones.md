@@ -1,15 +1,11 @@
 # Términos y condiciones de uso
 
-> **Borrador completo, pendiente de revisión y aprobación por asesoría legal
-> especializada en Colombia antes de publicarse en la app o de usarse como documento
-> vinculante.** No constituye asesoría legal.
-
-Última actualización: por definir en la revisión legal. Versión: 0.1 (borrador).
+Última actualización: 2 de noviembre de 2026. Versión: 1.0.
 
 ## 1. Aceptación
 
 Al crear una cuenta o usar PawFound aceptas estos Términos y la
-[Política de privacidad](politica-de-privacidad.md). Si no estás de acuerdo, no debes usar
+[Política de privacidad](/privacidad). Si no estás de acuerdo, no debes usar
 la aplicación.
 
 ## 2. Qué es PawFound
@@ -45,8 +41,7 @@ Al usar PawFound aceptas no:
 - Publicar contenido que comprometa el bienestar animal.
 - Recolectar datos de otras personas usuarias fuera de la propia app.
 
-El detalle operativo de moderación está en
-[moderacion-y-ugc.md](moderacion-y-ugc.md).
+El detalle operativo de moderación está en nuestras normas de moderación.
 
 ## 5. Contenido de la comunidad
 
@@ -59,15 +54,14 @@ salvo lo necesario para prevenir fraude o cumplir una obligación legal.
 ## 6. Reportes, apelaciones y suspensión
 
 Podemos limitar el alcance, archivar, retirar contenido o suspender cuentas ante
-incumplimientos, de forma proporcional al riesgo y con revisión humana, según
-[moderacion-y-ugc.md](moderacion-y-ugc.md). Toda decisión de moderación que te afecte
-incluye un canal de apelación descrito en [SUPPORT.md](../../SUPPORT.md).
+incumplimientos, de forma proporcional al riesgo y con revisión humana, según nuestras normas de moderación. Toda decisión de moderación que te afecte
+incluye un canal de apelación descrito en [Ayuda](/ayuda).
 
 ## 7. Privacidad y ubicación
 
 El tratamiento de tus datos personales, incluida la ubicación aproximada que compartes al
 reportar o buscar una mascota, se rige por la
-[Política de privacidad](politica-de-privacidad.md). PawFound no muestra direcciones ni
+[Política de privacidad](/privacidad). PawFound no muestra direcciones ni
 coordenadas exactas de forma predeterminada.
 
 En un mensaje directo puedes compartir tu ubicación actual o un punto de encuentro. Hazlo
@@ -94,7 +88,7 @@ Te avisaremos de cambios materiales con la anticipación que sea razonable.
 PawFound facilita la coordinación entre personas usuarias, pero no garantiza el
 reencuentro, la veracidad de lo publicado por terceros ni la seguridad de los encuentros
 presenciales que acuerdes con otra persona usuaria. Sigue los
-[consejos de seguridad](../legal) que la app te muestra al coordinar una entrega o
+consejos de seguridad que la app te muestra al coordinar una entrega o
 encuentro, y usa tu propio criterio.
 
 ## 11. Cambios a estos Términos
@@ -111,4 +105,4 @@ al consumidor y de datos personales aplicable.
 ## 13. Contacto
 
 Dudas o solicitudes sobre estos Términos: **[pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com)**, o desde la app en Ajustes › Soporte y
-ayuda. Más detalles en [SUPPORT.md](../../SUPPORT.md).
+ayuda. Más detalles en [Ayuda](/ayuda).

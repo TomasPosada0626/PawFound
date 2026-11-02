@@ -1,7 +1,7 @@
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useEffect } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BackButton } from "@/components/layout";
@@ -346,6 +346,15 @@ export default function PetDetailScreen() {
                         loading={busy === "dm"}
                         testID="contact"
                       />
+                      {pet.contactPhone && !isOwner ? (
+                        <Button
+                          label={t("pet.callFamily")}
+                          icon="call"
+                          variant="outline"
+                          onPress={() => void Linking.openURL(`tel:${pet.contactPhone}`)}
+                          testID="call-family"
+                        />
+                      ) : null}
                     </View>
                   ) : null}
                 </View>

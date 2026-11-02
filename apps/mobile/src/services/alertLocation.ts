@@ -80,6 +80,33 @@ async function sendWithoutApp(point: LatLng): Promise<void> {
 
 export type AlertLocationMode = "always" | "foreground" | "off";
 
+const followInBackground = () =>
+  Location.startLocationUpdatesAsync(ALERT_LOCATION_TASK, {
+    accuracy: Location.Accuracy.Balanced,
+    distanceInterval: 250,
+    deferredUpdatesDistance: 250,
+    deferredUpdatesInterval: 10 * 60_000,
+    pausesUpdatesAutomatically: true,
+    showsBackgroundLocationIndicator: false,
+  });
+
+/**
+ * Sin preguntar nada: si ya hay permiso de "todo el tiempo" y el seguimiento no está corriendo, lo
+ * inicia. Pasa cuando la persona lo cambia en los ajustes de Android o tras reiniciar el celular.
+ */
+export async function syncAlertLocation(): Promise<AlertLocationMode> {
+  const mode = await alertLocationMode();
+  if (mode !== "foreground") return mode;
+  try {
+    const background = await Location.getBackgroundPermissionsAsync();
+    if (background.status !== "granted") return mode;
+    await followInBackground();
+    return "always";
+  } catch {
+    return mode;
+  }
+}
+
 /** "always": llega con la app cerrada; "foreground": solo al abrirla; "off": sin permiso. */
 export async function startAlertLocation(): Promise<AlertLocationMode> {
   const foreground = await Location.requestForegroundPermissionsAsync();
@@ -87,14 +114,7 @@ export async function startAlertLocation(): Promise<AlertLocationMode> {
   try {
     const background = await Location.requestBackgroundPermissionsAsync();
     if (background.status !== "granted") return "foreground";
-    await Location.startLocationUpdatesAsync(ALERT_LOCATION_TASK, {
-      accuracy: Location.Accuracy.Balanced,
-      distanceInterval: 250,
-      deferredUpdatesDistance: 250,
-      deferredUpdatesInterval: 10 * 60_000,
-      pausesUpdatesAutomatically: true,
-      showsBackgroundLocationIndicator: false,
-    });
+    await followInBackground();
     return "always";
   } catch {
     // Expo Go y algunos equipos no permiten ubicación en segundo plano: queda al abrir la app.

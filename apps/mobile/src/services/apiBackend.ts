@@ -405,9 +405,13 @@ export class ApiBackend {
     return { ...rest, ...(photo ? { photo: { uri: photo.url, width: photo.width, height: photo.height } } : {}) };
   }
 
-  private mergePets(list: ApiPet[]) {
+  private mergePets(list: ApiPet[], fromList = false) {
     const byId = new Map(this.state.pets.map((p) => [p.id, p]));
-    for (const p of list) byId.set(p.id, this.toPet(p));
+    for (const p of list) {
+      const pet = this.toPet(p);
+      const known = byId.get(p.id);
+      byId.set(p.id, fromList && known?.contactPhone ? { ...pet, contactPhone: known.contactPhone } : pet);
+    }
     this.commit({ pets: [...byId.values()], users: this.mergeSummaries(list.map((p) => p.owner)) });
   }
 
@@ -682,6 +686,11 @@ export class ApiBackend {
     await this.request("POST", `/v1/places/${placeId}/report`, { note });
   }
 
+  /** Muestra (o quita con "") el celular de la familia en el afiche del caso. */
+  async setContactPhone(petId: string, phone: string): Promise<void> {
+    this.mergePets([await this.request<ApiPet>("PUT", `/v1/pets/${petId}/contact`, { phone })]);
+  }
+
   async sharePet(petId: string): Promise<void> {
     await this.request("POST", `/v1/pets/${petId}/share`);
   }
@@ -901,7 +910,7 @@ export class ApiBackend {
         "GET",
         `/v1/pets?lat=${center.latitude}&lng=${center.longitude}&radius=${NEARBY_RADIUS}`,
       );
-      this.mergePets(list);
+      this.mergePets(list, true);
       if (list.length < NEARBY_LIMIT) {
         // Lo que ya no viene de la zona dejó de estar activo: no se puede seguir mostrando.
         const current = new Set(list.map((p) => p.id));

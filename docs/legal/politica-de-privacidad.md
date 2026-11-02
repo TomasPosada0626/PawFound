@@ -1,24 +1,22 @@
 # Política de privacidad
 
-> **Borrador completo, pendiente de revisión y aprobación por asesoría legal
-> especializada en Colombia antes de publicarse en la app o de tratarse como vinculante.**
-> No constituye asesoría legal. Versión técnica ampliada en
-> [tratamiento-de-datos.md](tratamiento-de-datos.md); esta es la versión de cara al
-> usuario, para mostrarse en registro y en Ajustes › Privacidad y seguridad.
-
-Última actualización: por definir en la revisión legal. Versión: 0.1 (borrador).
+Última actualización: 2 de noviembre de 2026. Versión: 1.0.
 
 ## 1. Quién trata tus datos
 
-PawFound Colombia (razón social por definir antes de producción) es responsable del
-tratamiento de los datos personales que recolecta esta política, conforme a la Ley
-Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
+PawFound, proyecto comunitario de Colombia, es responsable del tratamiento de los datos
+personales que recolecta esta política, conforme a la Ley Estatutaria 1581 de 2012, su
+Decreto 1377 de 2013 y demás normas concordantes. Contacto:
+[pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com).
 
 ## 2. Qué datos recolectamos
 
 - **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
   dígitos), contraseña cifrada. El número de
-  celular es opcional: no se verifica ni se muestra a otras personas.
+  celular es opcional y no se verifica. No se muestra a otras personas, salvo que decidas
+  agregarlo al afiche de un caso: entonces lo ve quien vea el afiche o abra ese caso, y lo
+  borramos de la app al cerrar el caso o al quitarlo. Las copias del afiche que ya se hayan
+  compartido o impreso quedan fuera de nuestro control.
 - **Perfil**: datos que decidas agregar a tu perfil y, si quieres, una foto propia en lugar
   del avatar. La foto de perfil es pública: la ven las demás personas en tu perfil, en tus
   reportes y en los chats. Se guarda sin metadatos (EXIF ni GPS); puedes cambiarla o
@@ -50,10 +48,10 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
   caso, se comparten el nombre y la dirección pública de la veterinaria, no tu ubicación.
 - **Historias de casos**: las actualizaciones (foto y texto) que la familia agrega a la
   historia de su caso. Se quitan al cerrarse el caso o cuando la familia las borra.
-- **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push,
-  registros de error y uso, con retención minimizada.
-- **Consentimientos**: registro auditable de qué autorizaste, cuándo y con qué versión de
-  texto, según [consentimientos.md](consentimientos.md).
+- **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push y
+  registros técnicos del servidor, sin el contenido de tus mensajes ni tus datos de cuenta.
+- **Consentimientos**: registro de qué autorizaste o retiraste, cuándo y con qué versión de
+  texto.
 
 No recolectamos direcciones exactas ni coordenadas precisas por defecto; el mapa y los
 reportes usan ubicación aproximada. La única excepción es la ubicación que tú decides
@@ -74,14 +72,20 @@ No usamos tus datos para publicidad ni los vendemos a terceros.
 ## 4. Con quién se comparten tus datos
 
 Con otras personas usuarias, solo lo necesario para coordinar un caso (por ejemplo, tu
-nombre de perfil y tu mensaje dentro de un chat de caso). Con proveedores que nos ayudan a
-operar el servicio, únicamente los datos mínimos necesarios para su función, listados en
-[incidentes-y-proveedores.md](incidentes-y-proveedores.md): alojamiento y base de datos,
-almacenamiento de fotos, envío de correos y notificaciones push. Las notificaciones viajan
+nombre de perfil y tu mensaje dentro de un chat de caso). Con estos proveedores, que nos
+ayudan a operar el servicio y reciben solo los datos necesarios para su función:
+
+- **Render**: aloja la API.
+- **Neon**: base de datos.
+- **Cloudflare**: fotos sin metadatos, sitio web y protección de la red.
+- **Brevo**: envío de correos (tu correo, tu nombre y el código o enlace).
+- **Expo** y **Firebase Cloud Messaging de Google**: envío de notificaciones.
+- **Google Maps**: muestra el mapa de la app.
+
+Las notificaciones viajan
 por Expo y, en Android, por Firebase Cloud Messaging de Google: reciben el identificador
 técnico de tu celular y el texto del aviso (por ejemplo, el nombre de la mascota), nunca tu
-ubicación, teléfono ni correo. Ningún proveedor se activa en producción sin evaluación de
-seguridad y privacidad previa. No compartimos tus datos con
+ubicación, teléfono ni correo. No compartimos tus datos con
 terceros para fines comerciales ajenos al servicio.
 
 Cuando tocas "Vamos" o "Cómo llegar", se abre Google Maps, Waze o Mapas de Apple con el
@@ -91,22 +95,35 @@ OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
 
 ## 5. Cuánto tiempo conservamos tus datos
 
-Un reporte se archiva al marcar la mascota como encontrada o al retirarlo; no se elimina
-automáticamente. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
+- **Cuenta**: hasta que la elimines. Al eliminarla se borran tu perfil, tus mensajes escritos,
+  tus chats directos, tus mascotas registradas y tu ubicación. Tus reportes quedan archivados
+  y sin autor, porque hacen parte de casos en los que participaron otras personas.
+- **Ubicación para alertas**: solo el último punto. Se borra al desactivarla, al cerrar tu
+  última sesión o si no se actualiza en 30 días.
+- **Códigos y enlaces de seguridad**: el código de verificación se borra en un día y los
+  enlaces para restablecer la contraseña al vencer.
+- **Registros de intentos**: se borran en un día y no guardan tu correo ni tu IP, solo una
+  huella cifrada.
+- **Respaldos**: copias cifradas de la base de datos, que se borran a los 30 días.
+
+Un reporte se archiva al marcar la mascota como encontrada, y deja de verse si eliges
+eliminar la publicación desde tu perfil; la información se conserva para atender
+reclamos y moderación, hasta que elimines tu cuenta. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
 directos no se cierran ni se borran solos: cada persona decide archivarlos
 o eliminarlos de su lista, y un mensaje directo lo cierra cualquiera de las dos personas. Al
 cerrarse un caso se quitan sus historias y dejan de verse las ubicaciones compartidas en sus
-mensajes directos. Los plazos de retención y anonimización definitivos se fijan en
-la revisión legal previa a producción, según [tratamiento-de-datos.md](tratamiento-de-datos.md).
+mensajes directos.
 
 ## 6. Tus derechos (ARCO)
 
-Puedes conocer, actualizar, rectificar, solicitar la eliminación de tus datos, revocar
-consentimientos otorgados y pedir la exportación de tus datos. Exportar tus datos y
-eliminar tu cuenta están disponibles como autoservicio desde Ajustes › Privacidad y
-seguridad; cualquier otra solicitud ARCO se atiende por el canal descrito en
-[SUPPORT.md](../../SUPPORT.md). Atenderemos tu solicitud dentro de los plazos que fije la
-normativa colombiana aplicable, previa verificación de tu identidad.
+Puedes conocer, actualizar, rectificar y suprimir tus datos, revocar los consentimientos que
+hayas dado y pedir prueba de tu autorización. Exportar tus datos y eliminar tu cuenta están
+disponibles como autoservicio en Ajustes › Privacidad y seguridad. Para lo demás, escríbenos
+a [pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com).
+
+Respondemos las consultas en un máximo de 10 días hábiles y los reclamos en un máximo de 15
+días hábiles, como establece la Ley 1581 de 2012, previa verificación de tu identidad. Si no
+quedas conforme, puedes acudir a la Superintendencia de Industria y Comercio.
 
 ## 7. Menores de edad
 
@@ -116,16 +133,16 @@ suspenderla mientras se resuelve.
 
 ## 8. Transferencias internacionales
 
-Si algún proveedor procesa datos fuera de Colombia, se evaluará con las salvaguardas
-legales correspondientes antes de activarse, conforme a
-[tratamiento-de-datos.md](tratamiento-de-datos.md).
+Nuestros proveedores procesan datos fuera de Colombia, principalmente en Estados Unidos y la
+Unión Europea. Al usar PawFound autorizas esa transferencia, limitada a lo necesario para
+prestar el servicio y descrita en la sección 4.
 
 ## 9. Seguridad
 
 Aplicamos medidas técnicas y organizativas razonables para proteger tus datos, incluida la
-eliminación de metadatos EXIF de las imágenes que subes. Ningún sistema es
-completamente seguro; el proceso ante un incidente está en
-[incidentes-y-proveedores.md](incidentes-y-proveedores.md).
+eliminación de metadatos EXIF de las imágenes que subes, contraseñas protegidas con hash y
+conexiones cifradas. Ningún sistema es completamente seguro; si ocurre un incidente que
+afecte tus datos, te avisaremos y lo informaremos a la autoridad cuando corresponda.
 
 ## 10. Cambios a esta política
 
@@ -136,4 +153,4 @@ fecha de la nueva versión.
 
 Preguntas, solicitudes o quejas sobre el tratamiento de tus datos (incluidos tus derechos de
 conocer, actualizar, rectificar y suprimir): **[pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com)**, o desde la app en Ajustes › Soporte y
-ayuda. Más detalles en [SUPPORT.md](../../SUPPORT.md).
+ayuda.

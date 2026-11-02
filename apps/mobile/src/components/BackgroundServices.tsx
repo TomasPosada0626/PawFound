@@ -5,7 +5,7 @@ import { AppState, Platform } from "react-native";
 import { isQuietTime } from "@/domain/alerts";
 import { notificationUrl } from "@/features/notifications";
 import { useI18n } from "@/i18n/I18nProvider";
-import { currentPoint, setAlertLocationSink } from "@/services/alertLocation";
+import { currentPoint, setAlertLocationSink, syncAlertLocation } from "@/services/alertLocation";
 import {
   CHANNELS,
   configurePush,
@@ -69,6 +69,7 @@ export function BackgroundServices() {
       return;
     }
     setAlertLocationSink((point) => backend.updateAlertLocation(point));
+    void syncAlertLocation();
     const refresh = () =>
       void currentPoint().then((point) => {
         if (point) void backend.updateAlertLocation(point);

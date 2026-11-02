@@ -120,11 +120,31 @@ describe("Mis mascotas", () => {
 });
 
 describe("afiche con QR", () => {
-  it("genera el afiche sin datos de contacto y lo comparte como imagen", async () => {
+  it("la familia decide mostrar su celular, y lo puede quitar", async () => {
+    await loginAs("u_valentina");
+    await open("/pet/rocky/poster");
+    await fireEvent.changeText(await screen.findByTestId("poster-phone-input"), "123");
+    await fireEvent(screen.getByTestId("poster-phone-toggle"), "valueChange", true);
+    expect(await screen.findByText(/celular colombiano válido/)).toBeOnTheScreen();
+    expect(screen.queryByTestId("poster-phone")).not.toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByTestId("poster-phone-input"), "300 123 4567");
+    await fireEvent(screen.getByTestId("poster-phone-toggle"), "valueChange", true);
+    expect(await screen.findByTestId("poster-phone")).toHaveTextContent(/300 123 4567/);
+
+    await fireEvent(screen.getByTestId("poster-phone-toggle"), "valueChange", false);
+    await waitFor(() => expect(screen.queryByTestId("poster-phone")).not.toBeOnTheScreen());
+  });
+
+  it("sin activar el celular, no lo muestra; y lo comparte como imagen", async () => {
     await loginAs("u_valentina");
     await open("/pet/max/poster");
     expect(await screen.findByText("SE BUSCA")).toBeOnTheScreen();
     expect(screen.getByLabelText("Código QR que abre el caso en PawFound")).toBeOnTheScreen();
+    expect(screen.getByTestId("poster-facts")).toHaveTextContent(/Raza/);
+    expect(screen.getByText(/Visto por última vez/)).toBeOnTheScreen();
+    expect(screen.queryByTestId("poster-phone")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("poster-phone-toggle")).not.toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("poster-share"));
     await waitFor(() => expect(Sharing.shareAsync).toHaveBeenCalledWith("file:///poster.png", expect.any(Object)));
     expect(await screen.findByText(/Pégalo en tiendas/)).toBeOnTheScreen();

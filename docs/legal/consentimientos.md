@@ -5,13 +5,14 @@
 > [tratamiento-de-datos.md](tratamiento-de-datos.md) y en
 > [politica-de-privacidad.md](politica-de-privacidad.md).
 
-Versión de estos textos: 0.1. Cada consentimiento guarda la versión vigente al registrarse.
+Versión de estos textos: 0.2. Cada consentimiento guarda la versión vigente al registrarse.
 
 ## Ubicación aproximada
 
-“Autorizo a PawFound a usar mi ubicación aproximada para mostrar reportes cercanos y, si
-lo activo, recibir alertas dentro del radio que elija. Puedo cambiar esta decisión en
-cualquier momento desde ajustes.”
+Se muestra justo antes de pedir el permiso, en la pantalla "Activa tus alertas":
+
+“Usamos tu ubicación aproximada, también con la app cerrada, solo para avisarte de mascotas
+perdidas cerca.”
 
 ## Ubicación en un mensaje directo (en cada envío)
 
