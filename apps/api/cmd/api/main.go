@@ -77,6 +77,35 @@ func run(args []string, logger *slog.Logger) error {
 		}
 		logger.Info("rol actualizado", "role", args[2])
 		return nil
+	case "fundador":
+		if len(args) != 2 {
+			return errors.New("uso: api fundador <nombre_de_usuario>")
+		}
+		a := &app.App{DB: pool, Log: logger}
+		a.Init()
+		if err := a.SetFounder(ctx, args[1]); err != nil {
+			return err
+		}
+		logger.Info("cuenta fundadora marcada", "usuario", args[1])
+		return nil
+	case "limpiar-pruebas":
+		apply := len(args) == 2 && args[1] == "--confirmar"
+		a := &app.App{DB: pool, Log: logger}
+		if cfg.R2.Enabled() {
+			a.Media = media.R2(cfg.R2.AccountID, cfg.R2.Bucket, cfg.R2.AccessKey, cfg.R2.SecretKey)
+		}
+		a.Init()
+		counts, err := a.ResetTestData(ctx, apply)
+		if err != nil {
+			return err
+		}
+		for table, n := range counts {
+			fmt.Printf("%-20s %d\n", table, n)
+		}
+		if !apply {
+			fmt.Println("Simulación: no se borró nada. Para aplicarlo, agrega --confirmar.")
+		}
+		return nil
 	case "import-places":
 		a := &app.App{DB: pool, Log: logger}
 		a.Init()

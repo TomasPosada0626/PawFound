@@ -99,6 +99,8 @@ export type BackendState = {
   /** Insignias de otras cuentas calculadas por la API (en demostración se calculan aquí). */
   remoteBadges: Record<string, BadgeProgress[]>;
   /** Ya llegó la primera carga de mascotas cercanas (mientras tanto se muestran esqueletos). */
+  /** Personas con la app abierta ahora; null hasta saberlo. */
+  onlineCount: number | null;
   nearbyLoaded: boolean;
   /** Ya llegaron los chats de la cuenta. */
   threadsLoaded: boolean;

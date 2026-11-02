@@ -3,6 +3,7 @@ import type { Translations } from "./core";
 /** English — second supported language. Must mirror every key in es.ts (enforced by the type). */
 export const en: Translations = {
   common: {
+    founder: "PawFound creator",
     appName: "PawFound",
     tagline: "Connecting paws, reuniting families",
     back: "Back",
@@ -67,6 +68,7 @@ export const en: Translations = {
     reportHint: "Report a lost or found pet",
   },
   home: {
+    online: { one: "1 person online now", other: "{count} people online now" },
     greeting: "Hi, {name}!",
     greetingGuest: "Hi there!",
     subtitle: "Thanks for helping pets get back to their families",

@@ -122,6 +122,14 @@ export default function HomeScreen() {
           <Text variant="body" tone="muted">
             {user ? t("home.subtitle") : t("home.guestSubtitle")}
           </Text>
+          {state.onlineCount ? (
+            <View className="mt-1 flex-row items-center gap-1.5" testID="online-count" accessibilityLiveRegion="polite">
+              <View className="h-2 w-2 rounded-full bg-primary-strong" />
+              <Text variant="captionStrong" tone="primary">
+                {t("home.online", { count: state.onlineCount })}
+              </Text>
+            </View>
+          ) : null}
           {!user ? (
             <Pressable
               accessibilityRole="link"

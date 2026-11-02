@@ -134,6 +134,8 @@ export type ProfileTitle =
 
 export type User = {
   id: string;
+  /** Cuenta de quien creó PawFound. */
+  founder?: boolean;
   name: string;
   username: string;
   email: string;

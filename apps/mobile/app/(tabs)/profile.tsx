@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { BadgeCatalog, BadgeTile } from "@/components/badges";
 import { DeletePetButton } from "@/components/DeletePetButton";
+import { FounderTag } from "@/components/FounderTag";
 import { AppHeader, Screen } from "@/components/layout";
 import { PetAvatar, PetPhoto, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
@@ -26,6 +27,11 @@ export default function ProfileScreen() {
   const backend = useBackend();
   const state = useBackendState();
   const user = useCurrentUser();
+  // Insignias y me gusta como los calcula la API.
+  const userId = user?.id;
+  useEffect(() => {
+    if (userId) void backend.loadProfile(userId).catch(() => {});
+  }, [backend, userId]);
   const now = useNow();
   const params = useLocalSearchParams<{ badges?: string }>();
   // "Ver mis insignias" desde la celebración abre el catálogo directamente.
@@ -99,6 +105,7 @@ export default function ProfileScreen() {
               </View>
             ) : null}
           </View>
+          {user.founder ? <FounderTag /> : null}
           <Text variant="body" tone="muted">{`@${user.username}`}</Text>
           <View className="flex-row items-center gap-1" accessible testID="member-days">
             <Icon name="calendar-outline" size={14} color={colors.primaryStrong} />

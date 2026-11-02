@@ -508,6 +508,43 @@ describe("conexión en vivo", () => {
   });
 });
 
+describe("personas conectadas", () => {
+  it("se actualiza en vivo y solo se cuenta con la app abierta", async () => {
+    const backend = await loggedIn();
+    expect(backend.getSnapshot().onlineCount).toBeNull();
+    emit("online", 7);
+    expect(backend.getSnapshot().onlineCount).toBe(7);
+
+    const socket = FakeSocket.last;
+    backend.setAppActive(false);
+    expect(socket?.closed).toBe(true);
+    // En segundo plano ni la sincronización la vuelve a abrir.
+    backend.runScheduledJobs();
+    await flush();
+    expect(FakeSocket.last).toBe(socket);
+
+    backend.setAppActive(true);
+    expect(FakeSocket.last).not.toBe(socket);
+  });
+
+  it("sin cuenta lo consulta en cada ronda, y sin red no falla", async () => {
+    const backend = new ApiBackend(BASE);
+    route("GET /v1/online", { status: 200, body: { count: 3 } });
+    backend.runScheduledJobs();
+    await flush();
+    expect(backend.getSnapshot().onlineCount).toBe(3);
+    jest.mocked(global.fetch).mockRejectedValueOnce(new Error("sin red"));
+    backend.runScheduledJobs();
+    await flush();
+    expect(backend.getSnapshot().onlineCount).toBe(3);
+  });
+
+  it("guarda si la cuenta es la de quien creó la app", async () => {
+    const backend = await loggedIn({ me: me({ user: user({ founder: true }) }) });
+    expect(backend.currentUser?.founder).toBe(true);
+  });
+});
+
 describe("mascotas cercanas", () => {
   const nearbyPath = `/v1/pets?lat=${LAURELES.latitude}&lng=${LAURELES.longitude}&radius=20000`;
   const nearby = (list: unknown[]) => route(`GET ${nearbyPath}`, { status: 200, body: list });

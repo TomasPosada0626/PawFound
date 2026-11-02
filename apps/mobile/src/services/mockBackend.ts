@@ -572,6 +572,9 @@ export class MockBackend {
     if (!this.state.places.some((p) => p.id === placeId)) throw new BackendError("not_found");
   }
 
+  /** En la demostración no hay conexión en vivo. */
+  setAppActive(_active: boolean): void {}
+
   /** Muestra (o quita con "") el celular de la familia en el afiche del caso. */
   async setContactPhone(petId: string, phone: string): Promise<void> {
     const user = this.requireVerified();

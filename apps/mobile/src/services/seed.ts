@@ -664,6 +664,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       // `api import-places` (© colaboradores de OpenStreetMap, licencia ODbL).
       places: osmPlaces as Place[],
       remoteBadges: {},
+      onlineCount: null,
       nearbyLoaded: true,
       threadsLoaded: true,
       activeSessions: 1,
