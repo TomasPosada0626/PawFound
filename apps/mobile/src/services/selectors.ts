@@ -103,7 +103,7 @@ export function networkOf(state: BackendState): Network {
 }
 
 export function followInfoOf(state: BackendState, userId: string): FollowInfo {
-  return state.followInfo?.[userId] ?? { followers: 0, following: 0, status: "none", mutual: false };
+  return state.followInfo?.[userId] ?? { followers: 0, following: 0, status: "none" };
 }
 
 /** Toda cuenta empieza en 5 estrellas (rating.ts); con la API el promedio viene calculado. */

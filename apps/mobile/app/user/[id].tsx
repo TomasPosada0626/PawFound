@@ -30,7 +30,7 @@ import { useTheme } from "@/theme/ThemeProvider";
  * Perfil público: lo que da confianza sin exponer datos de contacto. Días en PawFound, calificación,
  * insignias y "me gusta" de la comunidad. Ningún perfil es oculto: cualquiera puede abrirlo desde
  * un caso, un chat, un grupo o una búsqueda. La ubicación no se muestra a nadie, las mascotas solo
- * a quienes se siguen mutuamente, y de los seguidores se ven solo los números.
+ * a sus seguidores aceptados, y de los seguidores se ven solo los números.
  */
 export default function PublicProfileScreen() {
   const { id, preview } = useLocalSearchParams<{ id: string; preview?: string }>();
@@ -237,7 +237,7 @@ export default function PublicProfileScreen() {
       {/* Mascotas (solo foto, nombre y especie) */}
       <Card className="mt-4">
         <SectionHeader title={t("publicProfile.pets")} />
-        {!isSelf && !follow.mutual ? (
+        {!isSelf && follow.status !== "accepted" ? (
           <Text variant="caption">{t("publicProfile.petsPrivate")}</Text>
         ) : pets.length === 0 ? (
           <Text variant="caption">{t("publicProfile.noPets")}</Text>

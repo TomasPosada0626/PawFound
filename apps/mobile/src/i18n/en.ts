@@ -951,7 +951,7 @@ export const en: Translations = {
     otherPet: "Another pet (start from scratch)",
     prefilled: "We used {name}'s profile. Just confirm where and when they went missing.",
     privateNote:
-      "Only people you follow each other with see their photo, name and species. Full details appear only if you publish a report.",
+      "Only people who follow you see their photo, name and species. Full details appear only if you publish a report.",
   },
   publicProfile: {
     title: "Profile",
@@ -964,7 +964,7 @@ export const en: Translations = {
     likeVerify: "Verify your email to like profiles.",
     pets: "Their pets",
     noPets: "They don't show pets on their profile.",
-    petsPrivate: "Only people who follow each other with this person can see their pets.",
+    petsPrivate: "Only people who follow this person can see their pets.",
     badges: "Badges",
     noBadges: "No badges yet.",
     view: "See {name}'s profile",

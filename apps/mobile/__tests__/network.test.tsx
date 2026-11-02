@@ -95,13 +95,11 @@ describe("seguirse", () => {
   it("las mascotas de un perfil solo las ven quienes se siguen", async () => {
     await loginAs("u_daniel");
     await open("/user/u_valentina");
-    expect(
-      await screen.findByText("Solo quienes se siguen mutuamente con esta persona pueden ver sus mascotas."),
-    ).toBeOnTheScreen();
+    expect(await screen.findByText("Solo quienes siguen a esta persona pueden ver sus mascotas.")).toBeOnTheScreen();
     expect(screen.queryByTestId("public-pets")).not.toBeOnTheScreen();
   });
 
-  it("quien se sigue con la persona sí ve sus mascotas", async () => {
+  it("quien sigue a la persona ve sus mascotas, aunque ella no siga de vuelta", async () => {
     await loginAs("u_maria");
     await open("/user/u_valentina");
     expect(await screen.findByTestId("public-pets")).toBeOnTheScreen();
