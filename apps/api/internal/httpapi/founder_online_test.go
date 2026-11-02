@@ -10,49 +10,47 @@ import (
 	"github.com/coder/websocket"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
-	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 )
 
-func TestFounderProfileShowsItsBadgesAndLikes(t *testing.T) {
+func TestFounderIsOnlyIdentifiedAndEarnsLikeEveryoneElse(t *testing.T) {
 	h := newHarness(t)
 	founder := h.user("Tomás Posada", true)
 	fan := h.user("Ana Gómez", true)
-	h.exec(`UPDATE users SET username = 'tomas26' WHERE id = $1`, founder.ID)
+	h.exec(`UPDATE users SET username = 'tomasposada26' WHERE id = $1`, founder.ID)
 	ctx := context.Background()
 	if err := h.app.SetFounder(ctx, "no-existe"); err == nil {
 		t.Fatal("una cuenta inexistente debe fallar")
 	}
-	if err := h.app.SetFounder(ctx, " Tomas26 "); err != nil {
+	if err := h.app.SetFounder(ctx, " TomasPosada26 "); err != nil {
 		t.Fatal(err)
 	}
 
 	var profile app.PublicProfile
 	h.must(http.StatusOK, http.MethodGet, "/v1/users/"+founder.ID, "", nil, &profile)
-	if !profile.User.Founder || profile.Likes != domain.FounderLikes {
-		t.Fatalf("perfil = %+v", profile)
+	if !profile.User.Founder {
+		t.Fatalf("debe identificarse como creador: %+v", profile.User)
 	}
-	if len(profile.Badges) != len(domain.BadgeRules) {
-		t.Fatalf("insignias = %d", len(profile.Badges))
+	// Nada inflado: sus me gusta e insignias son los reales.
+	if profile.Likes != 0 {
+		t.Fatalf("me gusta = %d", profile.Likes)
 	}
 	for _, b := range profile.Badges {
-		if b.Tier != b.MaxTier || b.Next != nil {
-			t.Fatalf("%s debe estar al máximo: %+v", b.ID, b)
+		if b.ID != "verified" && b.Tier != 0 {
+			t.Fatalf("insignia sin haberla ganado: %+v", b)
 		}
 	}
-
 	var liked struct {
 		Likes int `json:"likes"`
 	}
 	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+founder.ID+"/like", fan.Token, nil, &liked)
-	if liked.Likes != domain.FounderLikes+1 {
-		t.Fatalf("me gusta = %d", liked.Likes)
+	if liked.Likes != 1 {
+		t.Fatalf("me gusta tras uno real = %d", liked.Likes)
 	}
 
-	// Las demás cuentas siguen con lo que han ganado de verdad.
 	var other app.PublicProfile
 	h.must(http.StatusOK, http.MethodGet, "/v1/users/"+fan.ID, "", nil, &other)
-	if other.User.Founder || other.Likes != 0 {
-		t.Fatalf("otra cuenta = %+v", other)
+	if other.User.Founder {
+		t.Fatal("las demás cuentas no son creadoras")
 	}
 }
 
