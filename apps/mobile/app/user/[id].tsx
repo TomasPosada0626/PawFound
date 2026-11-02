@@ -234,7 +234,7 @@ export default function PublicProfileScreen() {
         )}
       </Card>
 
-      {/* Mascotas (solo foto, nombre y especie) */}
+      {/* Mascotas: solo para sus seguidores; al tocarlas se abre su ficha */}
       <Card className="mt-4">
         <SectionHeader title={t("publicProfile.pets")} />
         {!isSelf && follow.status !== "accepted" ? (
@@ -244,18 +244,21 @@ export default function PublicProfileScreen() {
         ) : (
           <View className="flex-row flex-wrap gap-4" testID="public-pets">
             {pets.map((p) => (
-              <View
+              <Pressable
                 key={p.id}
-                className="w-[84px] items-center gap-1"
-                accessible
+                className="w-[84px] items-center gap-1 active:opacity-70"
+                accessibilityRole="button"
                 accessibilityLabel={`${p.name}, ${t(`species.${p.species}`)}`}
+                accessibilityHint={t("friendPet.openHint")}
+                onPress={() => router.push(`/user/mascota/${p.id}`)}
+                testID={`friend-pet-${p.id}`}
               >
                 <PetPhoto pet={p} className="h-20 w-20" rounded="rounded-full" />
                 <Text variant="label" numberOfLines={1}>
                   {p.name}
                 </Text>
                 <Text variant="caption">{t(`species.${p.species}`)}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         )}

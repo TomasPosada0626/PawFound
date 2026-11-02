@@ -951,7 +951,16 @@ export const en: Translations = {
     otherPet: "Another pet (start from scratch)",
     prefilled: "We used {name}'s profile. Just confirm where and when they went missing.",
     privateNote:
-      "Only people who follow you see their photo, name and species. Full details appear only if you publish a report.",
+      "Only people who follow you see their profile: photos, breed, age, size, color and description. Distinctive marks appear only if you publish a report.",
+  },
+  friendPet: {
+    title: "Pet",
+    notFound: "We couldn't show this pet. You may no longer follow their family.",
+    family: "Their family",
+    behavior: "Behavior",
+    shy: "Shy or lives indoors",
+    openHint: "Opens their profile",
+    privateNote: "You see this profile because you follow their family. Distinctive marks only appear if they publish a report.",
   },
   publicProfile: {
     title: "Profile",

@@ -956,7 +956,16 @@ export const es = {
     otherPet: "Otra mascota (llenar desde cero)",
     prefilled: "Usamos el perfil de {name}. Solo confirma dónde y cuándo se perdió.",
     privateNote:
-      "Solo las personas que te siguen ven su foto, nombre y especie. Las señas completas aparecen únicamente si publicas un reporte.",
+      "Solo las personas que te siguen ven su ficha: fotos, raza, edad, tamaño, color y descripción. Las señas particulares aparecen únicamente si publicas un reporte.",
+  },
+  friendPet: {
+    title: "Mascota",
+    notFound: "No pudimos mostrar esta mascota. Puede que ya no sigas a su familia.",
+    family: "Su familia",
+    behavior: "Comportamiento",
+    shy: "Tímida o vive dentro de casa",
+    openHint: "Abre su ficha",
+    privateNote: "Ves esta ficha porque sigues a su familia. Las señas particulares solo aparecen si publican un reporte.",
   },
   publicProfile: {
     title: "Perfil",

@@ -124,7 +124,13 @@ type ApiProfile = {
   following: number;
   followStatus: FollowStatus;
   badges: BadgeProgress[];
-  pets: { id: string; name: string; species: OwnedPet["species"]; photo?: string }[];
+  pets: (Pick<
+    OwnedPet,
+    "id" | "name" | "species" | "breed" | "sex" | "age" | "size" | "color" | "collar" | "description" | "shyOrIndoor"
+  > & {
+    photo?: string;
+    photos?: string[];
+  })[];
 };
 
 function emptyState(): BackendState {
@@ -998,12 +1004,16 @@ export class ApiBackend {
             ownerId: userId,
             name: pet.name,
             species: pet.species,
-            sex: "unknown" as const,
-            age: "unknown" as const,
-            size: "medium" as const,
-            description: "",
-            photos: pet.photo ? [pet.photo] : [],
-            shyOrIndoor: false,
+            breed: pet.breed,
+            sex: pet.sex ?? "unknown",
+            age: pet.age ?? "unknown",
+            size: pet.size ?? "medium",
+            color: pet.color,
+            collar: pet.collar,
+            description: pet.description ?? "",
+            // Una API anterior solo enviaba la primera foto.
+            photos: pet.photos ?? (pet.photo ? [pet.photo] : []),
+            shyOrIndoor: pet.shyOrIndoor ?? false,
             createdAt: user.createdAt,
           }))),
     ];

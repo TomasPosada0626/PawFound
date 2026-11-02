@@ -1,0 +1,4 @@
+# La huella de las actualizaciones OTA cuenta estos archivos byte a byte: con CRLF en Windows deja
+# de coincidir con el APK aunque no cambie nada nativo.
+apps/mobile/.gitignore text eol=lf
+apps/mobile/eas.json text eol=lf

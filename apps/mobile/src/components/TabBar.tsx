@@ -1,14 +1,14 @@
 import type { BottomTabBarProps } from "expo-router/js-tabs";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { useI18n } from "@/i18n/I18nProvider";
-import { totalUnread } from "@/services/selectors";
-import { useBackendState } from "@/store/backend";
+import { networkOf, totalUnread } from "@/services/selectors";
+import { useBackend, useBackendState } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 import { primaryGradient } from "@/theme/tokens";
 
@@ -33,6 +33,13 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   const backend = useBackendState();
   const requireAccount = useAuthGate();
   const unread = useMemo(() => totalUnread(backend, backend.sessionUserId), [backend]);
+  const requests = networkOf(backend).requests.length;
+  // Las solicitudes se cargan al abrir la app; las nuevas llegan en vivo (evento "follow").
+  const actions = useBackend();
+  const sessionUserId = backend.sessionUserId;
+  useEffect(() => {
+    if (sessionUserId) void actions.loadNetwork().catch(() => {});
+  }, [actions, sessionUserId]);
 
   const renderTab = (routeName: string) => {
     const index = state.routes.findIndex((r) => r.name === routeName);
@@ -41,13 +48,19 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
     if (!route || !item) return null;
     const focused = state.index === index;
     const label = t(item.label);
-    const showBadge = routeName === "messages" && unread > 0;
+    const badge =
+      routeName === "messages" && unread > 0
+        ? t("messages.unread", { count: unread })
+        : routeName === "profile" && requests > 0
+          ? t("network.requestsCount", { count: requests })
+          : null;
+    const showBadge = badge !== null;
     return (
       <Pressable
         key={route.key}
         accessibilityRole="tab"
         accessibilityState={{ selected: focused }}
-        accessibilityLabel={showBadge ? `${label}, ${t("messages.unread", { count: unread })}` : label}
+        accessibilityLabel={badge ? `${label}, ${badge}` : label}
         onPress={() => {
           const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
           if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
