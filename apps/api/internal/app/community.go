@@ -20,8 +20,8 @@ type ProfilePet struct {
 }
 
 // PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, "me gusta" y calificación. La
-// ubicación no se muestra a nadie, las mascotas solo a quienes se siguen mutuamente, y de los
-// seguidores solo el número: las listas son de la propia cuenta.
+// ubicación no se muestra a nadie, las mascotas solo a sus seguidores aceptados, y de los seguidores
+// solo el número: las listas son de la propia cuenta.
 type PublicProfile struct {
 	User         PublicUser             `json:"user"`
 	MemberDays   int                    `json:"memberDays"`
@@ -32,7 +32,6 @@ type PublicProfile struct {
 	Followers    int                    `json:"followers"`
 	Following    int                    `json:"following"`
 	FollowStatus string                 `json:"followStatus"`
-	Mutual       bool                   `json:"mutual"`
 	Badges       []domain.BadgeProgress `json:"badges"`
 	Pets         []ProfilePet           `json:"pets"`
 	Reported     int                    `json:"reported"`
@@ -65,19 +64,17 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	if err := a.DB.QueryRow(ctx, `SELECT
 			count(*) FILTER (WHERE followed_id = $1 AND status = 'accepted'),
 			count(*) FILTER (WHERE follower_id = $1 AND status = 'accepted'),
-			coalesce(max(status) FILTER (WHERE follower_id = $2 AND followed_id = $1 AND status <> 'declined'), 'none'),
-			coalesce(bool_or(follower_id = $1 AND followed_id = $2 AND status = 'accepted'), false)
-		FROM follows WHERE followed_id = $1 OR follower_id = $1`, userID, viewerID).Scan(&p.Followers, &p.Following, &p.FollowStatus, &p.Mutual); err != nil {
+			coalesce(max(status) FILTER (WHERE follower_id = $2 AND followed_id = $1 AND status <> 'declined'), 'none')
+		FROM follows WHERE followed_id = $1 OR follower_id = $1`, userID, viewerID).Scan(&p.Followers, &p.Following, &p.FollowStatus); err != nil {
 		return PublicProfile{}, err
 	}
-	p.Mutual = p.Mutual && p.FollowStatus == "accepted"
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
 		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
 		return PublicProfile{}, err
 	}
 	if viewerID != userID {
 		p.User.City, p.User.Neighborhood = "", nil
-		if !p.Mutual {
+		if p.FollowStatus != "accepted" {
 			return p, nil
 		}
 	}

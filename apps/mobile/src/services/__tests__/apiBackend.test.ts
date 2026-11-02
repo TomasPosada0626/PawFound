@@ -988,7 +988,7 @@ describe("perfil y preferencias", () => {
     let state = backend.getSnapshot();
     expect(state.network).toEqual({ requests: ["u_r"], followers: ["u_f"], following: ["u_g", "u_h"], sent: ["u_s"] });
     expect(state.users.u_r?.username).toBe("pide");
-    expect(state.followInfo.u_ana).toEqual({ followers: 1, following: 2, status: "none", mutual: false });
+    expect(state.followInfo.u_ana).toEqual({ followers: 1, following: 2, status: "none" });
 
     route("POST /v1/me/followers/u_r/accept", { status: 204 });
     await backend.acceptFollower("u_r");
@@ -1009,7 +1009,6 @@ describe("perfil y preferencias", () => {
         followers: 7,
         following: 2,
         followStatus: "pending",
-        mutual: false,
         badges: [],
         pets: [],
       },
@@ -1017,7 +1016,7 @@ describe("perfil y preferencias", () => {
     route("POST /v1/users/u_t/follow", { status: 200, body: { status: "pending" } });
     await expect(backend.followUser("u_t")).resolves.toBe("pending");
     state = backend.getSnapshot();
-    expect(state.followInfo.u_t).toEqual({ followers: 7, following: 2, status: "pending", mutual: false });
+    expect(state.followInfo.u_t).toEqual({ followers: 7, following: 2, status: "pending" });
     expect(state.remoteRatings.u_t).toEqual({ average: 4.75, count: 3 });
     route("DELETE /v1/users/u_t/follow", { status: 204 });
     await backend.unfollowUser("u_t");

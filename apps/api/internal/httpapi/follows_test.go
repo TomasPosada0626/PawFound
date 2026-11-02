@@ -169,10 +169,10 @@ func TestFollowIsMutualAndListsArePrivate(t *testing.T) {
 
 	// Dejar de seguir es de un solo lado: la otra persona sigue siguiendo.
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/users/"+ana.ID+"/follow", fan.Token, nil, nil)
-	if p := h.profile(ana, fan.Token); p.Followers != 0 || p.Following != 1 || p.FollowStatus != "none" || p.Mutual {
+	if p := h.profile(ana, fan.Token); p.Followers != 0 || p.Following != 1 || p.FollowStatus != "none" {
 		t.Fatalf("tras dejar de seguir = %+v", p)
 	}
-	if p := h.profile(fan, ana.Token); p.Followers != 1 || p.Following != 0 || p.FollowStatus != "accepted" || p.Mutual {
+	if p := h.profile(fan, ana.Token); p.Followers != 1 || p.Following != 0 || p.FollowStatus != "accepted" {
 		t.Fatalf("la otra persona sigue siguiendo = %+v", p)
 	}
 	// Eliminar a un seguidor tampoco cambia a quién sigue la cuenta.
@@ -187,7 +187,7 @@ func TestFollowIsMutualAndListsArePrivate(t *testing.T) {
 		t.Fatalf("volver a pedir = %v", sent)
 	}
 	h.must(http.StatusNoContent, http.MethodPost, "/v1/me/followers/"+stranger.ID+"/accept", other.Token, nil, nil)
-	if p := h.profile(other, stranger.Token); p.Followers != 1 || p.Following != 1 || !p.Mutual {
+	if p := h.profile(other, stranger.Token); p.Followers != 1 || p.Following != 1 || p.FollowStatus != "accepted" {
 		t.Fatalf("al aceptar se siguen de nuevo = %+v", p)
 	}
 }
@@ -304,7 +304,7 @@ func TestProfileHidesLocationAndPetsFromStrangers(t *testing.T) {
 	if p := h.profile(ana, stranger.Token); len(p.Pets) != 0 {
 		t.Fatalf("con solicitud pendiente ve mascotas: %+v", p.Pets)
 	}
-	// Las mascotas piden seguirse mutuamente: si cualquiera deja de seguir, ninguna ve las de la otra.
+	// Basta con seguir a la persona, aunque ella no siga de vuelta. Quien deja de seguir deja de verlas.
 	h.must(http.StatusCreated, http.MethodPost, "/v1/me/owned-pets", friend.Token, map[string]any{
 		"name": "Toby", "species": "dog", "sex": "male", "age": "adult", "size": "medium", "description": "", "photos": []string{},
 	}, nil)
@@ -315,8 +315,13 @@ func TestProfileHidesLocationAndPetsFromStrangers(t *testing.T) {
 	if p := h.profile(ana, friend.Token); len(p.Pets) != 0 {
 		t.Fatalf("quien dejó de seguir ve mascotas: %+v", p.Pets)
 	}
-	if p := h.profile(friend, ana.Token); len(p.Pets) != 0 || p.FollowStatus != "accepted" {
-		t.Fatalf("quien sigue sin ser seguida ve mascotas: %+v", p)
+	if p := h.profile(friend, ana.Token); len(p.Pets) != 1 || p.FollowStatus != "accepted" {
+		t.Fatalf("quien sigue sin ser seguida debe verlas: %+v", p)
+	}
+	// La dueña decide: al eliminar a esa persona como seguidora, deja de verlas.
+	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me/followers/"+ana.ID, friend.Token, nil, nil)
+	if p := h.profile(friend, ana.Token); len(p.Pets) != 0 {
+		t.Fatalf("una seguidora eliminada ve mascotas: %+v", p.Pets)
 	}
 }
 

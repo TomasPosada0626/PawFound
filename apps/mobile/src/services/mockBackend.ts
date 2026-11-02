@@ -1070,8 +1070,6 @@ export class MockBackend {
         .map((f) => (incoming ? f.followerId : f.followedId));
     const count = (userId: string, incoming: boolean) =>
       follows.filter((f) => f.status === "accepted" && (incoming ? f.followedId === userId : f.followerId === userId)).length;
-    const followsMe = (userId: string) =>
-      follows.some((f) => f.followerId === userId && f.followedId === me && f.status === "accepted");
     const statusOf = (userId: string): FollowStatus => {
       const edge = follows.find((f) => f.followerId === me && f.followedId === userId);
       return edge && edge.status !== "declined" ? edge.status : "none";
@@ -1091,7 +1089,6 @@ export class MockBackend {
             followers: count(id, true),
             following: count(id, false),
             status: statusOf(id),
-            mutual: statusOf(id) === "accepted" && followsMe(id),
           },
         ]),
       ),

@@ -424,20 +424,13 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({ status: "accepted", followers: 1, following: 1 });
     await expect(backend.followUser("u_daniel")).resolves.toBe("accepted");
 
-    expect(followInfoOf(backend.getSnapshot(), "u_daniel").mutual).toBe(true);
-
     // Eliminar es de un solo lado, se puede volver a pedir y el me gusta se mantiene.
     await signInAs(backend, "u_daniel");
     await backend.removeFollower("u_valentina");
     expect(backend.getSnapshot().profileLikes.u_daniel).toContain("u_valentina");
     await signInAs(backend, "u_valentina");
     await backend.loadNetwork();
-    expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({
-      status: "none",
-      followers: 0,
-      following: 1,
-      mutual: false,
-    });
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({ status: "none", followers: 0, following: 1 });
     await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
   });
 
