@@ -47,6 +47,8 @@ type Mailer interface {
 	// name es el nombre de la cuenta, para saludar ("¡Hola, Valentina!").
 	SendVerificationCode(ctx context.Context, email, name, code, lang string) error
 	SendPasswordReset(ctx context.Context, email, link string) error
+	// SendNotice envía un aviso con un botón (por ejemplo, una solicitud de adopción).
+	SendNotice(ctx context.Context, email, name string, n Notice) error
 }
 
 // ErrDisabled: la función necesita un proveedor que todavía no se activó.
@@ -125,6 +127,12 @@ func (m LogMailer) SendVerificationCode(_ context.Context, email, _, code, _ str
 // SendPasswordReset registra el envío sin el enlace completo en producción.
 func (m LogMailer) SendPasswordReset(_ context.Context, _ string, link string) error {
 	m.Log.Info("correo de desarrollo (no se envió)", "reset_link", link)
+	return nil
+}
+
+// SendNotice registra el aviso sin el destinatario.
+func (m LogMailer) SendNotice(_ context.Context, email, _ string, n Notice) error {
+	m.Log.Info("correo de desarrollo (no se envió)", "to_domain", domainOf(email), "subject", n.Subject)
 	return nil
 }
 

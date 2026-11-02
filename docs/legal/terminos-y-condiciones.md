@@ -1,6 +1,6 @@
 # Términos y condiciones de uso
 
-Última actualización: 2 de noviembre de 2026. Versión: 1.0.
+Última actualización: 2 de noviembre de 2026. Versión: 1.1.
 
 ## 1. Aceptación
 
@@ -77,13 +77,26 @@ ubicación aproximada ("Alerta Ángel"), por notificación de la app según lo q
 consentido. Son avisos generados por la comunidad, no alertas gubernamentales ni
 oficiales, y puedes desactivarlos en cualquier momento desde Ajustes.
 
-## 9. Disponibilidad del servicio
+## 9. PawFamily: adopción responsable
+
+PawFamily es la sección de PawFound para dar y buscar mascotas en adopción.
+
+- **Es 100 % gratuita.** Nadie puede pedir ni recibir dinero, regalos ni pagos de ningún tipo por dar una
+  mascota en adopción, ni siquiera "para la vacuna" o "para el transporte". Quien lo haga puede ser
+  reportado; moderación revisa el reporte, retira la publicación y puede suspender la cuenta.
+- **Los datos deben ser verdaderos.** Al entrar a PawFamily aceptas que la información que publicas para
+  dar en adopción y la que envías para adoptar es legítima.
+- **La decisión es de quien publica.** Puede aceptar o rechazar cada solicitud. Al aceptar se abre un chat
+  para coordinar directamente; PawFound no participa en la entrega ni la garantiza.
+- **Refugios.** Los refugios pueden pedir una verificación adicional con su NIT.
+
+## 10. Disponibilidad del servicio
 
 PawFound es un servicio comunitario en construcción; puede tener interrupciones,
 cambios o suspensión de funcionalidades sin garantía de disponibilidad continua.
 Te avisaremos de cambios materiales con la anticipación que sea razonable.
 
-## 10. Limitación de responsabilidad
+## 11. Limitación de responsabilidad
 
 PawFound facilita la coordinación entre personas usuarias, pero no garantiza el
 reencuentro, la veracidad de lo publicado por terceros ni la seguridad de los encuentros
@@ -91,18 +104,18 @@ presenciales que acuerdes con otra persona usuaria. Sigue los
 consejos de seguridad que la app te muestra al coordinar una entrega o
 encuentro, y usa tu propio criterio.
 
-## 11. Cambios a estos Términos
+## 12. Cambios a estos Términos
 
 Podemos actualizar estos Términos. Los cambios materiales se notificarán dentro de la app
 antes de entrar en vigor, con la fecha de la nueva versión.
 
-## 12. Ley aplicable
+## 13. Ley aplicable
 
 Estos Términos se interpretan conforme a las leyes de la República de Colombia,
 sin perjuicio de los derechos irrenunciables que te reconozca la normativa de protección
 al consumidor y de datos personales aplicable.
 
-## 13. Contacto
+## 14. Contacto
 
 Dudas o solicitudes sobre estos Términos: **[pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com)**, o desde la app en Ajustes › Soporte y
 ayuda. Más detalles en [Ayuda](/ayuda).

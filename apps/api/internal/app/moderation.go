@@ -46,6 +46,7 @@ type QueueItem struct {
 	ReportedID     *string    `db:"reported_user_id"`
 	ReportedName   *string    `db:"reported_name"`
 	PetID          *string    `db:"pet_id"`
+	AdoptionID     *string    `db:"adoption_id"`
 	ThreadID       *string    `db:"thread_id"`
 	MessageID      *string    `db:"message_id"`
 	ReportsAgainst int        `db:"reports_against"`
@@ -76,7 +77,7 @@ func (a *App) ModerationQueue(ctx context.Context, status string, limit int) ([]
 		limit = 100
 	}
 	rows, _ := a.DB.Query(ctx, `SELECT r.id, r.target_kind, r.reason, r.note, r.status, r.created_at, r.resolved_at, r.reporter_id,
-			rep.name AS reporter_name, r.reported_user_id, tgt.name AS reported_name, r.pet_id, r.thread_id, r.message_id,
+			rep.name AS reporter_name, r.reported_user_id, tgt.name AS reported_name, r.pet_id, r.adoption_id, r.thread_id, r.message_id,
 			(SELECT count(*) FROM reports x WHERE x.reported_user_id = r.reported_user_id AND x.status = 'open')::int AS reports_against
 		FROM reports r LEFT JOIN users rep ON rep.id = r.reporter_id LEFT JOIN users tgt ON tgt.id = r.reported_user_id
 		WHERE r.status = $1 ORDER BY `+order+` LIMIT $2`, status, limit)
@@ -118,6 +119,7 @@ type ReportDetail struct {
 	Message  *Message
 	Context  []Message
 	Pet      *Pet
+	Adoption *Adoption
 	History  []ActionEntry
 	Suggest  string
 }
@@ -126,7 +128,7 @@ type ReportDetail struct {
 // que lo rodean, la publicación, y el historial de sanciones de la persona reportada.
 func (a *App) ModerationReport(ctx context.Context, id string) (ReportDetail, error) {
 	rows, _ := a.DB.Query(ctx, `SELECT r.id, r.target_kind, r.reason, r.note, r.status, r.created_at, r.resolved_at, r.reporter_id,
-			rep.name AS reporter_name, r.reported_user_id, tgt.name AS reported_name, r.pet_id, r.thread_id, r.message_id,
+			rep.name AS reporter_name, r.reported_user_id, tgt.name AS reported_name, r.pet_id, r.adoption_id, r.thread_id, r.message_id,
 			(SELECT count(*) FROM reports x WHERE x.reported_user_id = r.reported_user_id AND x.status = 'open')::int AS reports_against
 		FROM reports r LEFT JOIN users rep ON rep.id = r.reporter_id LEFT JOIN users tgt ON tgt.id = r.reported_user_id WHERE r.id = $1`, id)
 	item, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[QueueItem])
@@ -164,6 +166,14 @@ func (a *App) ModerationReport(ctx context.Context, id string) (ReportDetail, er
 		if row, err := a.petRow(ctx, *item.PetID); err == nil {
 			if p, err := a.toPet(ctx, row, ""); err == nil {
 				d.Pet = &p
+			}
+		}
+	}
+	if item.AdoptionID != nil {
+		if row, err := a.adoptionRow(ctx, *item.AdoptionID); err == nil {
+			// Moderación ve la publicación aunque esté retirada.
+			if list, err := a.toAdoptions(ctx, []adoptionRow{row}, row.OwnerID); err == nil {
+				d.Adoption = &list[0]
 			}
 		}
 	}
@@ -239,19 +249,21 @@ func (a *App) ModerationLog(ctx context.Context, userID string, limit int) ([]Ac
 
 // ModerationInput es una decisión del equipo.
 type ModerationInput struct {
-	Action    string
-	ReportID  string
-	UserID    string
-	PetID     string
-	MessageID string
-	Hours     int
-	Note      string
+	Action     string
+	ReportID   string
+	UserID     string
+	PetID      string
+	AdoptionID string
+	MessageID  string
+	Hours      int
+	Note       string
 }
 
 // Acciones del panel.
 var moderationActions = map[string]bool{
 	"dismiss": true, "warn": true, "mute": true, "unmute": true, "remove_message": true, "restore_message": true,
 	"remove_pet": true, "restore_pet": true, "suspend": true, "unsuspend": true, "remove_photo": true,
+	"remove_adoption": true, "restore_adoption": true,
 }
 
 // Moderate aplica una decisión, la registra y resuelve el reporte asociado.
@@ -271,10 +283,13 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 	}
 	now := a.now()
 	if in.ReportID != "" {
-		var reported, petID, messageID *string
-		if err := a.DB.QueryRow(ctx, `SELECT reported_user_id, pet_id, message_id FROM reports WHERE id = $1`, in.ReportID).
-			Scan(&reported, &petID, &messageID); err != nil {
+		var reported, petID, adoptionID, messageID *string
+		if err := a.DB.QueryRow(ctx, `SELECT reported_user_id, pet_id, adoption_id, message_id FROM reports WHERE id = $1`, in.ReportID).
+			Scan(&reported, &petID, &adoptionID, &messageID); err != nil {
 			return notFoundIfNoRows(err)
+		}
+		if in.AdoptionID == "" {
+			in.AdoptionID = deref(adoptionID)
 		}
 		if in.UserID == "" {
 			in.UserID = deref(reported)
@@ -336,6 +351,12 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 			if err == nil && tag.RowsAffected() == 0 {
 				err = ErrNotFound
 			}
+		case "remove_adoption", "restore_adoption":
+			var tag pgconnTag
+			tag, err = tx.Exec(ctx, `UPDATE adoptions SET moderation_removed = $2 WHERE id = $1`, in.AdoptionID, in.Action == "remove_adoption")
+			if err == nil && tag.RowsAffected() == 0 {
+				err = ErrNotFound
+			}
 		case "remove_pet", "restore_pet":
 			sql := `UPDATE pets SET moderation_removed = true, state = CASE WHEN state = 'active' THEN 'archived' ELSE state END WHERE id = $1`
 			if in.Action == "restore_pet" {
@@ -357,9 +378,9 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 		if in.Action == "mute" {
 			hours = &in.Hours
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO moderation_actions (moderator_id, action, target_user_id, pet_id, message_id, report_id, hours, note, at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, mod.ID, in.Action, optional(in.UserID), optional(in.PetID), optional(in.MessageID),
-			optional(in.ReportID), hours, note, now); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO moderation_actions (moderator_id, action, target_user_id, pet_id, message_id, report_id, hours, note, at, adoption_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, mod.ID, in.Action, optional(in.UserID), optional(in.PetID), optional(in.MessageID),
+			optional(in.ReportID), hours, note, now, optional(in.AdoptionID)); err != nil {
 			return err
 		}
 		if in.ReportID != "" {

@@ -47,6 +47,15 @@ func (m BrevoMailer) SendPasswordReset(ctx context.Context, email, link string) 
 	return m.send(ctx, email, "", subject, body, html)
 }
 
+// SendNotice envía un aviso con un botón.
+func (m BrevoMailer) SendNotice(ctx context.Context, email, name string, n Notice) error {
+	html, err := noticeHTML(m.Brand, n)
+	if err != nil {
+		return err
+	}
+	return m.send(ctx, email, name, n.Subject, noticeText(n), html)
+}
+
 func (m BrevoMailer) send(ctx context.Context, to, name, subject, body, html string) error {
 	if m.APIKey == "" || m.From == "" {
 		return ErrDisabled
