@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Respaldo cifrado de la base de datos. Nunca deja una copia sin cifrar en el disco.
+# pg_dump debe ser de la misma versión de la base o más nuevo (Neon usa PostgreSQL 18).
 #
 #   DATABASE_URL=postgres://... RESPALDO_CLAVE=... scripts/respaldo.sh archivo.dump.gpg
 set -euo pipefail

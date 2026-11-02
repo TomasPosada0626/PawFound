@@ -1,7 +1,7 @@
 /** Español (Colombia) — idioma predeterminado y fuente de las claves. */
 export const es = {
   common: {
-    founder: "Creador de PawFound",
+    founder: "Fundador de PawFound",
     appName: "PawFound",
     tagline: "Conectamos patas, reunimos familias",
     back: "Volver",

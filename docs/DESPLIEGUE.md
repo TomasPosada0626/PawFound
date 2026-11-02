@@ -172,6 +172,10 @@ Para activarlo:
 3. Guardar `RESPALDO_CLAVE` también fuera de GitHub: **sin ella los respaldos no se pueden abrir**.
 4. Correr el trabajo a mano desde la pestaña Actions y confirmar que aparece el archivo.
 
+El cliente de PostgreSQL (`pg_dump` y `pg_restore`) debe ser de la misma versión de la base o más
+nuevo; hoy Neon usa PostgreSQL 18. Si falla por la versión, se puede usar la imagen `postgres:18` de
+Docker.
+
 Para restaurar, en una base **vacía** con PostGIS activado (el script se niega si ya tiene tablas):
 
 ```sh
