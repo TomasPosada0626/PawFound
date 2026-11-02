@@ -82,7 +82,8 @@ func TestContactPhoneIsDeletedWithTheAccount(t *testing.T) {
 	pet := h.report(owner, lostReport("Max", laureles, nil))
 	h.must(http.StatusOK, http.MethodPut, "/v1/pets/"+pet.ID+"/contact", owner.Token, map[string]string{"phone": "3001234567"}, nil)
 	h.must(http.StatusNoContent, http.MethodDelete, "/v1/me", owner.Token, nil, nil)
-	if n := h.count(`SELECT count(*) FROM pets WHERE id = $1 AND contact_phone IS NULL`, pet.ID); n != 1 {
+	// El reporte se borra entero, con el celular del afiche.
+	if n := h.count(`SELECT count(*) FROM pets WHERE id = $1 OR contact_phone LIKE '%3001234567'`, pet.ID); n != 0 {
 		t.Fatal("al eliminar la cuenta el celular se borra")
 	}
 }

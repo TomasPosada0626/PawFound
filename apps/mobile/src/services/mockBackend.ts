@@ -1397,38 +1397,59 @@ export class MockBackend {
     return JSON.stringify(data, null, 2);
   }
 
-  /** Derecho al olvido: borra perfil y mensajes; los reportes activos se archivan. */
+  /**
+   * Derecho al olvido, como la API: borra la cuenta y todo lo que publicó (reportes con su grupo,
+   * PawFamily, avistamientos, mensajes, chats directos, red y me gusta). En los grupos ajenos solo
+   * quedan los avisos del sistema, sin su nombre.
+   */
   async deleteAccount(): Promise<void> {
     const user = this.requireUser();
-    for (const [email, entry] of this.credentials) if (entry.userId === user.id) this.credentials.delete(email);
-    const users = { ...this.state.users };
-    delete users[user.id];
-    const alertZones = { ...this.state.alertZones };
-    delete alertZones[user.id];
-    const shareLog = { ...this.state.shareLog };
-    delete shareLog[user.id];
-    const profileLikes = Object.fromEntries(
-      Object.entries(this.state.profileLikes)
-        .filter(([target]) => target !== user.id)
-        .map(([target, likers]) => [target, likers.filter((id) => id !== user.id)]),
+    const me = user.id;
+    for (const [email, entry] of this.credentials) if (entry.userId === me) this.credentials.delete(email);
+    const without = <T>(record: Record<string, T>) => Object.fromEntries(Object.entries(record).filter(([id]) => id !== me));
+    const removedPets = new Set(this.state.pets.filter((p) => p.ownerId === me).map((p) => p.id));
+    const removedAdoptions = new Set(this.state.adoptions.filter((a) => a.ownerId === me).map((a) => a.id));
+    const removedThreads = new Set(
+      this.state.threads
+        .filter((t) => (t.kind === "dm" && t.memberIds.includes(me)) || (t.petId !== undefined && removedPets.has(t.petId)))
+        .map((t) => t.id),
     );
     this.commit({
-      follows: this.state.follows.filter((f) => f.followerId !== user.id && f.followedId !== user.id),
-      profileLikes,
-      alertZones,
-      shareLog,
-      ownedPets: this.state.ownedPets.filter((p) => p.ownerId !== user.id),
-      users,
+      follows: this.state.follows.filter((f) => f.followerId !== me && f.followedId !== me),
+      profileLikes: Object.fromEntries(
+        Object.entries(without(this.state.profileLikes)).map(([target, likers]) => [target, likers.filter((id) => id !== me)]),
+      ),
+      ratingStars: without(this.state.ratingStars),
+      alertZones: without(this.state.alertZones),
+      shareLog: without(this.state.shareLog),
+      reportLog: without(this.state.reportLog),
+      notificationPrefs: without(this.state.notificationPrefs),
+      privacyPrefs: without(this.state.privacyPrefs),
+      ownedPets: this.state.ownedPets.filter((p) => p.ownerId !== me),
+      users: without(this.state.users),
       sessionUserId: null,
       verification: null,
-      pets: this.state.pets.map((p) => (p.ownerId === user.id && p.state === "active" ? { ...p, state: "archived" } : p)),
+      network: { requests: [], followers: [], following: [], sent: [] },
+      pets: this.state.pets
+        .filter((p) => !removedPets.has(p.id))
+        .map((p) => ({
+          ...p,
+          sightings: p.sightings.filter((s) => s.authorId !== me),
+          helperIds: p.helperIds?.filter((id) => id !== me),
+        })),
+      stories: this.state.stories.filter((s) => s.authorId !== me && !removedPets.has(s.petId)),
+      adoptions: this.state.adoptions.filter((a) => !removedAdoptions.has(a.id)),
+      adoptionApplications: this.state.adoptionApplications.filter(
+        (a) => a.applicantId !== me && !removedAdoptions.has(a.adoptionId),
+      ),
+      userReports: this.state.userReports.filter((r) => r.reportedId !== me),
       threads: this.state.threads
-        .filter((t) => !(t.kind === "dm" && t.memberIds.includes(user.id)))
-        .map((t) => ({ ...t, memberIds: t.memberIds.filter((id) => id !== user.id) })),
+        .filter((t) => !removedThreads.has(t.id))
+        .map((t) => ({ ...t, memberIds: t.memberIds.filter((id) => id !== me) })),
       messages: this.state.messages
-        .filter((m) => m.authorId !== user.id || m.kind !== "text")
-        .map((m) => (m.authorId === user.id ? { ...m, authorId: "deleted", authorShortName: "" } : m)),
-      notifications: this.state.notifications.filter((n) => n.userId !== user.id),
+        .filter((m) => !removedThreads.has(m.threadId) && (m.authorId !== me || m.kind === "system"))
+        .map((m) => (m.authorId === me ? { ...m, authorId: "deleted", authorShortName: "" } : m)),
+      notifications: this.state.notifications.filter((n) => n.userId !== me && !removedPets.has(n.petId)),
     });
   }
 }

@@ -391,16 +391,55 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     expect(data.reports.every((r: { ownerId: string }) => r.ownerId === "u_valentina")).toBe(true);
   });
 
-  it("eliminar la cuenta borra perfil y DMs, archiva reportes activos e impide volver a entrar", async () => {
+  it("eliminar la cuenta borra todo lo que publicó, también en lo ajeno, e impide volver a entrar", async () => {
     const backend = makeBackend();
     await loginDemo(backend);
+    // Lo que hace en lo ajeno: un avistamiento, me gusta, seguir y una solicitud de PawFamily.
+    await backend.addSighting("max", {
+      at: clock.toISOString(),
+      location: { latitude: 6.245, longitude: -75.59 },
+      zone: "Laureles",
+    });
+    await backend.toggleProfileLike("u_daniel");
+    await backend.followUser("u_daniel");
+    await backend.acceptAdoptionTerms();
+    await backend.applyToAdoption("ad_canela", {
+      fullName: "Valentina",
+      household: 2,
+      neighborhood: "Laureles",
+      city: "Medellín",
+      hadPets: true,
+      petsCount: 1,
+      reason: "Tenemos patio y mucho tiempo para ella.",
+    });
+    const mine = await backend.createAdoption({
+      name: "Toby",
+      species: "dog",
+      sex: "male",
+      age: "young",
+      size: "small",
+      description: "Juguetón y sano",
+      vaccinated: true,
+      sterilized: false,
+      photos: ["file:///toby.jpg"],
+      location: { latitude: 6.24, longitude: -75.59 },
+      zone: "Laureles, Medellín",
+    });
+
     await backend.deleteAccount();
     const state = backend.getSnapshot();
-    expect(state.users.u_valentina).toBeUndefined();
+    const me = "u_valentina";
+    expect(state.users[me]).toBeUndefined();
     expect(state.sessionUserId).toBeNull();
-    expect(state.pets.find((p) => p.id === "rocky")?.state).toBe("archived");
-    expect(state.threads.some((t) => t.kind === "dm" && t.memberIds.includes("u_valentina"))).toBe(false);
-    expect(state.messages.some((m) => m.authorId === "u_valentina" && m.kind === "text")).toBe(false);
+    expect(state.pets.some((p) => p.id === "rocky" || p.ownerId === me)).toBe(false);
+    expect(state.pets.some((p) => p.sightings.some((s) => s.authorId === me))).toBe(false);
+    expect(state.threads.some((t) => t.petId === "rocky" || t.memberIds.includes(me))).toBe(false);
+    expect(state.messages.some((m) => m.authorId === me)).toBe(false);
+    expect(state.adoptions.some((a) => a.id === mine)).toBe(false);
+    expect(state.adoptionApplications.some((a) => a.applicantId === me)).toBe(false);
+    expect(state.follows.some((f) => f.followerId === me || f.followedId === me)).toBe(false);
+    expect(state.profileLikes.u_daniel ?? []).not.toContain(me);
+    expect(state.stories.some((s) => s.authorId === me)).toBe(false);
     await expectCode(backend.login(DEMO_EMAIL, DEMO_PASSWORD), "invalid_credentials");
   });
 

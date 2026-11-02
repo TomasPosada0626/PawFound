@@ -13,6 +13,8 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/geo"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/media"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/providers"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/realtime"
 )
 
 // SetAlertZone guarda la última ubicación aproximada para las alertas (nunca el punto exacto ni
@@ -176,33 +178,54 @@ func (a *App) ExportData(ctx context.Context, ac Actor) (Export, error) {
 	return Export{ExportedAt: a.now(), Me: me, Reports: reports, Messages: messages, OwnedPets: owned, Consents: consents, Network: network, Ratings: ratings}, nil
 }
 
-// DeleteAccount es el derecho al olvido: borra perfil, mensajes escritos, chats directos,
-// mascotas propias, zona y fotos de chat. Los reportes activos se archivan (no se borran: son
-// parte de casos con más personas) y quedan sin autor.
+// deletedThreads son los chats que desaparecen con una cuenta: los grupos de sus casos y sus
+// chats directos (también los de PawFamily).
+const deletedThreads = `SELECT group_id FROM pets WHERE owner_id = $1
+	UNION SELECT t.id FROM threads t JOIN thread_members m ON m.thread_id = t.id WHERE t.kind = 'dm' AND m.user_id = $1`
+
+// DeleteAccount es el derecho al olvido: borra la cuenta y todo lo que publicó. Sus reportes se
+// van con su grupo, sus avistamientos, historias, ayudas y alertas; también sus publicaciones y
+// solicitudes de PawFamily, sus avistamientos en casos ajenos, sus mensajes, sus chats directos,
+// su red, sus me gusta y todas las fotos (también las que otras personas mandaron en esos chats).
+// En los grupos ajenos solo quedan los avisos del sistema, sin su nombre. Las denuncias abiertas
+// sobre la cuenta se cierran: ya no hay nada que revisar.
 func (a *App) DeleteAccount(ctx context.Context, ac Actor) error {
-	var keys []string
+	var keys, removed []string
+	var email, name, lang string
+	now := a.now()
 	err := a.withTx(ctx, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `SELECT email, name, lang FROM users WHERE id = $1`, ac.ID).Scan(&email, &name, &lang); err != nil {
+			return notFoundIfNoRows(err)
+		}
+		rows, _ := tx.Query(ctx, `SELECT id FROM pets WHERE owner_id = $1 AND withdrawn_at IS NULL`, ac.ID)
+		var err error
+		if removed, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
+			return err
+		}
+		rows, _ = tx.Query(ctx, `DELETE FROM media WHERE owner_id = $1 OR thread_id IN (`+deletedThreads+`)
+			OR id IN (SELECT photo_id FROM stories WHERE pet_id IN (SELECT id FROM pets WHERE owner_id = $1))
+			RETURNING storage_key`, ac.ID)
+		if keys, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE reports SET status = 'dismissed', resolved_at = $2 WHERE status = 'open' AND (reported_user_id = $1
+			OR pet_id IN (SELECT id FROM pets WHERE owner_id = $1) OR adoption_id IN (SELECT id FROM adoptions WHERE owner_id = $1))`, ac.ID, now); err != nil {
+			return err
+		}
 		stmts := []string{
-			`UPDATE pets SET state = 'archived' WHERE owner_id = $1 AND state = 'active'`,
-			`UPDATE pets SET contact_phone = NULL WHERE owner_id = $1`,
-			`UPDATE threads SET archived = true WHERE id IN (SELECT group_id FROM pets WHERE owner_id = $1)`,
-			`DELETE FROM messages WHERE author_id = $1 AND kind IN ('text', 'location')`,
+			`DELETE FROM threads WHERE id IN (` + deletedThreads + `)`,
+			`DELETE FROM pets WHERE owner_id = $1`,
+			`DELETE FROM sightings WHERE author_id = $1`,
+			`DELETE FROM messages WHERE author_id = $1 AND kind <> 'system'`,
 			`UPDATE messages SET author_id = NULL, author_short_name = '' WHERE author_id = $1`,
-			`DELETE FROM threads WHERE kind = 'dm' AND id IN (SELECT thread_id FROM thread_members WHERE user_id = $1)`,
+			`DELETE FROM users WHERE id = $1`,
 		}
 		for _, sql := range stmts {
 			if _, err := tx.Exec(ctx, sql, ac.ID); err != nil {
 				return err
 			}
 		}
-		rows, _ := tx.Query(ctx, `DELETE FROM media WHERE owner_id = $1 AND purpose IN ('chat', 'owned', 'avatar') RETURNING storage_key`, ac.ID)
-		var err error
-		keys, err = pgx.CollectRows(rows, pgx.RowTo[string])
-		if err != nil {
-			return err
-		}
-		_, err = tx.Exec(ctx, `DELETE FROM users WHERE id = $1`, ac.ID)
-		return err
+		return nil
 	})
 	if err != nil {
 		return err
@@ -211,6 +234,14 @@ func (a *App) DeleteAccount(ctx context.Context, ac Actor) error {
 		_ = a.RemoveStored(ctx, key)
 	}
 	a.Hub.Disconnect(ac.ID)
+	for _, id := range removed {
+		a.Hub.Broadcast(realtime.Event{Type: "pet_closed", Data: petClosedEvent{ID: id, Removed: true, At: now}})
+	}
+	a.background(func(ctx context.Context) {
+		if err := a.Mailer.SendNotice(ctx, email, name, providers.AccountDeletedNotice(strings.TrimRight(a.WebBaseURL, "/"), lang)); err != nil {
+			a.Log.Warn("correo de cuenta eliminada", "err", err)
+		}
+	})
 	return nil
 }
 

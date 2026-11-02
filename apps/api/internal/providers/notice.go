@@ -31,6 +31,30 @@ func AdoptionRequestNotice(petName, link, lang string) Notice {
 	}
 }
 
+// AccountDeletedNotice confirma que se borró la cuenta: si no fue la persona, al menos se entera.
+func AccountDeletedNotice(link, lang string) Notice {
+	if lang == "en" {
+		return Notice{
+			Lang: "en", Subject: "Your PawFound account was deleted",
+			Preheader: "We erased your profile and everything you posted.",
+			Title:     "Your account was deleted",
+			Intro:     "We erased your profile, your reports, your PawFamily posts, your messages, your photos and your location. Thank you for helping pets get back home.",
+			Button:    "Visit PawFound", Link: link,
+			Safety: "We keep no copy of your data. If you come back, you will start with a new account.",
+			Ignore: "You get this email because the PawFound account with this address was deleted.",
+		}
+	}
+	return Notice{
+		Lang: "es", Subject: "Tu cuenta de PawFound fue eliminada",
+		Preheader: "Borramos tu perfil y todo lo que publicaste.",
+		Title:     "Tu cuenta fue eliminada",
+		Intro:     "Borramos tu perfil, tus reportes, tus publicaciones de PawFamily, tus mensajes, tus fotos y tu ubicación. Gracias por ayudar a que las mascotas vuelvan a casa.",
+		Button:    "Visitar PawFound", Link: link,
+		Safety: "No guardamos copia de tus datos. Si vuelves, empezarás con una cuenta nueva.",
+		Ignore: "Recibes este correo porque se eliminó la cuenta de PawFound con esta dirección.",
+	}
+}
+
 // noticeText es la versión de solo texto del aviso.
 func noticeText(n Notice) string {
 	return strings.Join([]string{n.Title, "", n.Intro, "", n.Link, "", n.Safety}, "\r\n") + "\r\n"
