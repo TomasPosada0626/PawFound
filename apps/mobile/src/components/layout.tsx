@@ -10,17 +10,17 @@ import { Wordmark } from "./brand";
 import { IconButton } from "./ui/IconButton";
 import { cn, Text } from "./ui/Text";
 
-/** Dos botones de tema (sol a la izquierda, luna a la derecha), como en login.png y Mapa.png. */
-export function ThemeButton({ mode }: { mode: "light" | "dark" }) {
+/** Un solo botón de tema: cada toque alterna entre claro y oscuro. Muestra el modo al que se pasa. */
+export function ThemeButton() {
   const { t } = useI18n();
   const { scheme, setPreference } = useTheme();
+  const next = scheme === "dark" ? "light" : "dark";
   return (
     <IconButton
-      icon={mode === "light" ? "sunny-outline" : "moon-outline"}
-      label={mode === "light" ? t("common.lightMode") : t("common.darkMode")}
-      selected={scheme === mode}
-      onPress={() => setPreference(mode)}
-      testID={`theme-${mode}`}
+      icon={next === "light" ? "sunny-outline" : "moon-outline"}
+      label={next === "light" ? t("common.lightMode") : t("common.darkMode")}
+      onPress={() => setPreference(next)}
+      testID="theme-toggle"
     />
   );
 }
@@ -43,9 +43,9 @@ export function AppHeader({ left, right, title }: { left?: ReactNode; right?: Re
   return (
     <View className="px-4 pb-1 pt-2">
       <View className="min-h-[52px] flex-row items-center justify-between">
-        <View className="w-14 items-start">{left ?? <ThemeButton mode="light" />}</View>
+        <View className="w-14 items-start">{left}</View>
         <Wordmark />
-        <View className="w-14 items-end">{right ?? <ThemeButton mode="dark" />}</View>
+        <View className="w-14 items-end">{right ?? <ThemeButton />}</View>
       </View>
       {title ? (
         <Text variant="title" className="mt-1 text-center" accessibilityRole="header">

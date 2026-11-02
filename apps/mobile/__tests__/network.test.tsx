@@ -105,11 +105,11 @@ describe("seguirse", () => {
     expect(await screen.findByTestId("public-pets")).toBeOnTheScreen();
   });
 
-  it("muestra la calificación: toda cuenta empieza en 5 estrellas", async () => {
+  it("muestra la calificación: toda cuenta empieza en 5 estrellas, sin texto extra", async () => {
     await open("/user/u_daniel");
     const rating = await screen.findByTestId("public-rating");
     expect(rating).toHaveTextContent(/5,0/);
-    expect(rating).toHaveTextContent(/Sin calificaciones aún/);
+    expect(rating).not.toHaveTextContent(/calificaci/i);
   });
 });
 
