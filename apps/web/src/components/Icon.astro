@@ -1,10 +1,16 @@
 ---
-/** Íconos de línea propios (sin librerías externas). */
+/**
+ * Íconos de línea propios (sin librerías externas). Miden 1em por defecto: así nunca se
+ * desbordan donde no hay una regla de tamaño (antes la huella del encabezado salía gigante).
+ */
+export type IconName =
+  | "paw" | "bell" | "pin" | "chat" | "camera" | "shield" | "qr" | "heart" | "stories" | "vet" | "star" | "search" | "home" | "lock"
+  | "users" | "family" | "trash" | "eye" | "chart" | "doc" | "found";
 interface Props {
-  name: "paw" | "bell" | "pin" | "chat" | "camera" | "shield" | "qr" | "heart" | "stories" | "vet" | "star" | "search" | "home" | "lock";
+  name: IconName;
 }
 const { name } = Astro.props;
-const paths: Record<Props["name"], string> = {
+const paths: Record<IconName, string> = {
   paw: "M7 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm10 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM10 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm4 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-2 4c-3 0-6 3.5-6 6.2C6 19 7.4 20 9 20c1.2 0 2-.6 3-.6s1.8.6 3 .6c1.6 0 3-1 3-2.8C18 14.5 15 11 12 11Z",
   bell: "M6 16V11a6 6 0 1 1 12 0v5l2 2H4l2-2Zm4 3a2 2 0 0 0 4 0",
   pin: "M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11Zm0-8.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z",
@@ -19,9 +25,16 @@ const paths: Record<Props["name"], string> = {
   search: "M11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Zm5-2 4 4",
   home: "M4 11 12 4l8 7v9h-5v-6H9v6H4v-9Z",
   lock: "M7 11V8a5 5 0 0 1 10 0v3M6 11h12v9H6v-9Z",
+  users: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14c2 .6 3 2.7 3 6",
+  family: "M4 11 12 4l8 7v9H4v-9Zm8 7s-3.5-2-3.5-4.3A1.9 1.9 0 0 1 12 13a1.9 1.9 0 0 1 3.5.7C15.5 16 12 18 12 18Z",
+  trash: "M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3",
+  eye: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+  chart: "M3 20h18M6 16v-5m6 5V6m6 10v-8",
+  doc: "M7 3h7l5 5v13H7V3Zm7 0v5h5M10 13h6m-6 4h4",
+  found: "M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11Zm-3-11 2 2 4-4",
 };
 ---
 
-<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
   <path d={paths[name]}></path>
 </svg>
