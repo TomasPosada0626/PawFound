@@ -273,8 +273,11 @@ func TestProfileHidesLocationAndPetsFromStrangers(t *testing.T) {
 	stranger := h.user("Otra Persona", true)
 	h.exec(`UPDATE users SET city = 'Medellín', neighborhood = 'Laureles' WHERE id = $1`, ana.ID)
 	h.alertZone(ana, laureles, "Laureles")
+	photo, _ := h.upload(ana, "owned", jpegBytes(3))
 	h.must(http.StatusCreated, http.MethodPost, "/v1/me/owned-pets", ana.Token, map[string]any{
-		"name": "Rocky", "species": "dog", "sex": "male", "age": "adult", "size": "medium", "description": "", "photos": []string{},
+		"name": "Rocky", "species": "dog", "breed": "Criollo", "sex": "male", "age": "adult", "size": "medium", "color": "Café",
+		"collar": "Rojo con placa", "marks": "Mancha blanca en la oreja izquierda", "description": "Juguetón y le gusta el agua.",
+		"shyOrIndoor": true, "photos": []string{photo.ID},
 	}, nil)
 	h.befriend(friend, ana)
 
@@ -292,8 +295,19 @@ func TestProfileHidesLocationAndPetsFromStrangers(t *testing.T) {
 	if p := h.profile(ana, stranger.Token); len(p.Pets) != 0 {
 		t.Fatalf("una desconocida ve mascotas: %+v", p.Pets)
 	}
-	if p := h.profile(ana, friend.Token); len(p.Pets) != 1 {
-		t.Fatalf("una amiga debe verlas: %+v", p.Pets)
+	seen := h.profile(ana, friend.Token).Pets
+	if len(seen) != 1 {
+		t.Fatalf("una amiga debe verlas: %+v", seen)
+	}
+	// La ficha completa, salvo las señas particulares.
+	if rocky := seen[0]; rocky.Breed == nil || *rocky.Breed != "Criollo" || rocky.Sex != "male" || rocky.Age != "adult" ||
+		rocky.Color == nil || rocky.Collar == nil || rocky.Description == "" || !rocky.ShyOrIndoor || len(rocky.Photos) != 1 ||
+		rocky.Photo == nil || *rocky.Photo != rocky.Photos[0] {
+		t.Fatalf("ficha para seguidores = %+v", rocky)
+	}
+	res := h.must(http.StatusOK, http.MethodGet, "/v1/users/"+ana.ID, friend.Token, nil, nil)
+	if strings.Contains(string(res.Body), "Mancha blanca") {
+		t.Fatalf("las señas particulares no deben verse: %s", res.Body)
 	}
 	// La propia cuenta sí ve lo suyo.
 	if p := h.profile(ana, ana.Token); len(p.Pets) != 1 || p.User.City != "Medellín" || p.User.Neighborhood == nil {

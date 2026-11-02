@@ -170,6 +170,41 @@ describe("mis seguidores", () => {
   });
 });
 
+describe("solicitudes y mascotas de amigos", () => {
+  it("la pestaña Perfil muestra el punto rojo cuando hay solicitudes", async () => {
+    await loginAs("u_valentina");
+    await open("/");
+    expect(await screen.findByLabelText("Perfil, 1 solicitud nueva")).toBeOnTheScreen();
+  });
+
+  it("sin solicitudes la pestaña Perfil no tiene punto", async () => {
+    await loginAs("u_daniel");
+    await open("/");
+    expect(await screen.findByLabelText("Perfil")).toBeOnTheScreen();
+  });
+
+  it("al tocar una mascota de quien sigo se abre su ficha, sin las señas particulares", async () => {
+    await loginAs("u_maria");
+    const app = await open("/user/u_valentina");
+    const [first] = await screen.findAllByTestId(/^friend-pet-/);
+    await fireEvent.press(first!);
+    expect(await screen.findByTestId("friend-pet")).toBeOnTheScreen();
+    expect(app.getPathname()).toMatch(/^\/user\/mascota\//);
+    expect(
+      screen.getByText("Ves esta ficha porque sigues a su familia. Las señas particulares solo aparecen si publican un reporte."),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText("Señas particulares")).not.toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("friend-pet-owner"));
+    await waitFor(() => expect(app.getPathname()).toBe("/user/u_valentina"));
+  });
+
+  it("una mascota que ya no se puede ver muestra un aviso", async () => {
+    await loginAs("u_maria");
+    await open("/user/mascota/no-existe");
+    expect(await screen.findByText("No pudimos mostrar esta mascota. Puede que ya no sigas a su familia.")).toBeOnTheScreen();
+  });
+});
+
 describe("calificar al cerrar el caso", () => {
   it("al elegir a quien ayudó aparecen las estrellas y se guarda la calificación", async () => {
     await loginAs("u_valentina");
