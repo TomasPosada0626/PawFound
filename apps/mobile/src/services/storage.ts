@@ -21,6 +21,8 @@ export const STORAGE_KEYS = {
   pushShown: "pawfound.pushShown",
   /** Partes de historias ya vistas en este dispositivo. */
   storiesSeen: "pawfound.storiesSeen",
+  /** Políticas de PawFamily aceptadas en este dispositivo. */
+  pawfamilyTerms: "pawfound.pawfamilyTerms",
 } as const;
 
 export async function readJSON<T>(key: string): Promise<T | null> {

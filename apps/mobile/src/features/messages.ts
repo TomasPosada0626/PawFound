@@ -28,6 +28,8 @@ export function messageText(message: Message, pet: PetCase | undefined, t: T): s
     if (message.text === "created") return t("chat.created");
     if (message.text === "joined") return t("chat.joined", { name: message.authorShortName || t("common.deletedUser") });
     if (message.text === "reunited") return petSentence(t, "chat.reunitedMsg", pet ?? UNKNOWN_PET);
+    if (message.text === "adoption_accepted")
+      return t("chat.adoptionAccepted", { name: message.authorShortName || t("common.deletedUser") });
     if (message.text === "closed") return t("chat.closedMsg", { name: message.authorShortName || t("common.deletedUser") });
     return message.text;
   }

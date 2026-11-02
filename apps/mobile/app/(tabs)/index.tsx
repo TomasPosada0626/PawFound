@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useMemo, useState, useEffect } from "react";
 import { FlatList, Pressable, View } from "react-native";
 
+import { PawFamilyMark } from "@/components/pawfamily";
 import { StoriesBar } from "@/components/StoriesBar";
 import { AlertsOffBanner } from "@/components/AlertsOffBanner";
 import { HomeMenu } from "@/components/HomeMenu";
@@ -240,6 +241,24 @@ export default function HomeScreen() {
           renderItem={({ item }) => <PetCard pet={item.pet} distance={item.distance} now={now} />}
         />
       )}
+
+      {/* PawFamily: adopción responsable, en su propia sección */}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${t("pawfamily.wantToAdopt")} ${t("pawfamily.wantToAdoptBody")}`}
+        onPress={() => router.push("/pawfamily")}
+        className="mt-6 flex-row items-center gap-3 rounded-3xl border border-[#E8466C]/30 bg-surface p-4 active:opacity-80"
+        testID="open-pawfamily"
+      >
+        <PawFamilyMark size={44} />
+        <View className="flex-1 gap-0.5">
+          <Text variant="subheading">{t("pawfamily.wantToAdopt")}</Text>
+          <Text variant="caption" tone="body">
+            {t("pawfamily.wantToAdoptBody")}
+          </Text>
+        </View>
+        <Icon name="chevron-forward" size={20} color={colors.muted} />
+      </Pressable>
 
       {/* Nuestro impacto: datos reales o un estado honesto (docs/flujos/mapa-e-inicio.md) */}
       <Card className="mt-6">

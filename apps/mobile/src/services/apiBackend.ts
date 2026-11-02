@@ -1,6 +1,14 @@
 import * as SecureStore from "expo-secure-store";
 
 import type { BadgeProgress } from "@/domain/badges";
+import type {
+  Adoption,
+  AdoptionApplication,
+  AdoptionFilters,
+  AdoptionInput,
+  AdoptionReportReason,
+  ApplicationInput,
+} from "@/domain/adoption";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
 import type { ImpactStats, PublishAllowance } from "@/domain/rules";
 import type {
@@ -113,6 +121,8 @@ type ApiMessage = Omit<Message, "photo"> & { photo?: { url: string; width: numbe
 type ApiThread = Omit<Thread, "readAt"> & { readAt: Record<string, string>; members: ApiSummary[]; lastMessage?: ApiMessage };
 type ApiStory = { pet: ApiPet; items: (Omit<StoryItem, "photo"> & { photo?: string })[] };
 type ApiPerson = ApiSummary & { username: string };
+type ApiAdoption = Omit<Adoption, "ownerId"> & { owner: ApiSummary };
+type ApiApplication = Omit<AdoptionApplication, "applicantId"> & { applicant: ApiSummary; adoption?: ApiAdoption };
 type ApiNetwork = { requests: ApiPerson[]; followers: ApiPerson[]; following: ApiPerson[]; sent: ApiPerson[] };
 type ApiProfile = {
   user: Omit<ApiUser, "email">;
@@ -158,6 +168,9 @@ function emptyState(): BackendState {
     remoteRatings: {},
     follows: [],
     ratingStars: {},
+    adoptions: [],
+    adoptionApplications: [],
+    adoptionVersion: 0,
     onlineCount: null,
     nearbyLoaded: false,
     threadsLoaded: false,
@@ -167,6 +180,8 @@ function emptyState(): BackendState {
 
 const KNOWN_CODES = new Set<ErrorCode>([
   "follow_wait",
+  "adoption_terms",
+  "already_applied",
   "invalid_credentials",
   "email_taken",
   "phone_taken",
@@ -313,7 +328,7 @@ export class ApiBackend {
     this.listeners.forEach((l) => l());
   }
 
-  private async upload(uri: string, purpose: "pet" | "owned" | "chat" | "story" | "avatar"): Promise<string> {
+  private async upload(uri: string, purpose: "pet" | "owned" | "chat" | "story" | "avatar" | "adoption"): Promise<string> {
     if (/^https?:\/\//.test(uri)) return uri; // ya está en el servidor
     // Una foto que ya no existe (borrador viejo) se reporta como tal, no como falta de internet.
     if (!(await photoExists(uri))) throw new BackendError("invalid_image");
@@ -519,6 +534,7 @@ export class ApiBackend {
         }
         if (data.type === "online") this.commit({ onlineCount: data.data as number });
         if (data.type === "follow") void this.loadNetwork().catch(() => {});
+        if (data.type === "adoption") this.commit({ adoptionVersion: this.state.adoptionVersion + 1 });
         if (data.type === "pet") {
           const pet = data.data as ApiPet;
           if (!this.getPet(pet.id)) this.mergePets([pet]);
@@ -655,6 +671,112 @@ export class ApiBackend {
   }
 
   /** Cuántas personas tienen la app abierta. Sin conexión en vivo se consulta en cada ronda. */
+  // --- PawFamily -----------------------------------------------------------------------
+
+  private mergeAdoptions(list: ApiAdoption[]) {
+    if (!list.length) return;
+    const users = this.mergeSummaries(list.map((a) => a.owner));
+    const byId = new Map(this.state.adoptions.map((a) => [a.id, a]));
+    for (const { owner, ...rest } of list) byId.set(rest.id, { ...rest, ownerId: owner.id });
+    this.commit({ users, adoptions: [...byId.values()] });
+  }
+
+  private mergeApplications(list: ApiApplication[]) {
+    this.mergeAdoptions(list.flatMap((a) => (a.adoption ? [a.adoption] : [])));
+    const users = this.mergeSummaries(list.map((a) => a.applicant));
+    const byId = new Map(this.state.adoptionApplications.map((a) => [a.id, a]));
+    for (const { applicant, adoption: _adoption, ...rest } of list) byId.set(rest.id, { ...rest, applicantId: applicant.id });
+    this.commit({ users, adoptionApplications: [...byId.values()] });
+  }
+
+  /** Lista cerca de un punto (o en una ciudad). Devuelve los ids en orden de cercanía. */
+  async loadAdoptions(center: LatLng, filters: AdoptionFilters): Promise<string[]> {
+    const params = new URLSearchParams({
+      lat: String(center.latitude),
+      lng: String(center.longitude),
+      radius: String(filters.radiusKm * 1000),
+    });
+    for (const key of ["city", "species", "sex", "size", "age"] as const) {
+      const value = filters[key];
+      if (value) params.set(key, value);
+    }
+    const list = await this.request<ApiAdoption[]>("GET", `/v1/adoptions?${params.toString()}`);
+    this.mergeAdoptions(list);
+    return list.map((a) => a.id);
+  }
+
+  async loadAdoption(id: string): Promise<void> {
+    this.mergeAdoptions([await this.request<ApiAdoption>("GET", `/v1/adoptions/${id}`)]);
+  }
+
+  async acceptAdoptionTerms(): Promise<void> {
+    await this.request("POST", "/v1/me/adoption-terms");
+  }
+
+  async createAdoption(input: AdoptionInput): Promise<string> {
+    const photos: string[] = [];
+    for (const uri of input.photos) photos.push(await this.upload(uri, "adoption"));
+    const created = await this.request<ApiAdoption>("POST", "/v1/adoptions", { ...input, photos });
+    this.mergeAdoptions([created]);
+    return created.id;
+  }
+
+  async loadMyAdoptions(): Promise<string[]> {
+    const list = await this.request<ApiAdoption[]>("GET", "/v1/me/adoptions");
+    this.mergeAdoptions(list);
+    return list.map((a) => a.id);
+  }
+
+  async loadAdoptionApplications(adoptionId: string): Promise<void> {
+    this.mergeApplications(await this.request<ApiApplication[]>("GET", `/v1/adoptions/${adoptionId}/applications`));
+  }
+
+  async applyToAdoption(adoptionId: string, input: ApplicationInput): Promise<void> {
+    this.mergeApplications([await this.request<ApiApplication>("POST", `/v1/adoptions/${adoptionId}/apply`, input)]);
+    await this.loadAdoption(adoptionId);
+  }
+
+  async loadMyApplications(): Promise<void> {
+    this.mergeApplications(await this.request<ApiApplication[]>("GET", "/v1/me/adoption-applications"));
+  }
+
+  /** Acepta una solicitud y devuelve el chat que se abre con esa persona. */
+  async acceptApplication(applicationId: string): Promise<string> {
+    const { threadId } = await this.request<{ threadId: string }>("POST", `/v1/adoption-applications/${applicationId}/accept`);
+    const application = this.state.adoptionApplications.find((a) => a.id === applicationId);
+    if (application) {
+      await Promise.allSettled([
+        this.loadAdoptionApplications(application.adoptionId),
+        this.loadAdoption(application.adoptionId),
+      ]);
+    }
+    await this.loadThread(threadId).catch(() => {});
+    return threadId;
+  }
+
+  async declineApplication(applicationId: string): Promise<void> {
+    await this.request("POST", `/v1/adoption-applications/${applicationId}/decline`);
+    this.commit({
+      adoptionApplications: this.state.adoptionApplications.map((a) =>
+        a.id === applicationId ? { ...a, status: "declined" as const } : a,
+      ),
+    });
+  }
+
+  async markAdopted(adoptionId: string): Promise<void> {
+    await this.request("POST", `/v1/adoptions/${adoptionId}/adopted`);
+    await this.loadAdoption(adoptionId);
+  }
+
+  async withdrawAdoption(adoptionId: string): Promise<void> {
+    await this.request("DELETE", `/v1/adoptions/${adoptionId}`);
+    this.commit({ adoptions: this.state.adoptions.filter((a) => a.id !== adoptionId) });
+  }
+
+  async reportAdoption(adoptionId: string, reason: AdoptionReportReason, note?: string): Promise<void> {
+    await this.request("POST", `/v1/adoptions/${adoptionId}/report`, { reason, note });
+  }
+
   /** "Nuestro impacto" de una ciudad, con todos sus casos; null si todavía hay muy pocos. */
   async loadImpact(city: string): Promise<ImpactStats | null> {
     const impact = await this.request<ImpactStats & { enough: boolean }>("GET", `/v1/impact?city=${encodeURIComponent(city)}`);

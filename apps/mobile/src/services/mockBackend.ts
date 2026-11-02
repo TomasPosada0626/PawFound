@@ -1,5 +1,15 @@
 import { alertAudience, type AlertCandidate } from "@/domain/alerts";
-import { approximateLocation } from "@/domain/geo";
+import {
+  applicationProblem,
+  isListed,
+  type Adoption,
+  type AdoptionApplication,
+  type AdoptionFilters,
+  type AdoptionInput,
+  type AdoptionReportReason,
+  type ApplicationInput,
+} from "@/domain/adoption";
+import { approximateLocation, distanceMeters } from "@/domain/geo";
 import { matchOwned } from "@/domain/matching";
 import { cityFromZone, cityKey, findPossibleMatches, impactStats, publishAllowance, type ImpactStats } from "@/domain/rules";
 import type {
@@ -1173,6 +1183,174 @@ export class MockBackend {
         ),
       );
     }
+  }
+
+  // --- PawFamily -------------------------------------------------------------------
+
+  private requireAdoptionTerms(): User {
+    const user = this.requireVerified();
+    if (!this.adoptionTermsAccepted.has(user.id)) throw new BackendError("adoption_terms");
+    return user;
+  }
+
+  private adoptionTermsAccepted = new Set<string>();
+
+  async loadAdoptions(center: LatLng, filters: AdoptionFilters): Promise<string[]> {
+    const city = filters.city ? cityKey(filters.city) : "";
+    return this.state.adoptions
+      .filter(
+        (a) =>
+          isListed(a) &&
+          (city ? cityKey(cityFromZone(a.zone)) === city : distanceMeters(center, a.location) <= filters.radiusKm * 1000) &&
+          (!filters.species || a.species === filters.species) &&
+          (!filters.sex || a.sex === filters.sex) &&
+          (!filters.size || a.size === filters.size) &&
+          (!filters.age || a.age === filters.age),
+      )
+      .sort(
+        (x, y) =>
+          Number(x.status === "in_process") - Number(y.status === "in_process") ||
+          distanceMeters(center, x.location) - distanceMeters(center, y.location),
+      )
+      .map((a) => a.id);
+  }
+
+  async loadAdoption(id: string): Promise<void> {
+    if (!this.state.adoptions.some((a) => a.id === id)) throw new BackendError("not_found");
+  }
+
+  async acceptAdoptionTerms(): Promise<void> {
+    this.adoptionTermsAccepted.add(this.requireUser().id);
+  }
+
+  async createAdoption(input: AdoptionInput): Promise<string> {
+    const user = this.requireAdoptionTerms();
+    if (!input.name.trim() || !input.description.trim() || !input.photos.length || !input.zone.trim()) {
+      throw new BackendError("invalid_input");
+    }
+    const adoption: Adoption = {
+      ...input,
+      id: this.id("ad"),
+      ownerId: user.id,
+      name: input.name.trim(),
+      location: approximateLocation(input.location),
+      status: "available",
+      createdAt: this.iso(),
+    };
+    this.commit({ adoptions: [adoption, ...this.state.adoptions] });
+    return adoption.id;
+  }
+
+  async loadMyAdoptions(): Promise<string[]> {
+    const user = this.requireUser();
+    return this.state.adoptions.filter((a) => a.ownerId === user.id && a.status !== "withdrawn").map((a) => a.id);
+  }
+
+  async loadAdoptionApplications(adoptionId: string): Promise<void> {
+    const user = this.requireUser();
+    const adoption = this.state.adoptions.find((a) => a.id === adoptionId);
+    if (!adoption) throw new BackendError("not_found");
+    if (adoption.ownerId !== user.id) throw new BackendError("not_allowed");
+  }
+
+  async applyToAdoption(adoptionId: string, input: ApplicationInput): Promise<void> {
+    const user = this.requireAdoptionTerms();
+    const adoption = this.state.adoptions.find((a) => a.id === adoptionId);
+    if (!adoption) throw new BackendError("not_found");
+    if (adoption.ownerId === user.id || !isListed(adoption)) throw new BackendError("not_allowed");
+    if (applicationProblem(input)) throw new BackendError("invalid_input");
+    if (this.state.adoptionApplications.some((a) => a.adoptionId === adoptionId && a.applicantId === user.id)) {
+      throw new BackendError("already_applied");
+    }
+    const application: AdoptionApplication = {
+      ...input,
+      id: this.id("ap"),
+      adoptionId,
+      applicantId: user.id,
+      status: "pending",
+      createdAt: this.iso(),
+    };
+    this.commit({ adoptionApplications: [application, ...this.state.adoptionApplications] });
+  }
+
+  async loadMyApplications(): Promise<void> {
+    this.requireUser();
+  }
+
+  private decidable(applicationId: string) {
+    const user = this.requireUser();
+    const application = this.state.adoptionApplications.find((a) => a.id === applicationId);
+    const adoption = application && this.state.adoptions.find((a) => a.id === application.adoptionId);
+    if (!application || !adoption) throw new BackendError("not_found");
+    if (adoption.ownerId !== user.id || application.status !== "pending" || !isListed(adoption))
+      throw new BackendError("not_allowed");
+    return { user, application, adoption };
+  }
+
+  async acceptApplication(applicationId: string): Promise<string> {
+    const { user, application, adoption } = this.decidable(applicationId);
+    const existing = this.state.threads.find(
+      (t) => t.kind === "dm" && !t.archived && t.memberIds.includes(user.id) && t.memberIds.includes(application.applicantId),
+    );
+    const thread: Thread = existing ?? {
+      id: this.id("dm"),
+      kind: "dm",
+      memberIds: [user.id, application.applicantId],
+      readAt: { [user.id]: this.iso() },
+      mutedBy: [],
+      archived: false,
+      archivedBy: [],
+    };
+    this.commit({
+      threads: existing ? this.state.threads : [thread, ...this.state.threads],
+      messages: [...this.state.messages, this.makeMessage(thread.id, "system", user, "adoption_accepted")],
+      adoptionApplications: this.state.adoptionApplications.map((a) =>
+        a.id === applicationId ? { ...a, status: "accepted" as const, threadId: thread.id } : a,
+      ),
+      adoptions: this.state.adoptions.map((a) =>
+        a.id === adoption.id && a.status === "available" ? { ...a, status: "in_process" as const } : a,
+      ),
+    });
+    return thread.id;
+  }
+
+  async declineApplication(applicationId: string): Promise<void> {
+    this.decidable(applicationId);
+    this.commit({
+      adoptionApplications: this.state.adoptionApplications.map((a) =>
+        a.id === applicationId ? { ...a, status: "declined" as const } : a,
+      ),
+    });
+  }
+
+  private closeAdoption(adoptionId: string, status: "adopted" | "withdrawn") {
+    const user = this.requireUser();
+    const adoption = this.state.adoptions.find((a) => a.id === adoptionId);
+    if (!adoption) throw new BackendError("not_found");
+    if (adoption.ownerId !== user.id || !isListed(adoption)) throw new BackendError("not_allowed");
+    this.commit({
+      adoptions: this.state.adoptions.map((a) =>
+        a.id === adoptionId ? { ...a, status, adoptedAt: status === "adopted" ? this.iso() : undefined } : a,
+      ),
+      adoptionApplications: this.state.adoptionApplications.map((a) =>
+        a.adoptionId === adoptionId && a.status === "pending" ? { ...a, status: "declined" as const } : a,
+      ),
+    });
+  }
+
+  async markAdopted(adoptionId: string): Promise<void> {
+    this.closeAdoption(adoptionId, "adopted");
+  }
+
+  async withdrawAdoption(adoptionId: string): Promise<void> {
+    this.closeAdoption(adoptionId, "withdrawn");
+  }
+
+  async reportAdoption(adoptionId: string, _reason: AdoptionReportReason, _note?: string): Promise<void> {
+    const user = this.requireUser();
+    const adoption = this.state.adoptions.find((a) => a.id === adoptionId);
+    if (!adoption) throw new BackendError("not_found");
+    if (adoption.ownerId === user.id) throw new BackendError("not_allowed");
   }
 
   /** En demostración las cifras salen de los casos cargados de esa ciudad. */
