@@ -5,7 +5,7 @@ import { Share, View } from "react-native";
 import { LogoMark } from "@/components/brand";
 import { Screen } from "@/components/layout";
 import { PetRow } from "@/components/pets";
-import { petDisplayName, petSentence, petShareMessage } from "@/features/petNames";
+import { petSentence, petShareMessage } from "@/features/petNames";
 import { Button } from "@/components/ui/Button";
 import { Card, IconBubble } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
@@ -28,7 +28,6 @@ export default function ReportSuccessScreen() {
   const matches = useMemo(() => (pet ? findPossibleMatches(pet, state.pets, now) : []), [pet, state.pets, now]);
 
   if (!pet) return <Redirect href="/" />;
-  const name = petDisplayName(pet, t);
   const isLost = pet.kind === "lost";
   const hurt = pet.foundCondition === "injured" || pet.foundCondition === "needs_vet";
   const findVet = (
