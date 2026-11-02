@@ -6,10 +6,11 @@ const groups = [
     id: "cuenta",
     title: "Cuenta y verificación",
     items: [
-      { q: "¿Cómo creo mi cuenta?", a: "Con tu correo, nombre y apellidos, un nombre de usuario y una contraseña segura (mínimo 8 caracteres con mayúscula, minúscula y número)." },
-      { q: "¿Cómo verifico mi cuenta?", a: "Te enviamos un código de 6 dígitos a tu correo. Al escribirlo en la app recibes la insignia azul «Protector verificado». Si no te llega, revisa la carpeta de spam y toca «Reenviar código»." },
+      { q: "¿Cómo creo mi cuenta?", a: "Con tu correo, nombre y apellidos, un nombre de usuario (letras, números o _, sin @) y una contraseña segura: mínimo 8 caracteres con mayúscula, minúscula y número." },
+      { q: "¿Cómo verifico mi cuenta?", a: "Te enviamos un código de 6 dígitos a tu correo. Al escribirlo en la app recibes la insignia «Protector verificado». Si no te llega, revisa la carpeta de spam y toca «Reenviar código»." },
       { q: "¿Puedo entrar con mi nombre de usuario?", a: "Sí: en «Iniciar sesión» puedes escribir tu correo o tu nombre de usuario." },
-      { q: "¿Necesito dar mi número de celular?", a: "No. Es opcional, no se verifica y nunca se muestra a otras personas." },
+      { q: "¿Necesito dar mi número de celular?", a: "No. Es opcional y no se muestra a otras personas, salvo que decidas agregarlo al afiche de un caso. Se borra al cerrar el caso." },
+      { q: "¿Puedo usar el modo oscuro?", a: "Sí. Arriba en la pantalla, un solo botón cambia entre el modo claro y el oscuro con cada toque." },
     ],
   },
   {
@@ -17,8 +18,10 @@ const groups = [
     title: "Alertas y notificaciones",
     items: [
       { q: "¿Qué es la Alerta Ángel?", a: "Una notificación de la app cuando se pierde una mascota cerca de ti: al instante si estás a menos de 250 m del reporte, o cuando su círculo de búsqueda crece hasta donde estás. Máximo 5 al día." },
-      { q: "¿Por qué la app pide mi ubicación «todo el tiempo»?", a: "Para avisarte según dónde estás aunque la app esté cerrada. Solo guardamos tu último punto aproximado (250 m), sin historial, y se borra si no se actualiza en 24 horas. Puedes elegir «solo mientras uso la app»: las alertas se actualizarán al abrirla." },
-      { q: "¿Puedo desactivar las notificaciones?", a: "Sí, en Ajustes › Notificaciones. Te mostraremos un aviso recordando que así no recibirás alertas de mascotas perdidas." },
+      { q: "¿También me avisan de mascotas encontradas?", a: "Sí. Cuando alguien reporta una mascota que encontró cerca de ti, te avisamos por si sabes de quién es. Lo puedes apagar en Ajustes › Notificaciones." },
+      { q: "¿Qué avisos reciben mis seguidores?", a: "Si se pierde tu mascota, quienes te siguen reciben un aviso, y otro cuando vuelve a casa. Si están dentro del círculo de búsqueda, les llega la Alerta Ángel en su lugar, para no repetir el aviso." },
+      { q: "¿Por qué la app pide mi ubicación «todo el tiempo»?", a: "Para avisarte según dónde estás aunque la app esté cerrada. Solo guardamos tu último punto aproximado (250 m), sin historial, y se borra si no se actualiza en 30 días o al cerrar sesión. Puedes elegir «solo mientras uso la app»: las alertas se actualizarán al abrirla." },
+      { q: "¿Puedo desactivar las notificaciones?", a: "Sí, en Ajustes › Notificaciones, por tipo de aviso, y con el «Modo descanso» eliges el horario en que las recibes. Te recordaremos que sin notificaciones no recibirás alertas de mascotas perdidas." },
       { q: "¿Las alertas cuestan?", a: "No. Son notificaciones de la app, no mensajes de texto." },
     ],
   },
@@ -27,37 +30,62 @@ const groups = [
     title: "Reportes, historias y chats",
     items: [
       { q: "¿Cuántos reportes puedo publicar?", a: "Hasta 2 por día por cuenta, para evitar el spam." },
+      { q: "¿Quién puede cerrar un caso?", a: "Solo quien lo abrió. Al marcar que la mascota volvió a casa, elige a quiénes agradecer y califícalos con estrellas." },
+      { q: "¿Se cierran los chats cuando termina el caso?", a: "Sí. Al cerrar el caso se cierran su grupo y sus mensajes directos, y la ubicación que se haya compartido en ellos deja de verse. Un mensaje directo también lo puede cerrar cualquiera de las dos personas." },
+      { q: "¿Puedo eliminar un reporte?", a: "Sí, desde tu perfil. Deja de verse para todas las personas y sus chats se cierran." },
       { q: "¿Las historias se borran a las 24 horas?", a: "No. La historia de un caso sigue visible hasta que la mascota vuelve a casa o la familia la quita." },
-      { q: "¿Se cierran los chats cuando termina el caso?", a: "No. Los chats se quedan; cada persona decide si archivarlos o eliminarlos de su lista. Un mensaje directo lo puede cerrar cualquiera de las dos personas." },
       { q: "¿Puedo enviar fotos por el chat?", a: "Sí, en el grupo del caso y en los mensajes directos. Se envían sin la ubicación ni los datos del celular." },
+    ],
+  },
+  {
+    id: "comunidad",
+    title: "Seguidores, estrellas e insignias",
+    items: [
+      { q: "¿Cómo sigo a alguien?", a: "Búscalo por su nombre de usuario, con o sin @, y envíale una solicitud. Al aceptarla se siguen mutuamente. Si te rechaza 3 veces, no podrás enviarle otra durante 30 días. Tienes un punto rojo en Perfil cuando hay solicitudes nuevas." },
+      { q: "¿Qué pasa si dejo de seguir a alguien?", a: "Solo cambia tu lado: la otra persona te sigue hasta que ella decida dejar de hacerlo o quitarte. Los me gusta se mantienen." },
+      { q: "¿Cómo funcionan las estrellas?", a: "Al cerrar su caso, la familia califica de 1 a 5 estrellas a quienes ayudaron. Tu promedio cuenta las 20 calificaciones más recientes y empiezas con 20 de cinco estrellas." },
+      { q: "¿Cómo gano insignias?", a: "Ayudando: publicar, reportar una mascota encontrada, avistamientos, responder en la primera hora, compartir, unirte a grupos, que una familia te agradezca y adoptar en PawFamily. Casi todas tienen niveles Bronce, Plata, Oro y Leyenda. Si un reporte se retira por abuso, deja de contar." },
+      { q: "¿Qué es «Protector animal»?", a: "La insignia para quien ayuda bien de forma constante: desde tu décima calificación real, sin contar las iniciales, con un promedio mayor a 4,5. Se pierde si el promedio baja y se recupera si vuelve a subir." },
+      { q: "¿Quién ve mi perfil?", a: "Cualquiera ve tu nombre, tus insignias, tus estrellas y cuántos seguidores tienes. Tus mascotas registradas solo las ven quienes te siguen, y tu ciudad, tu barrio y tu ubicación no se muestran." },
+    ],
+  },
+  {
+    id: "pawfamily",
+    title: "PawFamily: adopción",
+    items: [
+      { q: "¿Qué es PawFamily?", a: "La sección de PawFound para encontrarle hogar a mascotas abandonadas o de refugios. La abres desde el botón PawFamily en Inicio." },
+      { q: "¿Cuesta adoptar?", a: "No. La adopción es 100 % gratuita: nadie puede pedir ni recibir dinero, ni siquiera «para la vacuna» o «para el transporte». Si te lo piden, repórtalo: moderación lo revisa y puede vetar la cuenta." },
+      { q: "¿Cómo verifico mi refugio o fundación?", a: "Elige «Soy refugio o fundación» y escribe el nombre y el NIT con su dígito de verificación. Si el dígito es válido según la DIAN, el refugio queda verificado al instante." },
+      { q: "¿Qué me preguntan al pedir una adopción?", a: "Tu nombre, cuántas personas viven en tu casa, tu barrio y ciudad, si has tenido mascotas y cuántas, y por qué quieres adoptar. Quien publica decide; si te acepta, se abre un chat para coordinar." },
+      { q: "¿Cómo me entero de una solicitud?", a: "En la app y por correo. Si no ves el correo, revisa la carpeta de spam." },
     ],
   },
   {
     id: "seguridad",
     title: "Seguridad y convivencia",
     items: [
-      { q: "Alguien me escribió de forma grosera o intenta estafarme", a: "Mantén presionado su mensaje y toca «Reportar», o hazlo desde su perfil. Una persona del equipo revisa cada reporte con su contexto, en menos de 24 horas." },
-      { q: "¿Por qué no hay bloqueos?", a: "Para que nadie quede aislado por error y para que las sanciones las decida el equipo con criterio: aviso, restricción de 24 horas, de 7 días y suspensión." },
-      { q: "¿Alguien puede ver mi dirección?", a: "No. Todo se muestra aproximado a 250 m. La dirección exacta solo la compartes tú, si quieres, por mensaje directo." },
+      { q: "Alguien me escribió de forma grosera o intenta estafarme", a: "Mantén presionado su mensaje y toca «Reportar», o hazlo desde su perfil. Una persona del equipo revisa cada reporte con su contexto." },
+      { q: "¿Por qué no hay bloqueos?", a: "Para que nadie quede aislado por error y para que las sanciones las decida el equipo con criterio: aviso, restricciones temporales y suspensión." },
+      { q: "¿Alguien puede ver mi dirección o dónde estoy?", a: "No. Nadie ve la ubicación de otra persona y todo se muestra aproximado a 250 m. Solo tú decides compartir en un chat dónde estás o un punto de encuentro, y deja de verse cuando el chat se cierra." },
     ],
   },
   {
     id: "datos",
     title: "Tus datos",
     items: [
-      { q: "¿Puedo descargar mis datos?", a: "Sí, en Ajustes › Privacidad › Descargar mis datos (derecho de acceso, Ley 1581 de 2012)." },
-      { q: "¿Puedo eliminar mi cuenta?", a: "Sí, en Ajustes › Privacidad › Eliminar cuenta. Borramos tu perfil, tus mensajes, tus mascotas y tu ubicación; los reportes activos se archivan sin tu nombre." },
+      { q: "¿Puedo descargar mis datos?", a: "Sí, en Ajustes › Privacidad › Exportar mis datos. Recibes una copia que puedes guardar o enviar (derecho de acceso, Ley 1581 de 2012)." },
+      { q: "¿Puedo eliminar mi cuenta?", a: "Sí, desde tu perfil («Eliminar mi cuenta») o en Ajustes › Privacidad. Se borra todo: perfil, reportes con sus grupos, publicaciones y solicitudes de PawFamily, mensajes, chats, seguidores, me gusta y fotos. Para confirmar escribes ELIMINAR, porque no se puede deshacer." },
     ],
   },
 ];
 ---
 
-<Base title="Ayuda · PawFound" description="Preguntas frecuentes sobre PawFound: cuenta, Alertas Ángel, reportes, historias, chats, seguridad y tus datos." section="ayuda">
+<Base title="Ayuda · PawFound" description="Preguntas frecuentes sobre PawFound: cuenta, Alertas Ángel, reportes, chats, seguidores, estrellas, insignias, PawFamily, seguridad y tus datos." section="ayuda">
   <section class="page-hero">
     <div class="wrap">
       <p class="eyebrow" style="color:#7fe0cb">Ayuda</p>
       <h1>¿En qué te ayudamos?</h1>
-      <p>Si no encuentras tu respuesta, escríbenos a <a href="mailto:pawfoundoficial@gmail.com">pawfoundoficial@gmail.com</a> o desde la app en Ajustes › Soporte y ayuda.</p>
+      <p>Si no encuentras tu respuesta, escríbenos a <a href="mailto:pawfoundoficial@gmail.com" style="color:#7fe0cb">pawfoundoficial@gmail.com</a> o desde la app en Ajustes › Soporte y ayuda.</p>
     </div>
   </section>
   <section class="section">
@@ -66,7 +94,7 @@ const groups = [
         {groups.map((g) => <a href={`#${g.id}`}>{g.title}</a>)}
       </nav>
       {groups.map((g) => (
-        <section id={g.id} style="margin-bottom:2.5rem" aria-labelledby={`${g.id}-title`}>
+        <section id={g.id} style="margin-bottom:2.5rem;scroll-margin-top:80px" aria-labelledby={`${g.id}-title`}>
           <h2 id={`${g.id}-title`} style="font-size:1.6rem;margin-bottom:1rem">{g.title}</h2>
           <div class="faq">
             {g.items.map((it) => (

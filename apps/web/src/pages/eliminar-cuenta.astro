@@ -1,0 +1,63 @@
+---
+import Base from "../layouts/Base.astro";
+
+// Lo mismo que borra la API (app/privacy.go › DeleteAccount) y lo que dice la hoja de la app.
+const erased = [
+  "Tu perfil: nombre, nombre de usuario, foto, correo, contraseña y la verificación de tu refugio si la tienes.",
+  "Tus reportes de mascotas perdidas y encontradas, con su grupo, sus avistamientos, sus historias y las alertas que generaron.",
+  "Tus publicaciones y solicitudes de PawFamily.",
+  "Tus avistamientos y mensajes en casos de otras personas.",
+  "Tus chats directos, también los de PawFamily, y todas las fotos que subiste.",
+  "Tus seguidores, a quienes sigues, tus me gusta, tus estrellas y tus insignias.",
+  "Tus mascotas registradas, tu zona de alertas y los celulares donde tenías la sesión abierta.",
+];
+---
+
+<Base
+  title="Eliminar tu cuenta · PawFound"
+  description="Cómo eliminar tu cuenta de PawFound y todo lo que publicaste, desde la app o por correo."
+  section="legal"
+>
+  <section class="page-hero">
+    <div class="wrap">
+      <p class="eyebrow" style="color:#7fe0cb">Tus datos</p>
+      <h1>Eliminar tu cuenta</h1>
+      <p>Puedes eliminar tu cuenta de PawFound cuando quieras. Se borra todo lo de la cuenta y no se puede deshacer.</p>
+    </div>
+  </section>
+  <section class="section">
+    <div class="wrap prose">
+      <h2 id="app">Desde la app</h2>
+      <ol>
+        <li>Abre PawFound y entra a <strong>Perfil</strong>.</li>
+        <li>Al final, toca <strong>«Eliminar mi cuenta»</strong>. También está en Ajustes › Privacidad y seguridad.</li>
+        <li>Revisa la lista de lo que se borra y escribe <strong>ELIMINAR</strong> para confirmar.</li>
+        <li>Toca <strong>«Sí, eliminar mi cuenta»</strong>. Te llega un correo de confirmación; si no lo ves, revisa la carpeta de spam.</li>
+      </ol>
+      <p>Si olvidaste tu contraseña, entra con «¿Olvidaste tu contraseña?» y luego elimina la cuenta desde la app.</p>
+
+      <h2 id="correo">Si ya no tienes la app</h2>
+      <p>
+        Escríbenos a <a href="mailto:pawfoundoficial@gmail.com?subject=Eliminar%20mi%20cuenta">pawfoundoficial@gmail.com</a> desde el correo
+        de tu cuenta, con el asunto «Eliminar mi cuenta» y tu nombre de usuario. Verificamos que la cuenta es tuya y la eliminamos. Respondemos
+        en un máximo de 15 días hábiles, como establece la Ley 1581 de 2012.
+      </p>
+
+      <h2 id="que-se-borra">Qué se borra</h2>
+      <ul>
+        {erased.map((item) => <li>{item}</li>)}
+      </ul>
+
+      <h2 id="que-queda">Qué queda</h2>
+      <ul>
+        <li>En los grupos de casos de otras personas quedan los avisos automáticos del chat, sin tu nombre.</li>
+        <li>Las copias de seguridad cifradas de la base de datos se borran solas a los 30 días.</li>
+        <li>Las copias de un afiche que ya se hayan compartido o impreso quedan fuera de nuestro control.</li>
+      </ul>
+      <blockquote>
+        Las estrellas y los me gusta que diste a otras personas también se borran con tu cuenta. Si vuelves, empiezas con una cuenta nueva.
+      </blockquote>
+      <p>Más detalles en la <a href="/privacidad">política de privacidad</a>.</p>
+    </div>
+  </section>
+</Base>
