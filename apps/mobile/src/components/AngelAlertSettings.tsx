@@ -1,22 +1,14 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Linking, View } from "react-native";
 
 import { relativeTime } from "@/i18n/format";
-import {
-  alertLocationMode,
-  currentPoint,
-  startAlertLocation,
-  stopAlertLocation,
-  type AlertLocationMode,
-} from "@/services/alertLocation";
+import { stopAlertLocation } from "@/services/alertLocation";
 
 import { MAX_ALERTS_PER_DAY } from "@/domain/alerts";
 import type { NotificationPrefs } from "@/domain/types";
-import { zoneFromPoint } from "@/hooks/usePlacePicker";
+import { useAlertSetup } from "@/hooks/useAlertSetup";
 import { useI18n } from "@/i18n/I18nProvider";
-import { getPushPermission, requestPushPermission, type PushPermission } from "@/services/pushNotifications";
-import { useBackend, useBackendState } from "@/store/backend";
-import { useDevicePrefs } from "@/store/devicePrefs";
+import { useBackend } from "@/store/backend";
 
 import { SettingsCard } from "./SettingsLayout";
 import { Button } from "./ui/Button";
@@ -33,59 +25,27 @@ import { useToast } from "./ui/Toast";
 export function AngelAlertSettings({ prefs, userId }: { prefs: NotificationPrefs; userId: string }) {
   const { t, locale } = useI18n();
   const backend = useBackend();
-  const state = useBackendState();
   const toast = useToast();
-  const { setLocationConsent } = useDevicePrefs();
-  const [permission, setPermission] = useState<PushPermission | null>(null);
-  const [locating, setLocating] = useState(false);
+  const { push: permission, mode, zone, busy: locating, setBusy, refresh, enablePush, enableLocation } = useAlertSetup(userId);
   const [disclosure, setDisclosure] = useState(false);
-  const [mode, setMode] = useState<AlertLocationMode | null>(null);
-  const zone = state.alertZones[userId];
-
-  useEffect(() => {
-    let alive = true;
-    void alertLocationMode().then((m) => alive && setMode(m));
-    return () => {
-      alive = false;
-    };
-  }, [zone]);
-
-  useEffect(() => {
-    let alive = true;
-    void getPushPermission().then((p) => alive && setPermission(p));
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // Después del aviso (Google Play exige explicar la ubicación en segundo plano antes de pedirla).
   const enableLive = async () => {
     setDisclosure(false);
-    setLocating(true);
-    const next = await startAlertLocation();
-    setMode(next);
-    if (next === "off") {
-      setLocating(false);
+    setBusy(true);
+    const ok = await enableLocation();
+    setBusy(false);
+    if (!ok) {
       toast(t("notificationSettings.zoneError"), "error");
       return;
     }
-    const point = await currentPoint();
-    if (!point) {
-      setLocating(false);
-      toast(t("notificationSettings.zoneError"), "error");
-      return;
-    }
-    setLocationConsent("granted");
-    const name = (await zoneFromPoint(point)) ?? t("notificationSettings.liveHere");
-    await backend.setAlertZone({ location: point, zone: name });
-    setLocating(false);
-    toast(next === "always" ? t("notificationSettings.liveEnabled") : t("notificationSettings.liveForegroundHint"));
+    toast(mode === "always" ? t("notificationSettings.liveEnabled") : t("notificationSettings.liveForegroundHint"));
   };
 
   const disableLive = async () => {
     await stopAlertLocation();
     await backend.setAlertZone(null);
-    setMode(await alertLocationMode());
+    await refresh();
     toast(t("notificationSettings.liveDisabled"), "info");
   };
 
@@ -105,7 +65,7 @@ export function AngelAlertSettings({ prefs, userId }: { prefs: NotificationPrefs
                 label={permission === "denied" ? t("notificationSettings.openSettings") : t("notificationSettings.permissionCta")}
                 onPress={async () => {
                   if (permission === "denied") void Linking.openSettings();
-                  else setPermission(await requestPushPermission());
+                  else await enablePush();
                 }}
                 testID="push-permission"
               />

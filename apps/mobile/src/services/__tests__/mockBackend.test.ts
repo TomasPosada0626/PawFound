@@ -239,6 +239,20 @@ describe("reportes", () => {
     expect(state.notifications.some((n) => n.petId === "rocky")).toBe(false);
   });
 
+  it("solo la familia muestra su celular, y al cerrar el caso se borra", async () => {
+    const backend = makeBackend();
+    await loginDemo(backend);
+    await expectCode(backend.setContactPhone("max", "3001234567"), "not_allowed");
+    await expectCode(backend.setContactPhone("rocky", "123"), "invalid_phone");
+    await backend.setContactPhone("rocky", "300 123 4567");
+    expect(backend.getPet("rocky")?.contactPhone).toBe("+573001234567");
+    await backend.setContactPhone("rocky", "");
+    expect(backend.getPet("rocky")?.contactPhone).toBeUndefined();
+    await backend.setContactPhone("rocky", "3001234567");
+    await backend.markReunited("rocky");
+    expect(backend.getPet("rocky")?.contactPhone).toBeUndefined();
+  });
+
   it("cuenta compartidos y valida que el caso exista", async () => {
     const backend = makeBackend();
     const before = backend.getPet("max")!.shareCount;

@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams } from "expo-router";
 import * as Sharing from "expo-sharing";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWindowDimensions, View } from "react-native";
 import { captureRef } from "react-native-view-shot";
 
@@ -16,6 +16,7 @@ import { Icon } from "@/components/ui/Icon";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { SHARE_BASE_URL } from "@/config";
+import { formatColombianMobile } from "@/domain/validation";
 import { shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { useBackend, useBackendState } from "@/store/backend";
@@ -32,7 +33,7 @@ const STORY = {
  * Historia para Instagram (9:16). Instagram borra las historias a las 24 horas y PawFound no
  * puede impedirlo; por eso la pantalla guía a guardarla en Destacadas (ahí queda hasta que
  * quien la publicó la quite) y, al cerrarse el caso, la API avisa a quienes la compartieron.
- * Sin teléfono ni dirección: el enlace y el QR llevan al caso.
+ * El celular solo aparece si la familia lo activó en el afiche; sin él, el QR lleva al caso.
  */
 export default function StoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -44,6 +45,11 @@ export default function StoryScreen() {
   const storyRef = useRef<View>(null);
   const [sharing, setSharing] = useState(false);
   const pet = state.pets.find((p) => p.id === id);
+
+  // Las listas no traen el celular: se pide el caso completo.
+  useEffect(() => {
+    if (id) void backend.loadPet(id).catch(() => {});
+  }, [backend, id]);
 
   if (!pet) {
     return (
@@ -61,8 +67,9 @@ export default function StoryScreen() {
   const shortUrl = url.replace("https://", "");
   const canvasWidth = Math.min(width - 32, 340);
   // La foto ocupa el 78 % del ancho útil: a lo ancho completo no cabían el nombre y la zona en 9:16.
-  const photoSize = canvasWidth * 0.88 * 0.78;
-  const details = [pet.breed, pet.color].filter(Boolean).join(" · ");
+  const showPhone = Boolean(pet.contactPhone) && !home;
+  const photoSize = canvasWidth * 0.88 * (showPhone ? 0.62 : 0.72);
+  const details = [pet.breed, pet.color, t(`size.${pet.size}`)].filter(Boolean).join(" · ");
 
   const copyLink = async () => {
     await Clipboard.setStringAsync(url);
@@ -168,6 +175,19 @@ export default function StoryScreen() {
               </Text>
             </>
           )}
+
+          {showPhone && pet.contactPhone ? (
+            <View
+              className="mt-2 flex-row items-center justify-center gap-2 rounded-2xl p-2"
+              style={{ backgroundColor: "#FFFFFF33" }}
+              testID="story-phone"
+            >
+              <Icon name="call" size={18} color="#FFFFFF" />
+              <Text variant="subheading" tone="white">
+                {formatColombianMobile(pet.contactPhone)}
+              </Text>
+            </View>
+          ) : null}
 
           <View className="mt-auto flex-row items-center gap-3 rounded-2xl bg-white p-2.5">
             <QrCode value={url} size={canvasWidth * 0.2} label={t("poster.qr")} />

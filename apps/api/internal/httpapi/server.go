@@ -142,6 +142,7 @@ func (s *Server) routes(r chi.Router) {
 		r.Delete("/pets/{id}", s.withdraw)
 		r.Post("/pets/{id}/sightings", s.addSighting)
 		r.Post("/pets/{id}/reunite", s.reunite)
+		r.Put("/pets/{id}/contact", s.setContactPhone)
 		r.Post("/pets/{id}/report", s.reportPet)
 		r.Get("/pets/{id}/helpers", s.helpers)
 		r.Get("/pets/{id}/matches", s.matches)

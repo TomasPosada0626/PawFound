@@ -73,6 +73,8 @@ export type PetCase = {
   reunitedAt?: string;
   sightings: Sighting[];
   shareCount: number;
+  /** Celular que la familia decidió mostrar en el afiche. No viene en las listas. */
+  contactPhone?: string;
   groupId: string;
   /** Personas a quienes la familia agradeció al cerrar el caso (insignia "Ángel de patas"). */
   helperIds?: string[];

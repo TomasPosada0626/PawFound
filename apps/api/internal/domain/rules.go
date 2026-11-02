@@ -8,7 +8,7 @@ import (
 
 // ConsentTextVersion es la versión de los textos de docs/legal/consentimientos.md que se guarda
 // con cada consentimiento. Se sube cada vez que esos textos cambien.
-const ConsentTextVersion = "0.1"
+const ConsentTextVersion = "0.2"
 
 // NotificationPrefs replica el tipo de la app. Se guarda como JSON y se completa con los
 // valores por defecto, así una preferencia nueva no rompe cuentas viejas.

@@ -494,6 +494,7 @@ export class MockBackend {
       pets: this.replacePet({
         ...pet,
         state: "reunited",
+        contactPhone: undefined,
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
@@ -569,6 +570,17 @@ export class MockBackend {
     this.requireUser();
     if (!note.trim()) throw new BackendError("unknown");
     if (!this.state.places.some((p) => p.id === placeId)) throw new BackendError("not_found");
+  }
+
+  /** Muestra (o quita con "") el celular de la familia en el afiche del caso. */
+  async setContactPhone(petId: string, phone: string): Promise<void> {
+    const user = this.requireVerified();
+    const pet = this.requirePet(petId);
+    if (pet.ownerId !== user.id || pet.state !== "active") throw new BackendError("not_allowed");
+    const normalized = phone.trim() ? normalizeColombianMobile(phone) : undefined;
+    if (normalized === null) throw new BackendError("invalid_phone");
+    const { contactPhone: _old, ...rest } = pet;
+    this.commit({ pets: this.replacePet(normalized ? { ...rest, contactPhone: normalized } : rest) });
   }
 
   async sharePet(petId: string): Promise<void> {

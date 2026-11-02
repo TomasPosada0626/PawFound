@@ -304,6 +304,17 @@ func (s *Server) addSighting(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusCreated, pet, err)
 }
 
+func (s *Server) setContactPhone(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Phone string `json:"phone"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	pet, err := s.App.SetContactPhone(r.Context(), actor(r), chi.URLParam(r, "id"), in.Phone)
+	respond(w, http.StatusOK, pet, err)
+}
+
 func (s *Server) reunite(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		HelperIDs []string `json:"helperIds"`

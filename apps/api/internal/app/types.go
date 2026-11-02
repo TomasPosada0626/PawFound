@@ -150,10 +150,12 @@ type Pet struct {
 	ReunitedAt        *time.Time   `json:"reunitedAt,omitempty"`
 	Sightings         []Sighting   `json:"sightings"`
 	ShareCount        int          `json:"shareCount"`
-	GroupID           string       `json:"groupId"`
-	HelperIDs         []string     `json:"helperIds,omitempty"`
-	ModerationRemoved bool         `json:"moderationRemoved,omitempty"`
-	CurrentRadius     int          `json:"currentRadius"`
+	// ContactPhone: celular que la familia decidió mostrar en el afiche. No viaja en las listas.
+	ContactPhone      *string  `json:"contactPhone,omitempty"`
+	GroupID           string   `json:"groupId"`
+	HelperIDs         []string `json:"helperIds,omitempty"`
+	ModerationRemoved bool     `json:"moderationRemoved,omitempty"`
+	CurrentRadius     int      `json:"currentRadius"`
 }
 
 type petRow struct {
@@ -190,11 +192,12 @@ type petRow struct {
 	CreatedAt         time.Time  `db:"created_at"`
 	ReunitedAt        *time.Time `db:"reunited_at"`
 	WithdrawnAt       *time.Time `db:"withdrawn_at"`
+	ContactPhone      *string    `db:"contact_phone"`
 }
 
 const petCols = `id, kind, state, name, species, breed, sex, age, size, color, collar, marks, description, photos,
 	traumatic_event, shy_or_indoor, last_seen_at, lat, lng, zone, found_search_radius, reward, found_condition,
-	found_custody, owner_id, owner_short_name, owned_pet_id, group_id, share_count, moderation_removed, created_at, reunited_at, withdrawn_at`
+	found_custody, owner_id, owner_short_name, owned_pet_id, group_id, share_count, moderation_removed, created_at, reunited_at, withdrawn_at, contact_phone`
 
 func (r petRow) domainCase() domain.Case {
 	radius := 0

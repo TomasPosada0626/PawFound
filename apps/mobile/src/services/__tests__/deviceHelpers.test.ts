@@ -13,6 +13,7 @@ import {
   setAlertLocationSink,
   startAlertLocation,
   stopAlertLocation,
+  syncAlertLocation,
 } from "../alertLocation";
 import { directionsUrl, navigationApps, vetSearchUrl } from "../directions";
 import { photoExists, shrinkPhoto } from "../photoShrink";
@@ -248,6 +249,24 @@ describe("ubicación para la Alerta Ángel", () => {
     expect(stop).toHaveBeenCalledWith(ALERT_LOCATION_TASK);
     started.mockRejectedValueOnce(new Error("sin tarea"));
     await expect(stopAlertLocation()).resolves.toBeUndefined();
+  });
+
+  it("con el permiso ya dado en Android inicia el seguimiento, sin preguntar", async () => {
+    const backgroundStatus = jest.mocked(Location.getBackgroundPermissionsAsync);
+    backgroundStatus.mockResolvedValueOnce(denied);
+    await expect(syncAlertLocation()).resolves.toBe("foreground");
+    expect(updates).not.toHaveBeenCalled();
+
+    backgroundStatus.mockResolvedValueOnce(granted);
+    await expect(syncAlertLocation()).resolves.toBe("always");
+    expect(updates).toHaveBeenCalledWith(ALERT_LOCATION_TASK, expect.objectContaining({ distanceInterval: 250 }));
+
+    currentPermission.mockResolvedValueOnce(denied);
+    await expect(syncAlertLocation()).resolves.toBe("off");
+    started.mockResolvedValueOnce(true);
+    await expect(syncAlertLocation()).resolves.toBe("always");
+    backgroundStatus.mockRejectedValueOnce(new Error("falla"));
+    await expect(syncAlertLocation()).resolves.toBe("foreground");
   });
 
   it("informa el modo actual", async () => {
