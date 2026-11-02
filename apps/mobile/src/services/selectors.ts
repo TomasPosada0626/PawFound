@@ -1,8 +1,9 @@
-import { badgeProgress, type BadgeFacts, type BadgeProgress } from "@/domain/badges";
+import { BADGE_RULES, badgeProgress, type BadgeFacts, type BadgeProgress } from "@/domain/badges";
 import { distanceMeters } from "@/domain/geo";
+import { isAnimalProtector, ratingAverage } from "@/domain/rating";
 import type { AppNotification, LatLng, Message, OwnedPet, PetCase, Species, StoryItem, Thread, User } from "@/domain/types";
 
-import type { BackendState } from "./backendTypes";
+import type { BackendState, FollowInfo, Network, RatingInfo } from "./backendTypes";
 
 /** Quita tildes sin depender de String.normalize (soporte parcial en Hermes). */
 export function foldText(text: string): string {
@@ -93,19 +94,39 @@ export function counterpart(state: BackendState, thread: Thread, userId: string)
   return otherId ? state.users[otherId] : undefined;
 }
 
-export type UserStats = { reported: number; found: number; ratingAvg: number | null; ratingCount: number };
+export type UserStats = { reported: number; found: number; ratingAvg: number; ratingCount: number };
+
+const NO_NETWORK: Network = { requests: [], followers: [], following: [], sent: [] };
+
+export function networkOf(state: BackendState): Network {
+  return state.network ?? NO_NETWORK;
+}
+
+export function followInfoOf(state: BackendState, userId: string): FollowInfo {
+  return state.followInfo?.[userId] ?? { followers: 0, following: 0, status: "none" };
+}
+
+/** Toda cuenta empieza en 5 estrellas (rating.ts); con la API el promedio viene calculado. */
+export function ratingOf(state: BackendState, userId: string): RatingInfo {
+  const remote = state.remoteRatings?.[userId];
+  if (remote) return remote;
+  const stars = state.ratingStars?.[userId] ?? [];
+  return { average: ratingAverage(stars), count: stars.length };
+}
 
 export function userStats(state: BackendState, userId: string): UserStats {
   const own = state.pets.filter((p) => p.ownerId === userId);
-  const user = state.users[userId];
-  const ratingCount = user?.ratingCount ?? 0;
+  const rating = ratingOf(state, userId);
   return {
     reported: own.filter((p) => p.kind === "lost").length,
     found: own.filter((p) => p.kind === "found").length,
-    ratingAvg: ratingCount > 0 && user ? Math.round((user.ratingSum / ratingCount) * 10) / 10 : null,
-    ratingCount,
+    ratingAvg: rating.average,
+    ratingCount: rating.count,
   };
 }
+
+const FOSTER_MIN_MS = 24 * 60 * 60 * 1000;
+const QUICK_RESPONSE_MS = 60 * 60 * 1000;
 
 /** Hechos reales que cuentan para cada insignia (los reportes retirados por moderación no cuentan). */
 export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
@@ -122,6 +143,22 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
       .reduce((sum, p) => sum + p.sightings.filter((s) => s.authorId === userId).length, 0),
     paw_angel: valid.filter((p) => p.helperIds?.includes(userId)).length,
     reunion: own.filter((p) => p.state === "reunited").length,
+    foster: own.filter(
+      (p) =>
+        p.kind === "found" &&
+        p.foundCustody === "with_me" &&
+        p.state === "reunited" &&
+        Boolean(p.helperIds?.length) &&
+        Boolean(p.reunitedAt) &&
+        Date.parse(p.reunitedAt as string) - Date.parse(p.createdAt) >= FOSTER_MIN_MS,
+    ).length,
+    quick: valid.filter(
+      (p) =>
+        p.ownerId !== userId &&
+        p.sightings.some((s) => s.authorId === userId && Date.parse(s.at) - Date.parse(p.createdAt) <= QUICK_RESPONSE_MS),
+    ).length,
+    protector: isAnimalProtector(state.ratingStars?.[userId] ?? []) ? 1 : 0,
+    popular: (state.profileLikes[userId] ?? []).length,
     spreader: (state.shareLog[userId] ?? []).length,
     community: state.threads.filter((t) => t.kind === "group" && t.memberIds.includes(userId) && !ownGroups.has(t.id)).length,
   };
@@ -130,7 +167,8 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
 /** Progreso de todas las insignias; en producción lo calcula y devuelve la API. */
 export function userBadgeProgress(state: BackendState, userId: string): BadgeProgress[] {
   const remote = state.remoteBadges[userId];
-  if (remote) return remote;
+  // Una versión más nueva de la API puede traer insignias que esta app todavía no conoce.
+  if (remote) return remote.filter((b) => BADGE_RULES[b.id]);
   if (!state.users[userId]) return [];
   return badgeProgress(badgeFacts(state, userId));
 }

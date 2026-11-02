@@ -13,12 +13,17 @@ import {
   userBadgeProgress,
   userNotifications,
   userStats,
+  followInfoOf,
+  networkOf,
+  ratingOf,
 } from "../selectors";
 
 let clock = new Date("2026-10-27T12:00:00Z");
 const advance = (minutes: number) => {
   clock = new Date(clock.getTime() + minutes * 60_000);
 };
+
+const signInAs = (backend: { restoreSession: (id: string) => Promise<boolean> }, id: string) => backend.restoreSession(id);
 
 function makeBackend(translator?: (text: string, from: "es" | "en", to: "es" | "en") => string | null) {
   clock = new Date("2026-10-27T12:00:00Z");
@@ -399,10 +404,58 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     await expectCode(backend.login(DEMO_EMAIL, DEMO_PASSWORD), "invalid_credentials");
   });
 
+  it("seguir pide aceptación; eliminar a un seguidor le impide insistir y le quita el me gusta", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    await expect(backend.toggleProfileLike("u_daniel")).rejects.toMatchObject({ code: "follow_required" });
+    await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+    await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+    await expect(backend.followUser("u_valentina")).rejects.toMatchObject({ code: "not_allowed" });
+    expect(networkOf(backend.getSnapshot()).sent).toContain("u_daniel");
+
+    await signInAs(backend, "u_daniel");
+    await backend.loadNetwork();
+    expect(networkOf(backend.getSnapshot()).requests).toContain("u_valentina");
+    await backend.acceptFollower("u_valentina");
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel").followers).toBe(1);
+
+    await signInAs(backend, "u_valentina");
+    await backend.loadNetwork();
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel").status).toBe("accepted");
+    await expect(backend.followUser("u_daniel")).resolves.toBe("accepted");
+    await expect(backend.toggleProfileLike("u_daniel")).resolves.toBe(true);
+
+    await signInAs(backend, "u_daniel");
+    await backend.removeFollower("u_valentina");
+    expect(backend.getSnapshot().profileLikes.u_daniel).not.toContain("u_valentina");
+    await signInAs(backend, "u_valentina");
+    await backend.loadNetwork();
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel").status).toBe("none");
+    await expect(backend.followUser("u_daniel")).rejects.toMatchObject({ code: "follow_wait" });
+  });
+
+  it("busca por nombre de usuario sin importar el @", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    const username = backend.getSnapshot().users.u_maria?.username ?? "";
+    expect((await backend.searchUsers(`@${username.slice(0, 3)}`)).map((u) => u.id)).toContain("u_maria");
+    expect(await backend.searchUsers("ma")).toEqual([]);
+  });
+
+  it("las estrellas al cerrar el caso cambian la calificación y la insignia Protector animal", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    await backend.markReunited("rocky", ["u_daniel"], { u_daniel: 3 });
+    const state = backend.getSnapshot();
+    expect(ratingOf(state, "u_daniel")).toEqual({ average: 4.9, count: 1 });
+    expect(userStats(state, "u_daniel")).toMatchObject({ ratingAvg: 4.9, ratingCount: 1 });
+    expect(userBadgeProgress(state, "u_daniel").find((b) => b.id === "protector")?.tier).toBe(0);
+  });
+
   it("estadísticas, insignias y actividad salen de datos reales", () => {
     const backend = makeBackend();
     const state = backend.getSnapshot();
-    expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 4.8, ratingCount: 9 });
+    expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 5, ratingCount: 0 });
     const earned = userBadgeProgress(state, "u_valentina")
       .filter((b) => b.tier > 0)
       .map((b) => `${b.id}:${b.tier}`);

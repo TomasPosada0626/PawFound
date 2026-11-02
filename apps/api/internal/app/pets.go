@@ -185,10 +185,16 @@ func (a *App) afterReport(ctx context.Context, row petRow) {
 		func() error { return a.flagDuplicatePhotos(ctx, row) },
 	}
 	if row.Kind == "lost" {
-		// Alerta Ángel: los celulares dentro del círculo de vida inicial (issue #45).
-		steps = append(steps, func() error { _, err := a.alertAudience(ctx, row, "angel_alert"); return err })
+		// Alerta Ángel: los celulares dentro del círculo de vida inicial (issue #45). Después los
+		// seguidores que no la recibieron: un solo aviso por persona.
+		steps = append(steps,
+			func() error { _, err := a.alertAudience(ctx, row, "angel_alert"); return err },
+			func() error { return a.notifyFollowers(ctx, row, "friend_lost", nil) })
 	} else {
-		steps = append(steps, func() error { return a.notifyOwnedMatches(ctx, row) })
+		// Al final, para no repetirle la alerta a quien ya recibió otro aviso de este reporte.
+		steps = append(steps,
+			func() error { return a.notifyOwnedMatches(ctx, row) },
+			func() error { return a.notifyFoundNearby(ctx, row) })
 	}
 	for _, step := range steps {
 		if err := step(); err != nil {
@@ -558,15 +564,21 @@ func (a *App) helperCandidates(ctx context.Context, row petRow) ([]HelperCandida
 }
 
 // Reunite cierra el caso con un reencuentro. La familia puede agradecer hasta 5 personas que
-// de verdad participaron (la insignia "Ángel de patas" no se puede regalar). Avisa también a
+// de verdad participaron (la insignia "Ángel de patas" no se puede regalar) y calificarlas de 1 a
+// 5 estrellas; como un caso se cierra una sola vez, es una calificación por caso. Avisa también a
 // quienes compartieron el caso, para que quiten el afiche o la historia de sus redes.
-func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []string) (Pet, error) {
+func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []string, ratings map[string]int) (Pet, error) {
 	row, err := a.petRow(ctx, petID)
 	if err != nil {
 		return Pet{}, err
 	}
 	if deref(row.OwnerID) != ac.ID || row.State != "active" {
 		return Pet{}, ErrNotAllowed
+	}
+	for _, stars := range ratings {
+		if stars < 1 || stars > domain.RatingStart {
+			return Pet{}, invalid("ratings")
+		}
 	}
 	candidates, err := a.helperCandidates(ctx, row)
 	if err != nil {
@@ -591,7 +603,13 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 			return err
 		}
 		for _, id := range helpers {
-			if _, err := tx.Exec(ctx, `INSERT INTO pet_helpers (pet_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`, petID, id); err != nil {
+			// Sin calificación (versiones anteriores de la app) el agradecimiento cuenta igual.
+			var stars *int
+			var ratedAt *time.Time
+			if value, ok := ratings[id]; ok {
+				stars, ratedAt = &value, &now
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO pet_helpers (pet_id, user_id, stars, rated_at) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`, petID, id, stars, ratedAt); err != nil {
 				return err
 			}
 		}
@@ -626,6 +644,11 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 	a.background(func(ctx context.Context) {
 		a.notify(ctx, helpers, "thanked", petID, nil)
 		a.notify(ctx, closedFor, "case_closed", petID, nil)
+		if row.Kind == "lost" {
+			if err := a.notifyFollowers(ctx, row, "friend_found", append(helpers[:len(helpers):len(helpers)], closedFor...)); err != nil {
+				a.Log.Error("avisar a los seguidores", "pet", petID, "err", err)
+			}
+		}
 	})
 	a.Hub.Broadcast(realtime.Event{Type: "pet_closed", Data: petClosedEvent{ID: petID, At: now}})
 	return a.GetPet(ctx, ac.ID, petID)

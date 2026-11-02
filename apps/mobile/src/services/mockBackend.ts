@@ -30,6 +30,8 @@ import { reunionHelperCandidates, type HelperCandidate } from "./selectors";
 
 import {
   BackendError,
+  type FollowEdge,
+  type FollowStatus,
   type BackendState,
   type NewReportInput,
   type NewSightingInput,
@@ -72,6 +74,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   groups: true,
   lifeCircle: true,
   angelAlerts: true,
+  friendAlerts: true,
   quietHours: false,
   quietFrom: "22:00",
   quietTo: "07:00",
@@ -216,8 +219,6 @@ export class MockBackend {
       bio: "",
       city: "Medellín",
       createdAt: this.iso(),
-      ratingSum: 0,
-      ratingCount: 0,
       lang: "es",
     };
   }
@@ -475,7 +476,7 @@ export class MockBackend {
    * ("Ángel de patas"): solo cuentan personas que de verdad participaron en el caso
    * (avistamientos, grupo o mensaje directo), para que la insignia no se pueda regalar.
    */
-  async markReunited(petId: string, helperIds: string[] = []): Promise<void> {
+  async markReunited(petId: string, helperIds: string[] = [], ratings: Record<string, number> = {}): Promise<void> {
     const user = this.requireUser();
     const pet = this.requirePet(petId);
     if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
@@ -490,7 +491,13 @@ export class MockBackend {
     const recipients = [...new Set([...(thread?.memberIds ?? []), ...sharers])].filter(
       (id) => id !== user.id && !helpers.includes(id) && this.state.users[id],
     );
+    const ratingStars = { ...this.state.ratingStars };
+    for (const id of helpers) {
+      const stars = ratings[id];
+      if (stars) ratingStars[id] = [stars, ...(ratingStars[id] ?? [])];
+    }
     this.commit({
+      ratingStars,
       pets: this.replacePet({
         ...pet,
         state: "reunited",
@@ -995,6 +1002,10 @@ export class MockBackend {
     if (userId === user.id || !this.state.users[userId]) throw new BackendError("not_allowed");
     const likers = this.state.profileLikes[userId] ?? [];
     const liked = !likers.includes(user.id);
+    const following = this.state.follows.some(
+      (f) => f.followerId === user.id && f.followedId === userId && f.status === "accepted",
+    );
+    if (liked && !following) throw new BackendError("follow_required");
     this.commit({
       profileLikes: {
         ...this.state.profileLikes,
@@ -1049,7 +1060,104 @@ export class MockBackend {
 
   async loadThread(_threadId: string): Promise<void> {}
 
-  async loadProfile(_userId: string): Promise<void> {}
+  /** Lo que la API le daría a esta cuenta: su propia red y solo el número de los demás. */
+  private networkSnapshot(follows = this.state.follows): Pick<BackendState, "follows" | "network" | "followInfo"> {
+    const me = this.state.sessionUserId;
+    const ids = (status: FollowEdge["status"], incoming: boolean) =>
+      follows
+        .filter((f) => f.status === status && (incoming ? f.followedId === me : f.followerId === me))
+        .map((f) => (incoming ? f.followerId : f.followedId));
+    const count = (userId: string, incoming: boolean) =>
+      follows.filter((f) => f.status === "accepted" && (incoming ? f.followedId === userId : f.followerId === userId)).length;
+    const statusOf = (userId: string): FollowStatus => {
+      const edge = follows.find((f) => f.followerId === me && f.followedId === userId);
+      return edge && edge.status !== "declined" ? edge.status : "none";
+    };
+    return {
+      follows,
+      network: {
+        requests: ids("pending", true),
+        followers: ids("accepted", true),
+        following: ids("accepted", false),
+        sent: ids("pending", false),
+      },
+      followInfo: Object.fromEntries(
+        Object.keys(this.state.users).map((id) => [
+          id,
+          { followers: count(id, true), following: count(id, false), status: statusOf(id) },
+        ]),
+      ),
+    };
+  }
+
+  /** Termina una relación y quita el "me gusta" que dependía de ella. */
+  private endFollow(followerId: string, followedId: string, follows: FollowEdge[]) {
+    this.commit({
+      ...this.networkSnapshot(follows),
+      profileLikes: {
+        ...this.state.profileLikes,
+        [followedId]: (this.state.profileLikes[followedId] ?? []).filter((id) => id !== followerId),
+      },
+    });
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    const me = this.requireUser();
+    const q = query.trim().replace(/^@/, "").toLowerCase();
+    if (q.length < 3) return [];
+    return Object.values(this.state.users)
+      .filter((u) => u.id !== me.id && u.username.startsWith(q))
+      .slice(0, 20);
+  }
+
+  async loadNetwork(): Promise<void> {
+    this.commit(this.networkSnapshot());
+  }
+
+  async followUser(userId: string): Promise<FollowStatus> {
+    const me = this.requireVerified();
+    if (userId === me.id || !this.state.users[userId]) throw new BackendError("not_allowed");
+    const edge = this.state.follows.find((f) => f.followerId === me.id && f.followedId === userId);
+    if (edge?.status === "declined") throw new BackendError("follow_wait");
+    if (edge) return edge.status;
+    this.commit(this.networkSnapshot([...this.state.follows, { followerId: me.id, followedId: userId, status: "pending" }]));
+    return "pending";
+  }
+
+  async unfollowUser(userId: string): Promise<void> {
+    const me = this.requireUser();
+    this.endFollow(
+      me.id,
+      userId,
+      this.state.follows.filter((f) => f.followerId !== me.id || f.followedId !== userId || f.status === "declined"),
+    );
+  }
+
+  async acceptFollower(userId: string): Promise<void> {
+    const me = this.requireUser();
+    this.commit(
+      this.networkSnapshot(
+        this.state.follows.map((f) =>
+          f.followerId === userId && f.followedId === me.id && f.status === "pending" ? { ...f, status: "accepted" as const } : f,
+        ),
+      ),
+    );
+  }
+
+  async removeFollower(userId: string): Promise<void> {
+    const me = this.requireUser();
+    this.endFollow(
+      userId,
+      me.id,
+      this.state.follows.map((f) =>
+        f.followerId === userId && f.followedId === me.id ? { ...f, status: "declined" as const } : f,
+      ),
+    );
+  }
+
+  async loadProfile(_userId: string): Promise<void> {
+    this.commit(this.networkSnapshot());
+  }
 
   async loadStories(_center: LatLng): Promise<void> {}
 
@@ -1090,6 +1198,7 @@ export class MockBackend {
         .map(([target, likers]) => [target, likers.filter((id) => id !== user.id)]),
     );
     this.commit({
+      follows: this.state.follows.filter((f) => f.followerId !== user.id && f.followedId !== user.id),
       profileLikes,
       alertZones,
       shareLog,

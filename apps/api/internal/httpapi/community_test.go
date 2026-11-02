@@ -21,6 +21,7 @@ func TestPublicProfileAndLikes(t *testing.T) {
 		"age": "adult", "size": "medium", "description": "", "photos": []string{photo.ID},
 	}, nil)
 
+	h.befriend(fan, ana)
 	var liked map[string]any
 	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+ana.ID+"/like", fan.Token, nil, &liked)
 	if liked["liked"] != true || liked["likes"] != float64(1) {

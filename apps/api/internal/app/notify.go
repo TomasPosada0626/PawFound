@@ -22,6 +22,9 @@ const (
 
 var alertKinds = map[string]bool{"angel_alert": true, "life_circle": true}
 
+// urgentKinds suenan por el canal de alertas: alguien puede ayudar ahora mismo.
+var urgentKinds = map[string]bool{"angel_alert": true, "life_circle": true, "friend_lost": true, "found_nearby": true}
+
 // notify crea notificaciones en la bandeja y las entrega en vivo y por push. Nunca falla la
 // operación que la originó: un aviso perdido se registra en el log.
 func (a *App) notify(ctx context.Context, userIDs []string, kind, petID string, ownedPetID *string) {
@@ -107,8 +110,8 @@ func (a *App) deliver(ctx context.Context, list []Notification) {
 	for _, n := range list {
 		if _, ok := pets[n.PetID]; !ok {
 			var pet pushPet
-			_ = a.DB.QueryRow(ctx, `SELECT coalesce(name, ''), kind, species, sex FROM pets WHERE id = $1`, n.PetID).
-				Scan(&pet.Name, &pet.Kind, &pet.Species, &pet.Sex)
+			_ = a.DB.QueryRow(ctx, `SELECT coalesce(name, ''), kind, species, sex, owner_short_name FROM pets WHERE id = $1`, n.PetID).
+				Scan(&pet.Name, &pet.Kind, &pet.Species, &pet.Sex, &pet.Owner)
 			pets[n.PetID] = pet
 		}
 		person, ok := people[n.UserID]
@@ -122,7 +125,7 @@ func (a *App) deliver(ctx context.Context, list []Notification) {
 		}
 		title, body := pushText(n.Kind, person.Lang, pet)
 		channel := channelUpdates
-		if alertKinds[n.Kind] {
+		if urgentKinds[n.Kind] {
 			channel = channelAngel
 		}
 		for _, token := range person.Tokens {
@@ -158,6 +161,9 @@ var pushTexts = map[string]map[string][2]string{
 		"possible_match": {"Posible coincidencia", "Un reporte nuevo podría ser {name}"},
 		"owned_match":    {"¿Es {name}?", "Alguien encontró una mascota parecida a {name} cerca de tu zona. Revisa las fotos."},
 		"thanked":        {"¡Una familia te agradeció!", "La familia de {name} dice que fuiste clave en el reencuentro. Ganaste «Ángel de patas»."},
+		"found_nearby":   {"🐾 Encontraron una mascota cerca de ti", "{name} está cerca de ti. ¿Sabes de quién es?"},
+		"friend_lost":    {"🚨 Se perdió la mascota de {owner}", "Ayuda a {owner} a buscar a {name}."},
+		"friend_found":   {"🎉 ¡Buenas noticias de {owner}!", "{name} ya está en casa."},
 	},
 	"en": {
 		"angel_alert":    {"🚨 Angel Alert", "A pet went missing near you: {name}. Help find them."},
@@ -167,6 +173,9 @@ var pushTexts = map[string]map[string][2]string{
 		"possible_match": {"Possible match", "A new report could be {name}"},
 		"owned_match":    {"Is it {name}?", "Someone found a pet that looks like {name} near your area. Check the photos."},
 		"thanked":        {"A family thanked you!", "{name}'s family says you were key to the reunion. You earned “Paw angel”."},
+		"found_nearby":   {"🐾 A pet was found near you", "{name} is near you. Do you know whose it is?"},
+		"friend_lost":    {"🚨 {owner}'s pet is missing", "Help {owner} look for {name}."},
+		"friend_found":   {"🎉 Good news from {owner}!", "{name} is back home."},
 	},
 }
 
@@ -185,7 +194,7 @@ var (
 
 // pushPet son los datos de la mascota que entran en el texto de un push.
 type pushPet struct {
-	Name, Kind, Species, Sex string
+	Name, Kind, Species, Sex, Owner string
 }
 
 // phrase nombra a la mascota sin nombre. Sin sexo conocido usa el masculino genérico; "mascota"
@@ -213,6 +222,7 @@ func pushText(kind, lang string, pet pushPet) (string, string) {
 	if !ok {
 		t = [2]string{"PawFound", "{name}"}
 	}
+	t[0], t[1] = strings.ReplaceAll(t[0], "{owner}", pet.Owner), strings.ReplaceAll(t[1], "{owner}", pet.Owner)
 	if pet.Name != "" {
 		return strings.ReplaceAll(t[0], "{name}", pet.Name), strings.ReplaceAll(t[1], "{name}", pet.Name)
 	}
@@ -244,8 +254,8 @@ func (a *App) alertAudience(ctx context.Context, row petRow, kind string) (int, 
 		  AND coalesce((u.notification_prefs->>'angelAlerts')::boolean, true)
 		  AND z.updated_at > $8
 		  AND ST_DWithin(z.location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
-		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5 AND n.kind IN ('angel_alert', 'life_circle'))
-		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle') AND n.at > $6) < $7`,
+		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5 AND n.kind IN ('angel_alert', 'life_circle', 'friend_lost'))
+		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle', 'found_nearby') AND n.at > $6) < $7`,
 		deref(row.OwnerID), row.Lat, row.Lng, radius, row.ID, now.Add(-24*time.Hour), domain.MaxAlertsPerDay, now.Add(-domain.AlertLocationTTL))
 	audience, err := pgx.CollectRows(rows, pgx.RowTo[string])
 	if err != nil {
@@ -253,6 +263,32 @@ func (a *App) alertAudience(ctx context.Context, row petRow, kind string) (int, 
 	}
 	a.notify(ctx, audience, kind, row.ID, nil)
 	return len(audience), nil
+}
+
+// notifyFoundNearby avisa una sola vez a los celulares cercanos cuando alguien reporta una mascota
+// encontrada, para que la familia se entere. Comparte el límite diario con la Alerta Ángel y no
+// le llega a quien ya recibió otro aviso de este reporte.
+func (a *App) notifyFoundNearby(ctx context.Context, row petRow) error {
+	if row.Kind != "found" || row.State != "active" || row.ModerationRemoved {
+		return nil
+	}
+	now := a.now()
+	rows, _ := a.DB.Query(ctx, `
+		SELECT z.user_id FROM alert_zones z JOIN users u ON u.id = z.user_id
+		WHERE z.user_id IS DISTINCT FROM $1 AND u.suspended_at IS NULL
+		  AND coalesce((u.notification_prefs->>'foundNearby')::boolean, true)
+		  AND z.updated_at > $8
+		  AND ST_DWithin(z.location, ST_SetSRID(ST_MakePoint($3, $2), 4326)::geography, $4)
+		  AND NOT EXISTS (SELECT 1 FROM notifications n WHERE n.user_id = z.user_id AND n.pet_id = $5)
+		  AND (SELECT count(*) FROM notifications n WHERE n.user_id = z.user_id AND n.kind IN ('angel_alert', 'life_circle', 'found_nearby') AND n.at > $6) < $7`,
+		deref(row.OwnerID), row.Lat, row.Lng, max(domain.AlertMinRadius, domain.CurrentRadius(row.domainCase(), now)), row.ID,
+		now.Add(-24*time.Hour), domain.MaxAlertsPerDay, now.Add(-domain.AlertLocationTTL))
+	audience, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	a.notify(ctx, audience, "found_nearby", row.ID, nil)
+	return nil
 }
 
 // RunAlertJob es el job periódico: a medida que el círculo de vida crece, la Alerta Ángel

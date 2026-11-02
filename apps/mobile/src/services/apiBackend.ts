@@ -24,6 +24,7 @@ import type {
 
 import {
   BackendError,
+  type FollowStatus,
   type BackendState,
   type ErrorCode,
   type NewReportInput,
@@ -111,10 +112,17 @@ type ApiPet = Omit<PetCase, "sightings"> & {
 type ApiMessage = Omit<Message, "photo"> & { photo?: { url: string; width: number; height: number } };
 type ApiThread = Omit<Thread, "readAt"> & { readAt: Record<string, string>; members: ApiSummary[]; lastMessage?: ApiMessage };
 type ApiStory = { pet: ApiPet; items: (Omit<StoryItem, "photo"> & { photo?: string })[] };
+type ApiPerson = ApiSummary & { username: string };
+type ApiNetwork = { requests: ApiPerson[]; followers: ApiPerson[]; following: ApiPerson[]; sent: ApiPerson[] };
 type ApiProfile = {
   user: Omit<ApiUser, "email">;
   likes: number;
   likedByMe: boolean;
+  rating: number;
+  ratingCount: number;
+  followers: number;
+  following: number;
+  followStatus: FollowStatus;
   badges: BadgeProgress[];
   pets: { id: string; name: string; species: OwnedPet["species"]; photo?: string }[];
 };
@@ -139,6 +147,11 @@ function emptyState(): BackendState {
     stories: [],
     places: [],
     remoteBadges: {},
+    network: { requests: [], followers: [], following: [], sent: [] },
+    followInfo: {},
+    remoteRatings: {},
+    follows: [],
+    ratingStars: {},
     onlineCount: null,
     nearbyLoaded: false,
     threadsLoaded: false,
@@ -147,6 +160,8 @@ function emptyState(): BackendState {
 }
 
 const KNOWN_CODES = new Set<ErrorCode>([
+  "follow_required",
+  "follow_wait",
   "invalid_credentials",
   "email_taken",
   "phone_taken",
@@ -364,8 +379,6 @@ export class ApiBackend {
       neighborhood: u.neighborhood,
       createdAt: u.createdAt,
       mutedUntil: "mutedUntil" in u ? u.mutedUntil : undefined,
-      ratingSum: 0,
-      ratingCount: 0,
       lang: u.lang,
       founder: u.founder,
     };
@@ -391,8 +404,6 @@ export class ApiBackend {
             bio: "",
             city: "",
             createdAt: s.createdAt,
-            ratingSum: 0,
-            ratingCount: 0,
             lang: s.lang,
           };
     }
@@ -502,6 +513,7 @@ export class ApiBackend {
           if (!this.state.pets.some((p) => p.id === n.petId)) void this.loadPet(n.petId);
         }
         if (data.type === "online") this.commit({ onlineCount: data.data as number });
+        if (data.type === "follow") void this.loadNetwork().catch(() => {});
         if (data.type === "pet") {
           const pet = data.data as ApiPet;
           if (!this.getPet(pet.id)) this.mergePets([pet]);
@@ -692,8 +704,8 @@ export class ApiBackend {
     this.mergePets([await this.request<ApiPet>("POST", `/v1/pets/${petId}/sightings`, input)]);
   }
 
-  async markReunited(petId: string, helperIds: string[] = []): Promise<void> {
-    this.mergePets([await this.request<ApiPet>("POST", `/v1/pets/${petId}/reunite`, { helperIds })]);
+  async markReunited(petId: string, helperIds: string[] = [], ratings: Record<string, number> = {}): Promise<void> {
+    this.mergePets([await this.request<ApiPet>("POST", `/v1/pets/${petId}/reunite`, { helperIds, ratings })]);
     this.commit({ stories: this.state.stories.filter((s) => s.petId !== petId) });
   }
 
@@ -997,9 +1009,72 @@ export class ApiBackend {
     this.commit({
       users: { ...this.state.users, [userId]: user },
       remoteBadges: { ...this.state.remoteBadges, [userId]: p.badges },
+      remoteRatings: { ...this.state.remoteRatings, [userId]: { average: p.rating, count: p.ratingCount } },
+      followInfo: {
+        ...this.state.followInfo,
+        [userId]: { followers: p.followers, following: p.following, status: p.followStatus },
+      },
       ownedPets,
     });
     this.setLikes(userId, p.likes, p.likedByMe);
+  }
+
+  /** Guarda a estas personas con su nombre de usuario, que el resumen de un caso no trae. */
+  private mergePeople(list: ApiPerson[]): Record<string, User> {
+    const users = this.mergeSummaries(list);
+    for (const person of list) {
+      const known = users[person.id];
+      if (known) users[person.id] = { ...known, username: person.username };
+    }
+    return users;
+  }
+
+  async searchUsers(query: string): Promise<User[]> {
+    const list = await this.request<ApiPerson[]>("GET", `/v1/users/search?q=${encodeURIComponent(query)}`);
+    const users = this.mergePeople(list);
+    this.commit({ users });
+    return list.map((p) => users[p.id] as User);
+  }
+
+  async loadNetwork(): Promise<void> {
+    const me = this.state.sessionUserId;
+    if (!me) return;
+    const n = await this.request<ApiNetwork>("GET", "/v1/me/network");
+    const ids = (list: ApiPerson[]) => list.map((p) => p.id);
+    this.commit({
+      users: this.mergePeople([...n.requests, ...n.followers, ...n.following, ...n.sent]),
+      network: { requests: ids(n.requests), followers: ids(n.followers), following: ids(n.following), sent: ids(n.sent) },
+      followInfo: {
+        ...this.state.followInfo,
+        [me]: { followers: n.followers.length, following: n.following.length, status: "none" },
+      },
+    });
+  }
+
+  /** Tras cambiar una relación: el número de seguidores y los "me gusta" pueden haber cambiado. */
+  private async refreshAfterFollow(userId: string): Promise<void> {
+    await Promise.allSettled([this.loadNetwork(), this.loadProfile(userId)]);
+  }
+
+  async followUser(userId: string): Promise<FollowStatus> {
+    const { status } = await this.request<{ status: FollowStatus }>("POST", `/v1/users/${userId}/follow`);
+    await this.refreshAfterFollow(userId);
+    return status;
+  }
+
+  async unfollowUser(userId: string): Promise<void> {
+    await this.request("DELETE", `/v1/users/${userId}/follow`);
+    await this.refreshAfterFollow(userId);
+  }
+
+  async acceptFollower(userId: string): Promise<void> {
+    await this.request("POST", `/v1/me/followers/${userId}/accept`);
+    await this.loadNetwork();
+  }
+
+  async removeFollower(userId: string): Promise<void> {
+    await this.request("DELETE", `/v1/me/followers/${userId}`);
+    await this.loadNetwork();
   }
 
   async loadStories(center: LatLng): Promise<void> {

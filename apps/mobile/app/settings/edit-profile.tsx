@@ -13,6 +13,7 @@ import { SelectField } from "@/components/ui/SelectField";
 import { cn, Text } from "@/components/ui/Text";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
+import { formatRating } from "@/domain/rating";
 import type { AvatarId, ProfileTitle } from "@/domain/types";
 import { BIO_MAX } from "@/domain/validation";
 import { errorMessage } from "@/features/errorMessages";
@@ -226,19 +227,10 @@ export default function EditProfileScreen() {
       <SettingsCard title={t("editProfile.reputation")} subtitle={t("editProfile.reputationBody")}>
         <View className="flex-row items-center gap-2 rounded-2xl border border-border p-3">
           <Icon name="star" size={22} color="#F5A524" />
-          {stats.ratingAvg !== null ? (
-            <>
-              <Text variant="heading">{stats.ratingAvg.toLocaleString(locale)}</Text>
-              <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text>
-              <View className="rounded-full bg-primary-soft px-2 py-0.5">
-                <Text variant="label" tone="primary">
-                  {stats.ratingAvg >= 4.5 ? t("editProfile.excellent") : t("editProfile.good")}
-                </Text>
-              </View>
-            </>
-          ) : (
-            <Text variant="caption">{t("profile.noRatings")}</Text>
-          )}
+          <Text variant="heading">{formatRating(stats.ratingAvg, locale)}</Text>
+          <Text variant="caption">
+            {stats.ratingCount > 0 ? t("profile.ratingCount", { count: stats.ratingCount }) : t("profile.noRatings")}
+          </Text>
         </View>
       </SettingsCard>
 

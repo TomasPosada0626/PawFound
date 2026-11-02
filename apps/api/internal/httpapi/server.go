@@ -47,6 +47,8 @@ func (s *Server) Handler() http.Handler {
 		"oauth":    s.App.NewLimiter("oauth", 20, time.Minute),
 		"refresh":  s.App.NewLimiter("refresh", 60, time.Minute),
 		"verify":   s.App.NewLimiter("verify", 20, time.Minute),
+		"search":   s.App.NewLimiter("search", 30, time.Minute),
+		"follow":   s.App.NewLimiter("follow", 60, time.Hour),
 	}
 	r := chi.NewRouter()
 	reportPanics := sentryhttp.New(sentryhttp.Options{Repanic: true}).Handle
@@ -122,6 +124,9 @@ func (s *Server) routes(r chi.Router) {
 		r.Patch("/me", s.updateProfile)
 		r.Delete("/me", s.deleteAccount)
 		r.Get("/me/export", s.export)
+		r.Get("/me/network", s.myNetwork)
+		r.Post("/me/followers/{id}/accept", s.acceptFollower)
+		r.Delete("/me/followers/{id}", s.removeFollower)
 		r.Put("/me/lang", s.setLang)
 		r.Put("/me/notification-prefs", s.notificationPrefs)
 		r.Put("/me/privacy", s.privacy)
@@ -164,6 +169,9 @@ func (s *Server) routes(r chi.Router) {
 		r.Delete("/threads/{id}", s.leaveThread)
 		r.Delete("/messages/{id}/location", s.stopSharingLocation)
 
+		r.Get("/users/search", s.limited("search", s.searchUsers))
+		r.Post("/users/{id}/follow", s.limited("follow", s.follow))
+		r.Delete("/users/{id}/follow", s.unfollow)
 		r.Post("/users/{id}/like", s.like)
 		r.Post("/users/{id}/report", s.reportUser)
 		r.Post("/pets/{id}/stories", s.addStory)

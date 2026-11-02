@@ -137,7 +137,13 @@ export function ConfirmSheet({
         {body}
       </Text>
       <View className="gap-3 pb-2">
-        <Button label={confirmLabel} variant={danger ? "danger" : "primary"} onPress={onConfirm} loading={loading} />
+        <Button
+          testID="confirm-accept"
+          label={confirmLabel}
+          variant={danger ? "danger" : "primary"}
+          onPress={onConfirm}
+          loading={loading}
+        />
         <Button label={t("common.cancel")} variant="ghost" onPress={onCancel} />
       </View>
     </Sheet>

@@ -51,7 +51,9 @@ export function BadgeCelebration() {
     if (!current) return;
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     const name = t(`badges.${current.id}`);
-    AccessibilityInfo.announceForAccessibility(t("badgesHow.celebrateAnnounce", { name, tier: t(tierLabelKey(current.tier)) }));
+    AccessibilityInfo.announceForAccessibility(
+      t("badgesHow.celebrateAnnounce", { name, tier: t(tierLabelKey(current.id, current.tier)) }),
+    );
     let cancelled = false;
     void AccessibilityInfo.isReduceMotionEnabled()
       .catch(() => true)
@@ -89,7 +91,7 @@ export function BadgeCelebration() {
           <PawDecoration size={80} opacity={0.08} className="absolute -right-3 top-24" />
           <Text variant="label" tone="primary" className="uppercase">
             {multiTier && current.tier > 1
-              ? t("badgesHow.celebrateLevelUp", { tier: t(tierLabelKey(current.tier)) })
+              ? t("badgesHow.celebrateLevelUp", { tier: t(tierLabelKey(current.id, current.tier)) })
               : t("badgesHow.celebrateTitle")}
           </Text>
           <Animated.View style={{ transform: [{ scale }], marginVertical: 18 }}>
@@ -100,7 +102,7 @@ export function BadgeCelebration() {
           </Text>
           {multiTier ? (
             <Text variant="captionStrong" className="mt-1 text-center">
-              {t(tierLabelKey(current.tier))}
+              {t(tierLabelKey(current.id, current.tier))}
             </Text>
           ) : null}
           <Text variant="body" className="mt-2 text-center">

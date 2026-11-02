@@ -31,8 +31,6 @@ type User struct {
 	Lang         string     `json:"lang" db:"lang"`
 	Role         string     `json:"role" db:"role"`
 	Founder      bool       `json:"founder,omitempty" db:"founder"`
-	RatingSum    int        `json:"ratingSum" db:"-"`
-	RatingCount  int        `json:"ratingCount" db:"-"`
 }
 
 const userCols = `id, name, username, email, phone, email_verified, avatar, photo_id, title, bio, city, neighborhood, created_at, muted_until, lang, role, founder`

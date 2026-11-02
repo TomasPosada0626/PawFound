@@ -18,18 +18,35 @@ export const BADGES: Record<BadgeId, { icon: IconName; from: string; to: string 
   reunion: { icon: "home", from: "#8C6CF0", to: "#4B2FB0" },
   spreader: { icon: "share-social", from: "#FF9A3D", to: "#D9480F" },
   community: { icon: "people", from: "#4C93F5", to: "#1D5FC9" },
+  foster: { icon: "bed", from: "#F58BB0", to: "#C43D78" },
+  quick: { icon: "flash", from: "#FFC83D", to: "#D98A00" },
+  protector: { icon: "star", from: "#F2B51D", to: "#B87400" },
+  popular: { icon: "heart-circle", from: "#FF6B8B", to: "#C42D52" },
 };
 
 /** El nivel se lee en el color del borde (bronce, plata, oro) y en las marcas inferiores. */
-export const TIER_COLORS: Record<Exclude<BadgeTier, 0>, string> = { 1: "#C9813F", 2: "#A7B6C6", 3: "#F2B51D" };
+export const TIER_COLORS: Record<Exclude<BadgeTier, 0>, string> = {
+  1: "#C9813F",
+  2: "#A7B6C6",
+  3: "#F2B51D",
+  4: "#5CC8E0",
+  5: "#B56BF0",
+};
 
 export const CATEGORY_ORDER: BadgeCategory[] = ["identity", "help", "reunions", "community"];
 
 const HEX = "M50 3 L91 26.5 L91 73.5 L50 97 L9 73.5 L9 26.5 Z";
 const INNER_HEX = "M50 15 L80 32.5 L80 67.5 L50 85 L20 67.5 L20 32.5 Z";
 
-export function tierLabelKey(tier: BadgeTier) {
-  return `badgesHow.tier${Math.max(1, tier) as 1 | 2 | 3}` as const;
+export function tierLabelKey(id: BadgeId, tier: BadgeTier) {
+  if (id === "protector" || (id === "popular" && tier >= 5)) return "badgesHow.legend" as const;
+  if (id === "popular") return `badgesHow.popularTier${Math.max(1, tier) as 1 | 2 | 3 | 4}` as const;
+  return `badgesHow.tier${Math.max(1, Math.min(tier, 3)) as 1 | 2 | 3}` as const;
+}
+
+/** "Protector animal" tiene un solo nivel, pero se muestra como "Leyenda". */
+function showsTier(id: BadgeId, maxTier: number) {
+  return maxTier > 1 || id === "protector";
 }
 
 export function BadgeHex({ id, size = 64, tier = 1 }: { id: BadgeId; size?: number; tier?: BadgeTier }) {
@@ -51,7 +68,7 @@ export function BadgeHex({ id, size = 64, tier = 1 }: { id: BadgeId; size?: numb
         <Path
           d={HEX}
           fill={`url(#${gradientId})`}
-          stroke={locked || !multiTier ? "#FFFFFF" : TIER_COLORS[tier as 1 | 2 | 3]}
+          stroke={locked || !multiTier ? "#FFFFFF" : TIER_COLORS[tier as Exclude<BadgeTier, 0>]}
           strokeWidth={locked || !multiTier ? 5 : 7}
           strokeLinejoin="round"
         />
@@ -73,12 +90,12 @@ export function BadgeHex({ id, size = 64, tier = 1 }: { id: BadgeId; size?: numb
 export function BadgeTile({ progress, size = 60 }: { progress: BadgeProgress; size?: number }) {
   const { t } = useI18n();
   const name = t(`badges.${progress.id}`);
-  const multiTier = progress.maxTier > 1;
+  const multiTier = showsTier(progress.id, progress.maxTier);
   const status =
     progress.tier === 0
       ? `${t("badgesHow.locked")}: ${t(`badgesHow.${progress.id}`, { count: progress.next ?? 1 })}`
       : multiTier
-        ? t(tierLabelKey(progress.tier))
+        ? t(tierLabelKey(progress.id, progress.tier))
         : t("badgesHow.earned");
   return (
     <View accessible accessibilityLabel={`${name}. ${status}`} className="w-[84px] items-center gap-1">
@@ -88,7 +105,7 @@ export function BadgeTile({ progress, size = 60 }: { progress: BadgeProgress; si
       </Text>
       {multiTier && progress.tier > 0 ? (
         <Text variant="caption" className="text-center">
-          {t(tierLabelKey(progress.tier))}
+          {t(tierLabelKey(progress.id, progress.tier))}
         </Text>
       ) : null}
     </View>
@@ -104,18 +121,20 @@ export function BadgeProgressRow({ progress }: { progress: BadgeProgress }) {
   const nextTier = (progress.tier + 1) as BadgeTier;
   const ratio = goal ? Math.min(1, progress.count / goal) : 1;
   const how = t(`badgesHow.${progress.id}`, { count: goal ?? progress.count });
-  const multiTier = progress.maxTier > 1;
+  const multiTier = showsTier(progress.id, progress.maxTier);
   const status =
     goal === null
       ? multiTier
-        ? t("badgesHow.maxed")
+        ? t(progress.id === "protector" ? "badgesHow.legend" : "badgesHow.maxed")
         : t("badgesHow.earned")
-      : t("badgesHow.progress", { count: progress.count, goal, tier: t(tierLabelKey(nextTier)) });
+      : progress.id === "protector"
+        ? t("badgesHow.locked")
+        : t("badgesHow.progress", { count: progress.count, goal, tier: t(tierLabelKey(progress.id, nextTier)) });
   return (
     <View
       className="flex-row items-center gap-4 border-b border-border py-3"
       accessible
-      accessibilityLabel={`${name}. ${progress.tier > 0 && multiTier ? `${t(tierLabelKey(progress.tier))}. ` : ""}${how} ${status}`}
+      accessibilityLabel={`${name}. ${progress.tier > 0 && multiTier ? `${t(tierLabelKey(progress.id, progress.tier))}. ` : ""}${how} ${status}`}
       testID={`badge-${progress.id}`}
     >
       <BadgeHex id={progress.id} tier={progress.tier} size={56} />
@@ -125,9 +144,9 @@ export function BadgeProgressRow({ progress }: { progress: BadgeProgress }) {
           {progress.tier > 0 && multiTier ? (
             <View
               className="rounded-full px-2 py-0.5"
-              style={{ backgroundColor: `${TIER_COLORS[progress.tier as 1 | 2 | 3]}33` }}
+              style={{ backgroundColor: `${TIER_COLORS[progress.tier as Exclude<BadgeTier, 0>]}33` }}
             >
-              <Text variant="captionStrong">{t(tierLabelKey(progress.tier))}</Text>
+              <Text variant="captionStrong">{t(tierLabelKey(progress.id, progress.tier))}</Text>
             </View>
           ) : null}
         </View>

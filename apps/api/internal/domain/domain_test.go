@@ -140,7 +140,7 @@ func TestBadges(t *testing.T) {
 	for _, p := range progress {
 		byID[p.ID] = p
 	}
-	if len(progress) != 8 || progress[0].ID != "verified" {
+	if len(progress) != 12 || progress[0].ID != "verified" {
 		t.Fatalf("orden o cantidad: %+v", progress)
 	}
 	if r := byID["reporter"]; r.Tier != 2 || r.Next == nil || *r.Next != 10 {
@@ -151,6 +151,44 @@ func TestBadges(t *testing.T) {
 	}
 	if s := byID["spreader"]; s.Count != 0 || s.Tier != 0 {
 		t.Errorf("conteos negativos cuentan como cero: %+v", s)
+	}
+}
+
+func TestRatingStartsAtFiveAndCountsTheLastTwenty(t *testing.T) {
+	if got := Rating(nil); got != 5 {
+		t.Fatalf("sin calificaciones = %v", got)
+	}
+	if got := Rating([]int{1}); got != 4.8 {
+		t.Fatalf("una de 1 estrella = %v", got)
+	}
+	twenty := make([]int, 25)
+	for i := range twenty {
+		twenty[i] = 4
+		if i >= 20 {
+			twenty[i] = 1 // más antiguas que las últimas 20: no cuentan
+		}
+	}
+	if got := Rating(twenty); got != 4 {
+		t.Fatalf("últimas 20 = %v", got)
+	}
+	if IsAnimalProtector(nil) || IsAnimalProtector([]int{5, 5, 5, 5}) {
+		t.Fatal("pide un mínimo de calificaciones reales")
+	}
+	if !IsAnimalProtector([]int{5, 5, 5, 5, 1}) {
+		t.Fatal("con 4,8 y cinco calificaciones la tiene")
+	}
+	if IsAnimalProtector([]int{5, 5, 5, 1, 1}) {
+		t.Fatal("con menos de 4,8 no la tiene")
+	}
+}
+
+func TestPopularTiers(t *testing.T) {
+	for likes, want := range map[int]int{49: 0, 50: 1, 100: 2, 250: 3, 500: 4, 999: 4, 1000: 5} {
+		for _, p := range Badges(map[string]int{"popular": likes}) {
+			if p.ID == "popular" && (p.Tier != want || p.MaxTier != 5) {
+				t.Errorf("%d me gusta = %+v", likes, p)
+			}
+		}
 	}
 }
 

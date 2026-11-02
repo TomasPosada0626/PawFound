@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { shortName } from "@/domain/privacy";
+import { RATING_START } from "@/domain/rating";
 import type { PetCase } from "@/domain/types";
 import { petSentence } from "@/features/petNames";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -10,6 +11,7 @@ import { reunionHelperCandidates, type HelperCandidate } from "@/services/select
 import { useBackend, useBackendState } from "@/store/backend";
 
 import { BadgeHex } from "./badges";
+import { StarPicker } from "./StarPicker";
 import { UserAvatar } from "./pets";
 import { Button } from "./ui/Button";
 import { Checkbox } from "./ui/Controls";
@@ -30,7 +32,7 @@ export function ReunionSheet({
   pet: PetCase;
   visible: boolean;
   loading?: boolean;
-  onConfirm: (helperIds: string[]) => void;
+  onConfirm: (helperIds: string[], ratings: Record<string, number>) => void;
   onCancel: () => void;
 }) {
   const { t } = useI18n();
@@ -54,6 +56,8 @@ export function ReunionSheet({
   }, [backend, pet.id, visible]);
   const candidates = remote ?? local;
   const [selected, setSelected] = useState<string[]>([]);
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const starsOf = (userId: string) => ratings[userId] ?? RATING_START;
 
   const toggle = (userId: string, next: boolean) =>
     setSelected((prev) => (next ? [...prev, userId].slice(0, MAX_HELPERS) : prev.filter((id) => id !== userId)));
@@ -74,22 +78,31 @@ export function ReunionSheet({
           </View>
           <View className="mt-3">
             {candidates.map((c) => (
-              <Checkbox
-                key={c.userId}
-                checked={selected.includes(c.userId)}
-                onChange={(next) => toggle(c.userId, next)}
-                label={`${shortName(c.user.name)}. ${c.reasons.map((r) => t(`pet.thankReason_${r}`)).join(", ")}`}
-                testID={`thank-${c.userId}`}
-              >
-                <View className="flex-row items-center gap-3">
-                  <UserAvatar user={c.user} size={40} />
-                  {/* shrink y no flex-1: Checkbox no da ancho fijo y flex-1 esconde el nombre. */}
-                  <View className="shrink">
-                    <Text variant="bodyStrong">{shortName(c.user.name)}</Text>
-                    <Text variant="caption">{c.reasons.map((r) => t(`pet.thankReason_${r}`)).join(" · ")}</Text>
+              <View key={c.userId}>
+                <Checkbox
+                  checked={selected.includes(c.userId)}
+                  onChange={(next) => toggle(c.userId, next)}
+                  label={`${shortName(c.user.name)}. ${c.reasons.map((r) => t(`pet.thankReason_${r}`)).join(", ")}`}
+                  testID={`thank-${c.userId}`}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <UserAvatar user={c.user} size={40} />
+                    {/* shrink y no flex-1: Checkbox no da ancho fijo y flex-1 esconde el nombre. */}
+                    <View className="shrink">
+                      <Text variant="bodyStrong">{shortName(c.user.name)}</Text>
+                      <Text variant="caption">{c.reasons.map((r) => t(`pet.thankReason_${r}`)).join(" · ")}</Text>
+                    </View>
                   </View>
-                </View>
-              </Checkbox>
+                </Checkbox>
+                {selected.includes(c.userId) ? (
+                  <StarPicker
+                    value={starsOf(c.userId)}
+                    onChange={(stars) => setRatings((prev) => ({ ...prev, [c.userId]: stars }))}
+                    label={t("pet.thankStars", { name: shortName(c.user.name) })}
+                    testID={`stars-${c.userId}`}
+                  />
+                ) : null}
+              </View>
             ))}
           </View>
           {selected.length >= MAX_HELPERS ? (
@@ -107,7 +120,7 @@ export function ReunionSheet({
         <Button
           label={selected.length ? t("pet.thankConfirm") : t("pet.reuniteConfirm")}
           icon="home"
-          onPress={() => onConfirm(selected)}
+          onPress={() => onConfirm(selected, Object.fromEntries(selected.map((id) => [id, starsOf(id)])))}
           loading={loading}
           testID="reunite-confirm"
         />

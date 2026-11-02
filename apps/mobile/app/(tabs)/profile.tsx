@@ -14,10 +14,11 @@ import { ConfirmSheet, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useNow } from "@/hooks/useNow";
 import { memberDays } from "@/domain/moderation";
+import { formatRating } from "@/domain/rating";
 import { relativeTime, shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
-import { likesOf, ownedPetsOf, userActivity, userBadgeProgress, userStats } from "@/services/selectors";
+import { followInfoOf, likesOf, networkOf, ownedPetsOf, userActivity, userBadgeProgress, userStats } from "@/services/selectors";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
@@ -30,7 +31,10 @@ export default function ProfileScreen() {
   // Insignias y me gusta como los calcula la API.
   const userId = user?.id;
   useEffect(() => {
-    if (userId) void backend.loadProfile(userId).catch(() => {});
+    if (userId) {
+      void backend.loadProfile(userId).catch(() => {});
+      void backend.loadNetwork().catch(() => {});
+    }
   }, [backend, userId]);
   const now = useNow();
   const params = useLocalSearchParams<{ badges?: string }>();
@@ -114,6 +118,15 @@ export default function ProfileScreen() {
             </Text>
             <Text variant="caption">{`· ${t("profile.memberSince", { date: shortDate(new Date(user.createdAt), locale) })}`}</Text>
           </View>
+          {stats ? (
+            <View className="flex-row items-center gap-1" accessible testID="my-rating">
+              <Icon name="star" size={15} color="#F5A524" />
+              <Text variant="captionStrong">{formatRating(stats.ratingAvg, locale)}</Text>
+              <Text variant="caption">
+                {stats.ratingCount > 0 ? t("profile.ratingCount", { count: stats.ratingCount }) : t("profile.noRatings")}
+              </Text>
+            </View>
+          ) : null}
           <View className="self-start rounded-full border border-border px-3 py-1">
             <Text variant="captionStrong">{t(`titles.${user.title}`)}</Text>
           </View>
@@ -165,6 +178,28 @@ export default function ProfileScreen() {
           <Stat icon="heart" color="#E8466C" value={String(likesOf(state, user.id))} label={t("profile.likes")} />
           <Stat icon="shield" color="#6D4AD6" value={String(badges.length)} label={t("profile.badges")} last />
         </View>
+      </Card>
+
+      {/* Seguidores: la lista solo la ve la propia cuenta */}
+      <Card className="mt-4">
+        <ListRow
+          icon="people-outline"
+          tone="blue"
+          title={t("network.title")}
+          value={String(followInfoOf(state, user.id).followers)}
+          description={
+            networkOf(state).requests.length ? t("network.requestsCount", { count: networkOf(state).requests.length }) : undefined
+          }
+          onPress={() => router.push("/seguidores")}
+          testID="open-followers"
+        />
+        <ListRow
+          icon="search-outline"
+          tone="blue"
+          title={t("network.search")}
+          onPress={() => router.push("/buscar-personas")}
+          testID="open-search-people"
+        />
       </Card>
 
       {/* Insignias */}

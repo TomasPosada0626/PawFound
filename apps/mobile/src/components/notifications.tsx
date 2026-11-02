@@ -13,6 +13,7 @@ import { Icon } from "./ui/Icon";
 import { cn, Text } from "./ui/Text";
 
 const LOST_TONE = new Set<AppNotification["kind"]>([
+  "friend_lost",
   "lost_nearby",
   "case_update",
   "comment",

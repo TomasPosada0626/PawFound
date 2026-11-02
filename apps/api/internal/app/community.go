@@ -19,16 +19,22 @@ type ProfilePet struct {
 	Photo   *string `json:"photo,omitempty"`
 }
 
-// PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, mascotas y "me gusta".
+// PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, mascotas, "me gusta" y
+// calificación. De los seguidores solo se muestra el número: la lista es de la propia cuenta.
 type PublicProfile struct {
-	User       PublicUser             `json:"user"`
-	MemberDays int                    `json:"memberDays"`
-	Likes      int                    `json:"likes"`
-	LikedByMe  bool                   `json:"likedByMe"`
-	Badges     []domain.BadgeProgress `json:"badges"`
-	Pets       []ProfilePet           `json:"pets"`
-	Reported   int                    `json:"reported"`
-	Found      int                    `json:"found"`
+	User         PublicUser             `json:"user"`
+	MemberDays   int                    `json:"memberDays"`
+	Likes        int                    `json:"likes"`
+	LikedByMe    bool                   `json:"likedByMe"`
+	Rating       float64                `json:"rating"`
+	RatingCount  int                    `json:"ratingCount"`
+	Followers    int                    `json:"followers"`
+	Following    int                    `json:"following"`
+	FollowStatus string                 `json:"followStatus"`
+	Badges       []domain.BadgeProgress `json:"badges"`
+	Pets         []ProfilePet           `json:"pets"`
+	Reported     int                    `json:"reported"`
+	Found        int                    `json:"found"`
 }
 
 // Profile arma el perfil público de una cuenta.
@@ -41,9 +47,24 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	if err != nil {
 		return PublicProfile{}, err
 	}
-	p := PublicProfile{User: publicOf(u), MemberDays: domain.MemberDays(u.CreatedAt, a.now()), Badges: domain.Badges(facts), Pets: []ProfilePet{}}
+	stars, ratingCount, err := a.rating(ctx, userID)
+	if err != nil {
+		return PublicProfile{}, err
+	}
+	p := PublicProfile{
+		User: publicOf(u), MemberDays: domain.MemberDays(u.CreatedAt, a.now()), Badges: domain.Badges(facts), Pets: []ProfilePet{},
+		Rating: domain.Rating(stars), RatingCount: ratingCount,
+	}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*), coalesce(bool_or(liker_id = $2), false) FROM profile_likes WHERE target_id = $1`,
 		userID, viewerID).Scan(&p.Likes, &p.LikedByMe); err != nil {
+		return PublicProfile{}, err
+	}
+	// Un rechazo no se le muestra a quien lo recibió: para esa persona el perfil sigue en "Seguir".
+	if err := a.DB.QueryRow(ctx, `SELECT
+			count(*) FILTER (WHERE followed_id = $1 AND status = 'accepted'),
+			count(*) FILTER (WHERE follower_id = $1 AND status = 'accepted'),
+			coalesce(max(status) FILTER (WHERE follower_id = $2 AND followed_id = $1 AND status <> 'declined'), 'none')
+		FROM follows WHERE followed_id = $1 OR follower_id = $1`, userID, viewerID).Scan(&p.Followers, &p.Following, &p.FollowStatus); err != nil {
 		return PublicProfile{}, err
 	}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
@@ -64,30 +85,49 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	return p, err
 }
 
-// badgeFacts cuenta los hechos reales de cada insignia (selectors.ts → badgeFacts). Los
-// reportes retirados por moderación no cuentan.
+// badgeFacts cuenta los hechos reales de cada insignia (selectors.ts → badgeFacts). Los reportes
+// retirados por moderación o eliminados no cuentan: publicar y borrar no sube de nivel.
+//
+// "Hogar de paso" no se puede comprobar del todo, así que se apoya en lo que sí queda registrado:
+// quien reportó dijo que la tenía consigo, pasó al menos un día y el caso terminó en reencuentro
+// con otra persona que de verdad participó.
 func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map[string]int, error) {
 	f := map[string]int{}
 	if verified {
 		f["verified"] = 1
 	}
-	var reporter, rescuer, eyes, angel, reunion, spreader, community int
+	var reporter, rescuer, foster, eyes, quick, angel, reunion, spreader, community, likes int
 	err := a.DB.QueryRow(ctx, `SELECT
-		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed),
-		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed),
-		(SELECT count(*) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1 AND NOT p.moderation_removed),
-		(SELECT count(*) FROM pet_helpers h JOIN pets p ON p.id = h.pet_id WHERE h.user_id = $1 AND NOT p.moderation_removed),
-		(SELECT count(*) FROM pets WHERE owner_id = $1 AND state = 'reunited' AND NOT moderation_removed),
+		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL),
+		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed AND withdrawn_at IS NULL),
+		(SELECT count(*) FROM pets p WHERE p.owner_id = $1 AND p.kind = 'found' AND p.found_custody = 'with_me' AND p.state = 'reunited'
+			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL AND p.reunited_at >= p.created_at + interval '24 hours'
+			AND EXISTS (SELECT 1 FROM pet_helpers h WHERE h.pet_id = p.id)),
+		(SELECT count(*) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
+			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
+		(SELECT count(DISTINCT s.pet_id) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
+			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL AND s.created_at <= p.created_at + interval '1 hour'),
+		(SELECT count(*) FROM pet_helpers h JOIN pets p ON p.id = h.pet_id WHERE h.user_id = $1 AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
+		(SELECT count(*) FROM pets WHERE owner_id = $1 AND state = 'reunited' AND NOT moderation_removed AND withdrawn_at IS NULL),
 		(SELECT count(*) FROM pet_shares WHERE user_id = $1),
 		(SELECT count(*) FROM thread_members tm JOIN threads t ON t.id = tm.thread_id WHERE tm.user_id = $1 AND t.kind = 'group'
-			AND NOT EXISTS (SELECT 1 FROM pets p WHERE p.group_id = t.id AND p.owner_id = $1))`, userID).
-		Scan(&reporter, &rescuer, &eyes, &angel, &reunion, &spreader, &community)
-	f["reporter"], f["rescuer"], f["eyes"], f["paw_angel"], f["reunion"], f["spreader"], f["community"] = reporter, rescuer, eyes, angel, reunion, spreader, community
+			AND NOT EXISTS (SELECT 1 FROM pets p WHERE p.group_id = t.id AND p.owner_id = $1)),
+		(SELECT count(*) FROM profile_likes WHERE target_id = $1)`, userID).
+		Scan(&reporter, &rescuer, &foster, &eyes, &quick, &angel, &reunion, &spreader, &community, &likes)
+	if err != nil {
+		return f, err
+	}
+	f["reporter"], f["rescuer"], f["foster"], f["eyes"], f["quick"] = reporter, rescuer, foster, eyes, quick
+	f["paw_angel"], f["reunion"], f["spreader"], f["community"], f["popular"] = angel, reunion, spreader, community, likes
+	stars, _, err := a.rating(ctx, userID)
+	if domain.IsAnimalProtector(stars) {
+		f["protector"] = 1
+	}
 	return f, err
 }
 
-// ToggleLike da o quita un "me gusta" de perfil: solo cuentas verificadas, uno por persona
-// y nunca a uno mismo, para que el contador refleje confianza real.
+// ToggleLike da o quita un "me gusta" de perfil: solo cuentas verificadas, uno por persona, nunca
+// a uno mismo, y solo a quien se sigue con la solicitud aceptada.
 func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, int, error) {
 	if err := requireVerified(ac); err != nil {
 		return false, 0, err
@@ -104,6 +144,13 @@ func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, 
 	}
 	liked := tag.RowsAffected() == 0
 	if liked {
+		following, err := a.isFollowing(ctx, ac.ID, targetID)
+		if err != nil {
+			return false, 0, err
+		}
+		if !following {
+			return false, 0, errFollowRequired
+		}
 		if _, err := a.DB.Exec(ctx, `INSERT INTO profile_likes (target_id, liker_id, at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, targetID, ac.ID, a.now()); err != nil {
 			return false, 0, err
 		}

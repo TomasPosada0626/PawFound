@@ -39,6 +39,7 @@ func TestFounderIsOnlyIdentifiedAndEarnsLikeEveryoneElse(t *testing.T) {
 			t.Fatalf("insignia sin haberla ganado: %+v", b)
 		}
 	}
+	h.befriend(fan, founder)
 	var liked struct {
 		Likes int `json:"likes"`
 	}
@@ -61,6 +62,7 @@ func TestResetTestDataOnlySimulatesUntilConfirmed(t *testing.T) {
 	pet := h.report(owner, lostReport("Max", laureles, nil))
 	h.must(http.StatusOK, http.MethodPost, "/v1/pets/"+pet.ID+"/join", fan.Token, nil, nil)
 	h.must(http.StatusCreated, http.MethodPost, "/v1/threads/"+pet.GroupID+"/messages", fan.Token, map[string]string{"text": "La vi", "lang": "es"}, nil)
+	h.befriend(fan, owner)
 	h.must(http.StatusOK, http.MethodPost, "/v1/users/"+owner.ID+"/like", fan.Token, nil, nil)
 	h.alertZone(fan, laureles, "Laureles")
 	if _, res := h.upload(owner, "owned", jpegBytes(1)); res.Status != http.StatusCreated {
