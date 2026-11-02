@@ -67,6 +67,29 @@ describe("entrar a PawFamily", () => {
 });
 
 describe("buscar", () => {
+  it("los filtros de cada categoría se combinan y se pueden limpiar", async () => {
+    await acceptedTerms();
+    await open("/pawfamily");
+    expect(await screen.findByTestId("adoption-ad_bruno")).toBeOnTheScreen();
+    // Todas las categorías están a la vista y se combinan: perro, macho, grande y mayor.
+    await fireEvent.press(screen.getByTestId("filter-dog"));
+    await fireEvent.press(screen.getByTestId("filter-male"));
+    await fireEvent.press(screen.getByTestId("filter-large"));
+    await fireEvent.press(screen.getByTestId("filter-senior"));
+    await waitFor(() => expect(screen.queryByTestId("adoption-ad_canela")).not.toBeOnTheScreen());
+    expect(screen.queryByTestId("adoption-ad_simon")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("adoption-ad_bruno")).toBeOnTheScreen();
+    // «Todos» quita solo esa categoría.
+    await fireEvent.press(screen.getByTestId("filter-size-all"));
+    await fireEvent.press(screen.getByTestId("filter-age-all"));
+    expect(screen.getByTestId("adoption-ad_bruno")).toBeOnTheScreen();
+    // Limpiar deja todo como al principio.
+    await fireEvent.press(screen.getByTestId("filters-clear"));
+    expect(await screen.findByTestId("adoption-ad_canela")).toBeOnTheScreen();
+    expect(screen.getByTestId("adoption-ad_simon")).toBeOnTheScreen();
+    expect(screen.queryByTestId("filters-clear")).not.toBeOnTheScreen();
+  });
+
   it("filtra por especie, sexo, tamaño, edad y toda la ciudad", async () => {
     await acceptedTerms();
     await open("/pawfamily");

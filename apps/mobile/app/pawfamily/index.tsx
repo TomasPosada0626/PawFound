@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Pressable, View } from "react-native";
 
 import { Screen } from "@/components/layout";
 import { AdoptionCard, PawFamilyBrand, PawFamilyHeader, ShelterTag } from "@/components/pawfamily";
@@ -219,14 +219,18 @@ function PersonHub({ onChangeRole }: { onChangeRole: () => void }) {
 
   const set = <K extends keyof AdoptionFilters>(key: K, value: AdoptionFilters[K]) =>
     setFilters((f) => ({ ...f, [key]: f[key] === value ? undefined : value }));
+  const clear = (key: "species" | "sex" | "size" | "age") => setFilters((f) => ({ ...f, [key]: undefined }));
+  const filtering =
+    wholeCity ||
+    filters.radiusKm !== DEFAULT_ADOPTION_FILTERS.radiusKm ||
+    Boolean(filters.species || filters.sex || filters.size || filters.age);
   const list = (ids ?? []).map((id) => adoptionView(state, id)).filter((a) => a !== undefined);
 
   return (
     <Screen header={<PawFamilyHeader />} testID="pawfamily">
       <Banner icon="heart-outline" body={t("pawfamily.freeBanner")} />
-      <View className="mt-3 flex-row flex-wrap gap-2">
+      <View className="mt-3 gap-2">
         <Button
-          compact
           icon="add"
           label={t("pawfamily.publish")}
           onPress={() => {
@@ -235,88 +239,123 @@ function PersonHub({ onChangeRole }: { onChangeRole: () => void }) {
           testID="pawfamily-publish"
         />
         {user ? (
-          <>
-            <Button compact variant="outline" label={t("pawfamily.mine")} onPress={() => router.push("/pawfamily/mias")} />
-            <Button
-              compact
-              variant="outline"
-              label={t("pawfamily.myRequests")}
-              onPress={() => router.push("/pawfamily/solicitudes")}
-            />
-          </>
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Button compact variant="outline" label={t("pawfamily.mine")} onPress={() => router.push("/pawfamily/mias")} />
+            </View>
+            <View className="flex-1">
+              <Button
+                compact
+                variant="outline"
+                label={t("pawfamily.myRequests")}
+                onPress={() => router.push("/pawfamily/solicitudes")}
+              />
+            </View>
+          </View>
         ) : null}
       </View>
 
-      <Text variant="captionStrong" className="mb-2 mt-4">
-        {t("pawfamily.distance")}
-      </Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-        {ADOPTION_RADII.map((km) => (
+      {/* Filtros: cada categoría por separado y a la vista, para combinarlas. */}
+      <Card className="mt-4" testID="adoption-filters">
+        <View className="flex-row items-center justify-between">
+          <Text variant="subheading" accessibilityRole="header">
+            {t("pawfamily.filters")}
+          </Text>
+          {filtering ? (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setFilters(DEFAULT_ADOPTION_FILTERS);
+                setWholeCity(false);
+              }}
+              className="min-h-[44px] justify-center px-2 active:opacity-70"
+              testID="filters-clear"
+            >
+              <Text variant="captionStrong" tone="primary">
+                {t("pawfamily.clearFilters")}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+        <FilterGroup label={t("pawfamily.distance")}>
+          {ADOPTION_RADII.map((km) => (
+            <Chip
+              key={km}
+              label={t("pawfamily.km", { count: km })}
+              selected={!wholeCity && filters.radiusKm === km}
+              onPress={() => {
+                setWholeCity(false);
+                setFilters((f) => ({ ...f, radiusKm: km }));
+              }}
+              testID={`radius-${km}`}
+            />
+          ))}
+          {city ? (
+            <Chip
+              label={t("pawfamily.wholeCity", { city })}
+              selected={wholeCity}
+              onPress={() => setWholeCity((v) => !v)}
+              testID="whole-city"
+            />
+          ) : null}
+        </FilterGroup>
+        <FilterGroup label={t("pawfamily.animal")}>
           <Chip
-            key={km}
-            label={t("pawfamily.km", { count: km })}
-            selected={!wholeCity && filters.radiusKm === km}
-            onPress={() => {
-              setWholeCity(false);
-              setFilters((f) => ({ ...f, radiusKm: km }));
-            }}
-            testID={`radius-${km}`}
+            label={t("pawfamily.all")}
+            selected={!filters.species}
+            onPress={() => clear("species")}
+            testID="filter-species-all"
           />
-        ))}
-        {city ? (
+          {(["dog", "cat", "other"] as const).map((species) => (
+            <Chip
+              key={species}
+              label={t(`species.${species}`)}
+              selected={filters.species === species}
+              onPress={() => set("species", species)}
+              testID={`filter-${species}`}
+            />
+          ))}
+        </FilterGroup>
+        <FilterGroup label={t("pet.sex")}>
+          <Chip label={t("pawfamily.all")} selected={!filters.sex} onPress={() => clear("sex")} testID="filter-sex-all" />
           <Chip
-            label={t("pawfamily.wholeCity", { city })}
-            selected={wholeCity}
-            onPress={() => setWholeCity((v) => !v)}
-            testID="whole-city"
+            label={t("pawfamily.female")}
+            selected={filters.sex === "female"}
+            onPress={() => set("sex", "female")}
+            testID="filter-female"
           />
-        ) : null}
-      </ScrollView>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} className="mt-3">
-        <Chip
-          label={t("species.dog")}
-          selected={filters.species === "dog"}
-          onPress={() => set("species", "dog")}
-          testID="filter-dog"
-        />
-        <Chip
-          label={t("species.cat")}
-          selected={filters.species === "cat"}
-          onPress={() => set("species", "cat")}
-          testID="filter-cat"
-        />
-        <Chip
-          label={t("pawfamily.female")}
-          selected={filters.sex === "female"}
-          onPress={() => set("sex", "female")}
-          testID="filter-female"
-        />
-        <Chip
-          label={t("pawfamily.male")}
-          selected={filters.sex === "male"}
-          onPress={() => set("sex", "male")}
-          testID="filter-male"
-        />
-        {(["small", "medium", "large"] as const).map((size) => (
           <Chip
-            key={size}
-            label={t(`size.${size}`)}
-            selected={filters.size === size}
-            onPress={() => set("size", size)}
-            testID={`filter-${size}`}
+            label={t("pawfamily.male")}
+            selected={filters.sex === "male"}
+            onPress={() => set("sex", "male")}
+            testID="filter-male"
           />
-        ))}
-        {(["puppy", "young", "adult", "senior"] as const).map((age) => (
-          <Chip
-            key={age}
-            label={t(`age.${age}`)}
-            selected={filters.age === age}
-            onPress={() => set("age", age)}
-            testID={`filter-${age}`}
-          />
-        ))}
-      </ScrollView>
+        </FilterGroup>
+        <FilterGroup label={t("pet.size")}>
+          <Chip label={t("pawfamily.all")} selected={!filters.size} onPress={() => clear("size")} testID="filter-size-all" />
+          {(["small", "medium", "large"] as const).map((size) => (
+            <Chip
+              key={size}
+              label={t(`size.${size}`)}
+              selected={filters.size === size}
+              onPress={() => set("size", size)}
+              testID={`filter-${size}`}
+            />
+          ))}
+        </FilterGroup>
+        <FilterGroup label={t("pet.age")} last>
+          <Chip label={t("pawfamily.all")} selected={!filters.age} onPress={() => clear("age")} testID="filter-age-all" />
+          {(["puppy", "young", "adult", "senior"] as const).map((age) => (
+            <Chip
+              key={age}
+              label={t(`age.${age}`)}
+              selected={filters.age === age}
+              onPress={() => set("age", age)}
+              testID={`filter-${age}`}
+            />
+          ))}
+        </FilterGroup>
+      </Card>
 
       <View className="mt-4">
         {ids === null ? (
@@ -416,6 +455,18 @@ function ShelterHub({ onChangeRole }: { onChangeRole: () => void }) {
         />
       </Card>
     </Screen>
+  );
+}
+
+/** Un grupo de filtros con su título; las opciones se acomodan en varias líneas, siempre visibles. */
+function FilterGroup({ label, last, children }: { label: string; last?: boolean; children: ReactNode }) {
+  return (
+    <View className={last ? "mt-3" : "mt-3 border-b border-border pb-3"}>
+      <Text variant="captionStrong" className="mb-2">
+        {label}
+      </Text>
+      <View className="flex-row flex-wrap gap-2">{children}</View>
+    </View>
   );
 }
 
