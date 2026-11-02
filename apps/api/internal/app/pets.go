@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"errors"
+	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -298,6 +300,7 @@ func (a *App) toPets(ctx context.Context, rows []petRow, viewerID string) ([]Pet
 			FoundCustody: r.FoundCustody, OwnerID: deref(r.OwnerID), OwnerShortName: r.OwnerShortName, CreatedAt: r.CreatedAt,
 			ReunitedAt: r.ReunitedAt, Sightings: list, ShareCount: r.ShareCount, GroupID: r.GroupID,
 			ModerationRemoved: r.ModerationRemoved, CurrentRadius: domain.CurrentRadius(r.domainCase(), now),
+			ContactPhone: r.ContactPhone,
 		}
 		// "Ángel de patas" es público en el perfil de quien lo recibe, pero la lista por caso
 		// solo la necesita la familia.
@@ -370,7 +373,41 @@ func (a *App) Nearby(ctx context.Context, viewerID string, q NearbyQuery) ([]Pet
 	if err != nil {
 		return nil, err
 	}
-	return a.toPets(ctx, list, viewerID)
+	pets, err := a.toPets(ctx, list, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	// Nadie debe poder juntar celulares recorriendo el mapa: solo viajan al abrir un caso.
+	for i := range pets {
+		pets[i].ContactPhone = nil
+	}
+	return pets, nil
+}
+
+// SetContactPhone: la familia decide mostrar (o quitar con "") su celular en el afiche del caso.
+func (a *App) SetContactPhone(ctx context.Context, ac Actor, petID, phone string) (Pet, error) {
+	if err := requireVerified(ac); err != nil {
+		return Pet{}, err
+	}
+	row, err := a.petRow(ctx, petID)
+	if err != nil {
+		return Pet{}, err
+	}
+	if deref(row.OwnerID) != ac.ID || row.State != "active" || row.WithdrawnAt != nil {
+		return Pet{}, ErrNotAllowed
+	}
+	var stored *string
+	if strings.TrimSpace(phone) != "" {
+		normalized := domain.NormalizeColombianMobile(phone)
+		if normalized == "" {
+			return Pet{}, newErr(http.StatusUnprocessableEntity, "invalid_phone", nil)
+		}
+		stored = &normalized
+	}
+	if _, err := a.DB.Exec(ctx, `UPDATE pets SET contact_phone = $2 WHERE id = $1`, petID, stored); err != nil {
+		return Pet{}, err
+	}
+	return a.GetPet(ctx, ac.ID, petID)
 }
 
 // MyPets devuelve los reportes propios (cualquier estado).
@@ -550,7 +587,7 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 	now := a.now()
 	var closedFor, hidden []string
 	err = a.withTx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE pets SET state = 'reunited', reunited_at = $2 WHERE id = $1`, petID, now); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE pets SET state = 'reunited', reunited_at = $2, contact_phone = NULL WHERE id = $1`, petID, now); err != nil {
 			return err
 		}
 		for _, id := range helpers {
@@ -625,7 +662,7 @@ func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 	now := a.now()
 	var hidden []string
 	err = a.withTx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE pets SET withdrawn_at = $2, state = CASE WHEN state = 'active' THEN 'archived' ELSE state END WHERE id = $1`, petID, now); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE pets SET withdrawn_at = $2, contact_phone = NULL, state = CASE WHEN state = 'active' THEN 'archived' ELSE state END WHERE id = $1`, petID, now); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID); err != nil {

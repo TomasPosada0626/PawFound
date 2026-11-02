@@ -173,6 +173,7 @@ func (a *App) DeleteAccount(ctx context.Context, ac Actor) error {
 	err := a.withTx(ctx, func(tx pgx.Tx) error {
 		stmts := []string{
 			`UPDATE pets SET state = 'archived' WHERE owner_id = $1 AND state = 'active'`,
+			`UPDATE pets SET contact_phone = NULL WHERE owner_id = $1`,
 			`UPDATE threads SET archived = true WHERE id IN (SELECT group_id FROM pets WHERE owner_id = $1)`,
 			`DELETE FROM messages WHERE author_id = $1 AND kind IN ('text', 'location')`,
 			`UPDATE messages SET author_id = NULL, author_short_name = '' WHERE author_id = $1`,

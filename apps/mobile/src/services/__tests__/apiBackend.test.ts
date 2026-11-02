@@ -611,6 +611,21 @@ describe("publicaciones", () => {
     expect(backend.getPet("max")).toBeDefined();
   });
 
+  it("guarda el celular del afiche, y las listas no lo borran", async () => {
+    const backend = await loggedIn();
+    const nearbyPath = `GET /v1/pets?lat=${LAURELES.latitude}&lng=${LAURELES.longitude}&radius=20000`;
+    route("PUT /v1/pets/max/contact", { status: 200, body: pet("max", { contactPhone: "+573001234567" }) });
+    await backend.setContactPhone("max", "3001234567");
+    expect(called("PUT /v1/pets/max/contact")[0]?.body).toEqual({ phone: "3001234567" });
+    expect(backend.getPet("max")?.contactPhone).toBe("+573001234567");
+    route(nearbyPath, { status: 200, body: [pet("max")] });
+    await backend.loadNearby(LAURELES);
+    expect(backend.getPet("max")?.contactPhone).toBe("+573001234567");
+    route("PUT /v1/pets/max/contact", { status: 200, body: pet("max") });
+    await backend.setContactPhone("max", "");
+    expect(backend.getPet("max")?.contactPhone).toBeUndefined();
+  });
+
   it("los candidatos a agradecer vienen del servidor, con su nombre", async () => {
     const backend = await loggedIn();
     route("GET /v1/pets/max/helpers", {

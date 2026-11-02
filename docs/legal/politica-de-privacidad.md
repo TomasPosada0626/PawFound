@@ -13,7 +13,10 @@ Decreto 1377 de 2013 y demás normas concordantes. Contacto:
 
 - **Cuenta**: nombre y apellidos, nombre de usuario, correo (verificado con un código de 6
   dígitos), contraseña cifrada. El número de
-  celular es opcional: no se verifica ni se muestra a otras personas.
+  celular es opcional y no se verifica. No se muestra a otras personas, salvo que decidas
+  agregarlo al afiche de un caso: entonces lo ve quien vea el afiche o abra ese caso, y lo
+  borramos de la app al cerrar el caso o al quitarlo. Las copias del afiche que ya se hayan
+  compartido o impreso quedan fuera de nuestro control.
 - **Perfil**: datos que decidas agregar a tu perfil y, si quieres, una foto propia en lugar
   del avatar. La foto de perfil es pública: la ven las demás personas en tu perfil, en tus
   reportes y en los chats. Se guarda sin metadatos (EXIF ni GPS); puedes cambiarla o
