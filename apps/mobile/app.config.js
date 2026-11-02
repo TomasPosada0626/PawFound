@@ -17,6 +17,10 @@ const path = require("node:path");
  * (ignorado por git). Sin él, la app funciona igual pero sin push en Android.
  */
 module.exports = ({ config }) => {
+  // Sin la URL de la API, la app arrancaría con los datos de demostración: mejor que falle el build.
+  if (process.env.EAS_BUILD && !process.env.EXPO_PUBLIC_API_URL) {
+    throw new Error("Falta EXPO_PUBLIC_API_URL en el entorno de EAS.");
+  }
   let next = { ...config, android: { ...config.android } };
 
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;

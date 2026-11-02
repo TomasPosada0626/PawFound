@@ -2,7 +2,7 @@ import * as SecureStore from "expo-secure-store";
 
 import type { BadgeProgress } from "@/domain/badges";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
-import { publishAllowance, type PublishAllowance } from "@/domain/rules";
+import type { PublishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
   AppNotification,
@@ -33,7 +33,9 @@ import {
 } from "./backendTypes";
 import { DEFAULT_NOTIFICATION_PREFS, DEFAULT_PRIVACY_PREFS } from "./mockBackend";
 import { photoExists, shrinkPhoto } from "./photoShrink";
+import { stopAlertLocation } from "./alertLocation";
 import type { HelperCandidate, HelperReason } from "./selectors";
+import { ME_KEY, TOKENS_KEY } from "./sessionKeys";
 import { readJSON, writeJSON } from "./storage";
 
 type NativeFiles = typeof import("expo-file-system/legacy");
@@ -56,9 +58,6 @@ function nativeFiles(): NativeFiles | null {
  * acceso se renueva solo con el refresh token.
  */
 
-const TOKENS_KEY = "pawfound.tokens";
-/** Última cuenta conocida: al abrir la app se muestra al instante mientras la API responde. */
-const ME_KEY = "pawfound.me";
 /** Resultado de renovar: "failed" es un problema de red o del servidor, no cierra la sesión. */
 type RenewResult = "ok" | "rejected" | "failed";
 const NEARBY_RADIUS = 20_000;
@@ -285,6 +284,8 @@ export class ApiBackend {
     this.socket = null;
     await SecureStore.deleteItemAsync(TOKENS_KEY).catch(() => {});
     await writeJSON(ME_KEY, null);
+    // Sin sesión no se sigue enviando la ubicación.
+    await stopAlertLocation();
     this.state = emptyState();
     this.listeners.forEach((l) => l());
   }
@@ -597,7 +598,9 @@ export class ApiBackend {
   // --- Reportes --------------------------------------------------------------------------
 
   publishAllowanceFor(_userId: string): PublishAllowance {
-    return this.allowance.allowed ? this.allowance : publishAllowance([], new Date());
+    // Vencida la espera ya se puede publicar, aunque no se haya vuelto a consultar a la API.
+    if (!this.allowance.allowed && this.allowance.retryAt.getTime() <= Date.now()) return { allowed: true };
+    return this.allowance;
   }
 
   async createReport(input: NewReportInput): Promise<PetCase> {
@@ -719,6 +722,9 @@ export class ApiBackend {
       delete alertZones[user.id];
     }
     this.commit({ alertZones });
+    // La tarea en segundo plano la lee de aquí: corre sin la app abierta.
+    const cached = await readJSON<ApiMe>(ME_KEY);
+    if (cached) await writeJSON(ME_KEY, { ...cached, alertZone: alertZones[user.id] ?? null });
   }
 
   async updateAlertLocation(point: LatLng, zoneName?: string): Promise<void> {

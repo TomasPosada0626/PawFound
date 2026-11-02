@@ -72,6 +72,17 @@ func (h *Hub) Publish(userIDs []string, event Event) {
 	}
 }
 
+// Disconnect cierra las conexiones en vivo de una cuenta suspendida, eliminada o que cerró sesión:
+// el token solo se revisa al conectarse. Si tiene otra sesión válida, la app reconecta sola.
+func (h *Hub) Disconnect(userID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for ch := range h.conns[userID] {
+		close(ch)
+	}
+	delete(h.conns, userID)
+}
+
 // Broadcast envía el evento a todas las conexiones abiertas, sin bloquear. Solo para datos
 // públicos, como un reporte nuevo en el mapa.
 func (h *Hub) Broadcast(event Event) {

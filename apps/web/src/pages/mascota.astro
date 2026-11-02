@@ -20,11 +20,5 @@ import Base from "../layouts/Base.astro";
       <p class="hero-note">¿Todavía no tienes PawFound? Muy pronto en Google Play.</p>
     </div>
   </section>
-  <script is:inline>
-    // Solo ids con letras, números, _ y - (nunca se inyecta texto de la URL en la página).
-    const id = (location.pathname.split("/mascota/")[1] || "").split("/")[0];
-    if (/^[A-Za-z0-9_-]{1,64}$/.test(id)) {
-      document.getElementById("open-app").href = "pawfound://pet/" + id;
-    }
-  </script>
+  <script is:inline src="/mascota.js"></script>
 </Base>

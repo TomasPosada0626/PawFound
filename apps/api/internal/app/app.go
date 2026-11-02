@@ -11,6 +11,8 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -41,9 +43,9 @@ type App struct {
 
 	// APIBaseURL arma las URLs absolutas de las fotos ("https://pawfound-api.onrender.com").
 	APIBaseURL string
-	// SendMailInline envía los correos antes de responder (las pruebas lo usan para leer el
-	// código enseguida). En producción va en false: el registro no espera al proveedor.
-	SendMailInline bool
+	// Inline hace antes de responder lo que en producción va en segundo plano (correos y avisos):
+	// las pruebas lo usan para leer el resultado enseguida. En producción va en false.
+	Inline bool
 	// AdminEmails reciben el rol de administrador cuando su cuenta verifica el correo.
 	AdminEmails []string
 	// WebBaseURL arma los enlaces que se comparten ("https://pawfound.pages.dev").
@@ -54,8 +56,10 @@ type App struct {
 	// FixedCode solo en desarrollo: código de verificación fijo para probar la app en local.
 	FixedCode string
 
-	codeLimiter   *ratelimit.Limiter
-	uploadLimiter *ratelimit.Limiter
+	codeLimiter   ratelimit.Allower
+	uploadLimiter ratelimit.Allower
+	bg            sync.WaitGroup
+	alertsActive  atomic.Int64
 }
 
 // Init completa los valores por defecto. Se llama una vez al armar la App.
@@ -76,8 +80,8 @@ func (a *App) Init() {
 		a.Push = providers.LogPush{Log: a.Log}
 	}
 	// Antiabuso: máximo 5 códigos de verificación por correo por hora.
-	a.codeLimiter = ratelimit.New(5, time.Hour, a.Now)
-	a.uploadLimiter = ratelimit.New(40, time.Hour, a.Now)
+	a.codeLimiter = a.NewLimiter("code", 5, time.Hour)
+	a.uploadLimiter = a.NewLimiter("upload", 40, time.Hour)
 }
 
 func (a *App) now() time.Time { return a.Now().UTC().Truncate(time.Microsecond) }

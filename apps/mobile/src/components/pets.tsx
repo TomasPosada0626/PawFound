@@ -50,12 +50,18 @@ export function KindTag({ kind, label }: { kind: CaseKind; label: string }) {
 const SPECIES_ICON: Record<PetCase["species"], IconName> = { dog: "paw", cat: "paw", other: "paw" };
 
 /** Foto de mascota con respaldo (especie sobre fondo suave) si no hay imagen o falla. */
+/** Las listas piden la miniatura; la API sirve la foto completa si esa foto no tiene una. */
+export function thumbnailUri(uri: string): string {
+  return /^https?:\/\/.*\/v1\/media\/[^/?]+$/.test(uri) ? `${uri}?size=thumb` : uri;
+}
+
 export function PetPhoto({
   pet,
   className,
   rounded = "rounded-2xl",
   label,
   onLoad,
+  full,
 }: {
   /** Sin `kind` (perfil de "Mis mascotas") se usa el color de marca. */
   pet: Pick<PetCase, "photos" | "species"> & { kind?: PetCase["kind"] };
@@ -64,9 +70,12 @@ export function PetPhoto({
   label?: string;
   /** Avisa cuando la foto ya se ve (los pines del mapa esperan esto para "congelarse"). */
   onLoad?: () => void;
+  /** Foto completa, para las vistas grandes. */
+  full?: boolean;
 }) {
   const { colors } = useTheme();
-  const uri = pet.photos[0];
+  const photo = pet.photos[0];
+  const uri = photo && !full ? thumbnailUri(photo) : photo;
   return (
     <View
       className={cn("overflow-hidden bg-surface-alt", rounded, className)}

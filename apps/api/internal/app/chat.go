@@ -415,7 +415,7 @@ func (a *App) SendMessage(ctx context.Context, ac Actor, threadID string, in Sen
 		return Message{}, err
 	}
 	a.publishMessage(ctx, message)
-	a.pushMessage(ctx, ac, message)
+	a.background(func(ctx context.Context) { a.pushMessage(ctx, ac, message) })
 	return message, nil
 }
 
@@ -470,14 +470,14 @@ func (a *App) pushMessage(ctx context.Context, from Actor, m Message) {
 	if err != nil {
 		return
 	}
+	people := a.recipients(ctx, recipients)
 	var messages []providers.PushMessage
 	for _, id := range recipients {
-		prefs, _, err := a.prefs(ctx, id)
-		if err != nil || !prefs.Push || (kind == "dm" && !prefs.DirectMessages) || (kind == "group" && !prefs.Groups) {
+		person, ok := people[id]
+		prefs, lang := person.Prefs, person.Lang
+		if !ok || !prefs.Push || (kind == "dm" && !prefs.DirectMessages) || (kind == "group" && !prefs.Groups) {
 			continue
 		}
-		var lang string
-		_ = a.DB.QueryRow(ctx, `SELECT lang FROM users WHERE id = $1`, id).Scan(&lang)
 		body := m.Text
 		if t, ok := m.Translations[lang]; ok {
 			body = t
@@ -494,7 +494,7 @@ func (a *App) pushMessage(ctx context.Context, from Actor, m Message) {
 		if r := []rune(body); len(r) > 120 {
 			body = string(r[:119]) + "…"
 		}
-		for _, token := range a.deviceTokens(ctx, id) {
+		for _, token := range person.Tokens {
 			messages = append(messages, providers.PushMessage{
 				Token: token, Title: from.ShortName(), Body: body,
 				URL: "/chat/" + m.ThreadID, Channel: channelUpdates, Silent: domain.IsQuietTime(prefs, a.now()),
@@ -526,7 +526,7 @@ func (a *App) ToggleMute(ctx context.Context, ac Actor, threadID string) (bool, 
 }
 
 // CloseDirect cierra un mensaje directo para las dos personas: ya nadie escribe ahí (si
-// quieren volver a hablar, abren otro desde el caso). Los grupos no se cierran.
+// quieren volver a hablar, abren otro desde el caso). Los grupos se cierran solos con el caso.
 func (a *App) CloseDirect(ctx context.Context, ac Actor, threadID string) error {
 	var kind string
 	var archived bool

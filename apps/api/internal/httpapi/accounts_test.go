@@ -16,8 +16,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
-	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/auth"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 )
 
 func registerBody(email, username string) map[string]any {

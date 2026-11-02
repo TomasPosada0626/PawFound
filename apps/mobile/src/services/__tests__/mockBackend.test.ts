@@ -64,32 +64,39 @@ describe("autenticación", () => {
 
   it("registra, envía código y otorga la insignia azul al verificar", async () => {
     const backend = makeBackend();
-    await backend.register({ name: "Ana Gómez", email: "ana@x.co", phone: "310 555 0000", password: "Clave1234" });
+    await backend.register({ name: "Ana Gómez", email: "ana@x.co", username: "ana_g", password: "Clave1234" });
     const user = backend.currentUser;
     expect(user?.verified).toBe(false);
-    expect(user?.phone).toBe("+573105550000");
-    expect(backend.getSnapshot().verification?.phone).toBe("+573105550000");
+    expect(user?.username).toBe("ana_g");
+    expect(backend.getSnapshot().verification?.email).toBe("ana@x.co");
     await backend.verifyCode(DEMO_CODE);
     expect(backend.currentUser?.verified).toBe(true);
     expect(userBadgeProgress(backend.getSnapshot(), user!.id).find((b) => b.id === "verified")?.tier).toBe(1);
   });
 
-  it("rechaza correos repetidos y celulares ya verificados por otra cuenta", async () => {
+  it("rechaza correos y nombres de usuario repetidos o con caracteres especiales", async () => {
     const backend = makeBackend();
     await expectCode(
-      backend.register({ name: "X", email: DEMO_EMAIL, phone: "3105550000", password: "Clave1234" }),
+      backend.register({ name: "X Y", email: DEMO_EMAIL, username: "nuevo_1", password: "Clave1234" }),
       "email_taken",
     );
     await expectCode(
-      backend.register({ name: "X", email: "x@x.co", phone: "300 123 4567", password: "Clave1234" }),
-      "phone_taken",
+      backend.register({ name: "X Y", email: "x@x.co", username: "valentina", password: "Clave1234" }),
+      "username_taken",
     );
-    await expectCode(backend.register({ name: "X", email: "y@x.co", phone: "123", password: "Clave1234" }), "invalid_phone");
+    await expectCode(
+      backend.register({ name: "X Y", email: "y@x.co", username: "a b", password: "Clave1234" }),
+      "invalid_username",
+    );
+    await expectCode(
+      backend.register({ name: "X Y", email: "z@x.co", username: "@valen", password: "Clave1234" }),
+      "invalid_username",
+    );
   });
 
   it("bloquea 5 minutos tras 5 códigos incorrectos y luego vence a los 10 minutos", async () => {
     const backend = makeBackend();
-    await backend.register({ name: "Ana", email: "ana@x.co", phone: "3105550000", password: "Clave1234" });
+    await backend.register({ name: "Ana Gómez", email: "ana@x.co", username: "ana_g", password: "Clave1234" });
     for (let i = 1; i <= 4; i++) {
       await backend.verifyCode("000000").catch((e: BackendError) => {
         expect(e.code).toBe("wrong_code");
@@ -101,14 +108,15 @@ describe("autenticación", () => {
     advance(6);
     await expect(backend.verifyCode(DEMO_CODE)).resolves.toBeUndefined();
 
-    await backend.startPhoneVerification("3115550000");
+    await backend.logout();
+    await backend.register({ name: "Luis Díaz", email: "luis@x.co", username: "luis_d", password: "Clave1234" });
     advance(11);
     await expectCode(backend.verifyCode(DEMO_CODE), "expired");
   });
 
   it("respeta la espera para reenviar el código", async () => {
     const backend = makeBackend();
-    await backend.register({ name: "Ana", email: "ana@x.co", phone: "3105550000", password: "Clave1234" });
+    await backend.register({ name: "Ana Gómez", email: "ana@x.co", username: "ana_g", password: "Clave1234" });
     expect(backend.secondsUntilResend()).toBe(RESEND_COOLDOWN_S);
     await expectCode(backend.resendCode(), "not_allowed");
     advance(1);
@@ -116,10 +124,10 @@ describe("autenticación", () => {
     await expect(backend.resendCode()).resolves.toBeUndefined();
   });
 
-  it("restaura la sesión solo si la cuenta existe", () => {
+  it("restaura la sesión solo si la cuenta existe", async () => {
     const backend = makeBackend();
-    expect(backend.restoreSession("u_inexistente")).toBe(false);
-    expect(backend.restoreSession("u_valentina")).toBe(true);
+    await expect(backend.restoreSession("u_inexistente")).resolves.toBe(false);
+    await expect(backend.restoreSession("u_valentina")).resolves.toBe(true);
   });
 });
 

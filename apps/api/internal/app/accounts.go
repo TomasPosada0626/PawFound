@@ -324,9 +324,30 @@ func (a *App) rotateWithin(ctx context.Context, userID, family string) (Session,
 
 // Logout revoca la familia del refresh token (cierra esa sesión en ese dispositivo).
 func (a *App) Logout(ctx context.Context, token string) error {
-	_, err := a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2)
-		WHERE family = (SELECT family FROM refresh_tokens WHERE token_hash = $1)`, auth.HashToken(token), a.now())
-	return err
+	now := a.now()
+	var userID string
+	defer func() {
+		if userID != "" {
+			a.Hub.Disconnect(userID)
+		}
+	}()
+	return a.withTx(ctx, func(tx pgx.Tx) error {
+		err := tx.QueryRow(ctx, `UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2)
+			WHERE family = (SELECT family FROM refresh_tokens WHERE token_hash = $1) RETURNING user_id`, auth.HashToken(token), now).Scan(&userID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		// Las alertas siguen mientras haya una sesión abierta; con la última cerrada, la ubicación se borra.
+		tag, err := tx.Exec(ctx, `DELETE FROM alert_zones WHERE user_id = $1 AND NOT EXISTS (
+			SELECT 1 FROM refresh_tokens r WHERE r.user_id = $1 AND r.revoked_at IS NULL AND r.expires_at > $2)`, userID, now)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		return recordConsent(ctx, tx, userID, "location", false, now)
+	})
 }
 
 // --- Verificación del correo ----------------------------------------------
@@ -362,7 +383,7 @@ func (a *App) issueCode(ctx context.Context, userID, email, name, lang string, w
 		}
 		return err
 	}
-	if wait || a.SendMailInline {
+	if wait || a.Inline {
 		if err := send(ctx); err != nil {
 			return providerUnavailable("email")
 		}
@@ -455,12 +476,26 @@ func (a *App) VerifyCode(ctx context.Context, ac Actor, code string) error {
 }
 
 // RequestPasswordReset responde igual exista o no la cuenta (sin enumeración de correos).
-func (a *App) RequestPasswordReset(ctx context.Context, email string) error {
+func (a *App) RequestPasswordReset(_ context.Context, email string) error {
+	// Todo va en segundo plano: la respuesta y su tiempo son iguales exista o no el correo.
+	email = strings.TrimSpace(email)
+	a.background(func(ctx context.Context) {
+		if err := a.sendPasswordReset(ctx, email); err != nil {
+			a.Log.Error("no se pudo enviar el restablecimiento", "err", err)
+		}
+	})
+	return nil
+}
+
+func (a *App) sendPasswordReset(ctx context.Context, email string) error {
+	// Evita llenar el correo de alguien, aunque las peticiones vengan de muchas IP.
+	if ok, _ := a.codeLimiter.Allow("reset:" + strings.ToLower(email)); !ok {
+		return nil
+	}
 	var userID string
-	err := a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(email) = lower($1) AND password_hash IS NOT NULL AND suspended_at IS NULL`,
-		strings.TrimSpace(email)).Scan(&userID)
+	err := a.DB.QueryRow(ctx, `SELECT id FROM users WHERE lower(email) = lower($1) AND password_hash IS NOT NULL AND suspended_at IS NULL`, email).Scan(&userID)
 	if err != nil {
-		return nil //nolint:nilerr // misma respuesta para correos desconocidos
+		return nil //nolint:nilerr // un correo desconocido no es un error
 	}
 	token := auth.RandomToken()
 	if _, err := a.DB.Exec(ctx, `INSERT INTO password_resets (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
@@ -483,8 +518,13 @@ func (a *App) ResetPassword(ctx context.Context, token, password string) error {
 	if err != nil {
 		return err
 	}
+	var userID string
+	defer func() {
+		if userID != "" {
+			a.Hub.Disconnect(userID)
+		}
+	}()
 	return a.withTx(ctx, func(tx pgx.Tx) error {
-		var userID string
 		err := tx.QueryRow(ctx, `UPDATE password_resets SET used_at = $2 WHERE token_hash = $1 AND used_at IS NULL AND expires_at > $2 RETURNING user_id`,
 			auth.HashToken(token), a.now()).Scan(&userID)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -676,12 +716,8 @@ func (a *App) deleteMedia(ctx context.Context, id string) {
 	if err := a.DB.QueryRow(ctx, `DELETE FROM media WHERE id = $1 RETURNING storage_key`, id).Scan(&key); err != nil {
 		return
 	}
-	if remover, ok := a.Media.(interface {
-		Remove(context.Context, string) error
-	}); ok {
-		if err := remover.Remove(ctx, key); err != nil {
-			a.Log.Warn("no se pudo borrar la foto del almacenamiento", "media", id, "err", err)
-		}
+	if err := a.RemoveStored(ctx, key); err != nil {
+		a.Log.Warn("no se pudo borrar la foto del almacenamiento", "media", id, "err", err)
 	}
 }
 

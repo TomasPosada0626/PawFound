@@ -84,3 +84,15 @@ func TestInvalidValues(t *testing.T) {
 		}
 	}
 }
+
+func TestR2EnabledNeedsEveryValue(t *testing.T) {
+	full := R2{AccountID: "a", Bucket: "b", AccessKey: "c", SecretKey: "d"}
+	if !full.Enabled() {
+		t.Fatal("con todos los datos debe estar activo")
+	}
+	for _, partial := range []R2{{}, {AccountID: "a", Bucket: "b", AccessKey: "c"}, {Bucket: "b", AccessKey: "c", SecretKey: "d"}} {
+		if partial.Enabled() {
+			t.Fatalf("incompleto no debe activarse: %+v", partial)
+		}
+	}
+}

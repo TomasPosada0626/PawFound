@@ -20,6 +20,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/admin"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/auth"
@@ -143,7 +145,14 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	a.Init()
 
-	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development()}
+	if cfg.SentryDSN != "" {
+		// Sin datos personales: ni IP, ni cabeceras, ni cuerpos de las peticiones.
+		if err := sentry.Init(sentry.ClientOptions{Dsn: cfg.SentryDSN, Environment: cfg.Env}); err != nil {
+			logger.Error("no se pudo iniciar Sentry", "err", err)
+		}
+		defer sentry.Flush(2 * time.Second)
+	}
+	panel := &admin.Panel{App: a, Log: logger, SecureCookie: !cfg.Development(), ClientIPHeader: cfg.ClientIPHeader}
 	server := &httpapi.Server{App: a, Log: logger, ClientIPHeader: cfg.ClientIPHeader, Admin: panel.Handler()}
 	// Veterinarias: si la tabla está vacía se cargan solas. Las tareas periódicas lo hacen en su
 	// primera ronda (al arrancar) y lo reintentan cada ronda hasta lograrlo; sin tareas, se lanza
@@ -195,7 +204,9 @@ func run(args []string, logger *slog.Logger) error {
 	}
 	shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	return srv.Shutdown(shutdown)
+	err = srv.Shutdown(shutdown)
+	a.WaitBackground(shutdown)
+	return err
 }
 
 // noPush: sin proveedor de push evaluado, las notificaciones quedan solo en la bandeja.

@@ -219,7 +219,7 @@ export default function PetDetailScreen() {
             {/* Foto + identidad */}
             <View className="flex-row gap-4">
               <View>
-                <PetPhoto pet={pet} className="h-44 w-36" label={t("pet.photoOf", { name })} />
+                <PetPhoto full pet={pet} className="h-44 w-36" label={t("pet.photoOf", { name })} />
                 <View className="absolute left-2 top-2">
                   <StatusBadge kind={pet.kind} state={pet.state} />
                 </View>
