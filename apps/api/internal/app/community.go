@@ -11,12 +11,22 @@ import (
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/geo"
 )
 
-// ProfilePet es una mascota propia tal como se muestra en el perfil público.
+// ProfilePet es una mascota de "Mis mascotas" tal como la ven los seguidores de su familia. Las
+// señas particulares no van: sirven para comprobar quién es la familia si la mascota se pierde.
 type ProfilePet struct {
-	ID      string  `json:"id"`
-	Name    string  `json:"name"`
-	Species string  `json:"species"`
-	Photo   *string `json:"photo,omitempty"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Species     string   `json:"species"`
+	Photo       *string  `json:"photo,omitempty"`
+	Photos      []string `json:"photos"`
+	Breed       *string  `json:"breed,omitempty"`
+	Sex         string   `json:"sex"`
+	Age         string   `json:"age"`
+	Size        string   `json:"size"`
+	Color       *string  `json:"color,omitempty"`
+	Collar      *string  `json:"collar,omitempty"`
+	Description string   `json:"description"`
+	ShyOrIndoor bool     `json:"shyOrIndoor"`
 }
 
 // PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, "me gusta" y calificación. La
@@ -78,13 +88,19 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 			return p, nil
 		}
 	}
-	rows, _ := a.DB.Query(ctx, `SELECT id, name, species, photos FROM owned_pets WHERE owner_id = $1 ORDER BY created_at`, userID)
+	rows, _ := a.DB.Query(ctx, `SELECT id, name, species, photos, breed, sex, age, size, color, collar, description, shy_or_indoor
+		FROM owned_pets WHERE owner_id = $1 ORDER BY created_at`, userID)
 	var pet ProfilePet
 	var photos []string
-	_, err = pgx.ForEachRow(rows, []any{&pet.ID, &pet.Name, &pet.Species, &photos}, func() error {
+	_, err = pgx.ForEachRow(rows, []any{&pet.ID, &pet.Name, &pet.Species, &photos, &pet.Breed, &pet.Sex, &pet.Age, &pet.Size,
+		&pet.Color, &pet.Collar, &pet.Description, &pet.ShyOrIndoor}, func() error {
 		item := pet
+		item.Photos = make([]string, len(photos))
+		for i, photo := range photos {
+			item.Photos[i] = a.mediaURL(photo)
+		}
 		if len(photos) > 0 {
-			item.Photo = ptr(a.mediaURL(photos[0]))
+			item.Photo = ptr(item.Photos[0])
 		}
 		p.Pets = append(p.Pets, item)
 		return nil
