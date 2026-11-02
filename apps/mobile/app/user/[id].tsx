@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
+import { FounderTag } from "@/components/FounderTag";
 import { BadgeTile } from "@/components/badges";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { PetPhoto, UserAvatar } from "@/components/pets";
@@ -90,6 +91,7 @@ export default function PublicProfileScreen() {
             </View>
           ) : null}
         </View>
+        {person.founder ? <FounderTag /> : null}
         <Text variant="body" tone="muted">{`@${person.username}`}</Text>
         <View className="mt-1 rounded-full border border-border px-3 py-1">
           <Text variant="captionStrong">{t(`titles.${person.title}`)}</Text>

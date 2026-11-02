@@ -1,6 +1,7 @@
 /** Español (Colombia) — idioma predeterminado y fuente de las claves. */
 export const es = {
   common: {
+    founder: "Creador de PawFound",
     appName: "PawFound",
     tagline: "Conectamos patas, reunimos familias",
     back: "Volver",
@@ -65,6 +66,7 @@ export const es = {
     reportHint: "Reportar una mascota perdida o encontrada",
   },
   home: {
+    online: { one: "1 persona conectada ahora", other: "{count} personas conectadas ahora" },
     greeting: "¡Hola, {name}!",
     greetingGuest: "¡Hola!",
     subtitle: "Gracias por ayudar a conectar mascotas con sus familias",

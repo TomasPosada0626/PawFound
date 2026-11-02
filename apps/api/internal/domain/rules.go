@@ -119,6 +119,18 @@ var BadgeRules = []BadgeRule{
 	{"community", "community", []int{3, 10, 25}},
 }
 
+// FounderLikes se suman a los "me gusta" reales de la cuenta fundadora.
+const FounderLikes = 1000
+
+// MaxedBadgeFacts son los hechos que dejan todas las insignias en su nivel máximo.
+func MaxedBadgeFacts() map[string]int {
+	facts := map[string]int{}
+	for _, rule := range BadgeRules {
+		facts[rule.ID] = rule.Thresholds[len(rule.Thresholds)-1]
+	}
+	return facts
+}
+
 // BadgeProgress es lo que devuelve la API por insignia.
 type BadgeProgress struct {
 	ID      string `json:"id"`

@@ -41,10 +41,16 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	if err != nil {
 		return PublicProfile{}, err
 	}
+	if u.Founder {
+		facts = domain.MaxedBadgeFacts()
+	}
 	p := PublicProfile{User: publicOf(u), MemberDays: domain.MemberDays(u.CreatedAt, a.now()), Badges: domain.Badges(facts), Pets: []ProfilePet{}}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*), coalesce(bool_or(liker_id = $2), false) FROM profile_likes WHERE target_id = $1`,
 		userID, viewerID).Scan(&p.Likes, &p.LikedByMe); err != nil {
 		return PublicProfile{}, err
+	}
+	if u.Founder {
+		p.Likes += domain.FounderLikes
 	}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
 		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
@@ -95,7 +101,8 @@ func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, 
 	if targetID == ac.ID {
 		return false, 0, ErrNotAllowed
 	}
-	if _, err := a.loadUser(ctx, a.DB, targetID); err != nil {
+	target, err := a.loadUser(ctx, a.DB, targetID)
+	if err != nil {
 		return false, 0, err
 	}
 	tag, err := a.DB.Exec(ctx, `DELETE FROM profile_likes WHERE target_id = $1 AND liker_id = $2`, targetID, ac.ID)
@@ -110,6 +117,9 @@ func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, 
 	}
 	var count int
 	err = a.DB.QueryRow(ctx, `SELECT count(*) FROM profile_likes WHERE target_id = $1`, targetID).Scan(&count)
+	if target.Founder {
+		count += domain.FounderLikes
+	}
 	return liked, count, err
 }
 

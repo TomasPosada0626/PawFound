@@ -98,6 +98,7 @@ export function BackgroundServices() {
     backend.runScheduledJobs();
     const timer = setInterval(() => backend.runScheduledJobs(), JOBS_INTERVAL_MS);
     const sub = AppState.addEventListener("change", (status) => {
+      backend.setAppActive(status === "active");
       if (status === "active") backend.runScheduledJobs();
     });
     return () => {
