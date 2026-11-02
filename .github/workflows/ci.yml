@@ -35,7 +35,7 @@ jobs:
       TEST_DATABASE_URL: postgres://pawfound:pawfound@localhost:5432/pawfound?sslmode=disable
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v7
         with:
           # Último parche de 1.26: govulncheck falla con parches viejos de la librería estándar.
           go-version: "1.26.x"
