@@ -23,7 +23,7 @@ jobs:
       R2_ENDPOINT: https://${{ secrets.RESPALDO_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
       R2_BUCKET: ${{ secrets.RESPALDO_R2_BUCKET }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Comprobar la configuración
         id: config
         run: |
