@@ -123,7 +123,6 @@ type ApiProfile = {
   followers: number;
   following: number;
   followStatus: FollowStatus;
-  mutual: boolean;
   badges: BadgeProgress[];
   pets: { id: string; name: string; species: OwnedPet["species"]; photo?: string }[];
 };
@@ -1014,7 +1013,7 @@ export class ApiBackend {
       remoteRatings: { ...this.state.remoteRatings, [userId]: { average: p.rating, count: p.ratingCount } },
       followInfo: {
         ...this.state.followInfo,
-        [userId]: { followers: p.followers, following: p.following, status: p.followStatus, mutual: p.mutual },
+        [userId]: { followers: p.followers, following: p.following, status: p.followStatus },
       },
       ownedPets,
     });
@@ -1048,7 +1047,7 @@ export class ApiBackend {
       network: { requests: ids(n.requests), followers: ids(n.followers), following: ids(n.following), sent: ids(n.sent) },
       followInfo: {
         ...this.state.followInfo,
-        [me]: { followers: n.followers.length, following: n.following.length, status: "none", mutual: false },
+        [me]: { followers: n.followers.length, following: n.following.length, status: "none" },
       },
     });
   }

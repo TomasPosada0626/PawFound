@@ -50,7 +50,7 @@ export type ErrorCode =
 
 export type FollowStatus = "none" | "pending" | "accepted";
 export type Network = { requests: string[]; followers: string[]; following: string[]; sent: string[] };
-export type FollowInfo = { followers: number; following: number; status: FollowStatus; mutual: boolean };
+export type FollowInfo = { followers: number; following: number; status: FollowStatus };
 export type RatingInfo = { average: number; count: number };
 export type FollowEdge = {
   followerId: string;

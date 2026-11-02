@@ -956,7 +956,7 @@ export const es = {
     otherPet: "Otra mascota (llenar desde cero)",
     prefilled: "Usamos el perfil de {name}. Solo confirma dónde y cuándo se perdió.",
     privateNote:
-      "Solo las personas con las que te sigues mutuamente ven su foto, nombre y especie. Las señas completas aparecen únicamente si publicas un reporte.",
+      "Solo las personas que te siguen ven su foto, nombre y especie. Las señas completas aparecen únicamente si publicas un reporte.",
   },
   publicProfile: {
     title: "Perfil",
@@ -969,7 +969,7 @@ export const es = {
     likeVerify: "Verifica tu correo para dar me gusta.",
     pets: "Sus mascotas",
     noPets: "No muestra mascotas en su perfil.",
-    petsPrivate: "Solo quienes se siguen mutuamente con esta persona pueden ver sus mascotas.",
+    petsPrivate: "Solo quienes siguen a esta persona pueden ver sus mascotas.",
     badges: "Insignias",
     noBadges: "Todavía no tiene insignias.",
     view: "Ver perfil de {name}",
