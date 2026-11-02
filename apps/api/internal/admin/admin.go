@@ -331,6 +331,7 @@ func (p *Panel) login(w http.ResponseWriter, r *http.Request) {
 
 func (p *Panel) setCookie(w http.ResponseWriter, name, value string, maxAge int) {
 	// Secure solo se apaga en development (http://localhost); HttpOnly y SameSite=Strict siempre.
+	//nolint:gosec // Secure solo se apaga en development; HttpOnly y SameSite=Strict van siempre.
 	http.SetCookie(w, &http.Cookie{
 		Name: name, Value: value, Path: "/admin", HttpOnly: true, Secure: p.SecureCookie,
 		SameSite: http.SameSiteStrictMode, MaxAge: maxAge,

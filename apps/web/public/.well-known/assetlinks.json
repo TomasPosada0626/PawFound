@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "app.pawfound",
+      "sha256_cert_fingerprints": [
+        "99:A8:3E:15:DF:AF:2B:DE:64:B5:80:30:28:50:D0:73:91:8C:70:25:3E:E1:B5:C0:9A:50:B9:63:E8:D6:C9:24"
+      ]
+    }
+  }
+]

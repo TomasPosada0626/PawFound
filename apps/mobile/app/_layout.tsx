@@ -17,9 +17,11 @@ import { useEffect } from "react";
 import { AppProviders } from "@/AppProviders";
 import { BackgroundServices } from "@/components/BackgroundServices";
 import { BadgeCelebration } from "@/components/BadgeCelebration";
+import { startMonitoring } from "@/services/monitoring";
 import { applyUpdateOnLaunch } from "@/services/otaUpdates";
 import { useTheme } from "@/theme/ThemeProvider";
 
+startMonitoring();
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // Busca una actualización publicada con EAS Update apenas abre la app.
 void applyUpdateOnLaunch();

@@ -36,6 +36,8 @@ type Config struct {
 	AppleClients   []string
 	ClientIPHeader string
 	FixedCode      string
+	// SentryDSN activa el monitoreo de errores; vacío, no se envía nada.
+	SentryDSN      string
 	MigrateOnStart bool
 	JobsEnabled    bool
 	JobsInterval   time.Duration
@@ -101,6 +103,7 @@ func Load(getenv func(string) string) (Config, error) {
 		AppleClients:   list(get("APPLE_CLIENT_IDS", "")),
 		ClientIPHeader: get("CLIENT_IP_HEADER", ""),
 		FixedCode:      get("DEV_FIXED_CODE", ""),
+		SentryDSN:      get("SENTRY_DSN", ""),
 	}
 	var errs []error
 	if c.Env != "development" && c.Env != "staging" && c.Env != "production" {

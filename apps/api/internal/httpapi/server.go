@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/getsentry/sentry-go"
+	sentryhttp "github.com/getsentry/sentry-go/http"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
@@ -47,7 +49,8 @@ func (s *Server) Handler() http.Handler {
 		"verify":   s.App.NewLimiter("verify", 20, time.Minute),
 	}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, s.logRequests, middleware.Recoverer, securityHeaders)
+	reportPanics := sentryhttp.New(sentryhttp.Options{Repanic: true}).Handle
+	r.Use(middleware.RequestID, s.logRequests, middleware.Recoverer, reportPanics, securityHeaders)
 
 	r.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -310,6 +313,7 @@ func writeError(w http.ResponseWriter, err error) {
 	e := app.AsError(err)
 	if e.Status == http.StatusInternalServerError {
 		slog.Error("error interno", "err", err)
+		sentry.CaptureException(err)
 	}
 	writeJSON(w, e.Status, map[string]any{"error": e})
 }
