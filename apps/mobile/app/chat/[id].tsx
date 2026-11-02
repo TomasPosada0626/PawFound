@@ -321,9 +321,11 @@ export default function ChatScreen() {
             <Banner
               icon="lock-closed-outline"
               body={
-                thread.closedBy === user.id
-                  ? t("chat.closedByMe")
-                  : t("chat.closedByOther", { name: other ? shortName(other.name) : t("common.deletedUser") })
+                !thread.closedBy
+                  ? t("chat.caseClosed")
+                  : thread.closedBy === user.id
+                    ? t("chat.closedByMe")
+                    : t("chat.closedByOther", { name: other ? shortName(other.name) : t("common.deletedUser") })
               }
             />
           </View>

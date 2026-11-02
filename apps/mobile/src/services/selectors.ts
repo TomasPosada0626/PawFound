@@ -125,7 +125,6 @@ export function userStats(state: BackendState, userId: string): UserStats {
   };
 }
 
-const FOSTER_MIN_MS = 24 * 60 * 60 * 1000;
 const QUICK_RESPONSE_MS = 60 * 60 * 1000;
 
 /** Hechos reales que cuentan para cada insignia (los reportes retirados por moderación no cuentan). */
@@ -143,15 +142,7 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
       .reduce((sum, p) => sum + p.sightings.filter((s) => s.authorId === userId).length, 0),
     paw_angel: valid.filter((p) => p.helperIds?.includes(userId)).length,
     reunion: own.filter((p) => p.state === "reunited").length,
-    foster: own.filter(
-      (p) =>
-        p.kind === "found" &&
-        p.foundCustody === "with_me" &&
-        p.state === "reunited" &&
-        Boolean(p.helperIds?.length) &&
-        Boolean(p.reunitedAt) &&
-        Date.parse(p.reunitedAt as string) - Date.parse(p.createdAt) >= FOSTER_MIN_MS,
-    ).length,
+    foster: own.filter((p) => p.kind === "found" && p.foundCustody === "with_me" && p.state === "reunited").length,
     quick: valid.filter(
       (p) =>
         p.ownerId !== userId &&

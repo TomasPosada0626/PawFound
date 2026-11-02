@@ -171,14 +171,14 @@ func TestRatingStartsAtFiveAndCountsTheLastTwenty(t *testing.T) {
 	if got := Rating(twenty); got != 4 {
 		t.Fatalf("últimas 20 = %v", got)
 	}
-	if IsAnimalProtector(nil) || IsAnimalProtector([]int{5, 5, 5, 5}) {
-		t.Fatal("pide un mínimo de calificaciones reales")
+	if IsAnimalProtector(nil) {
+		t.Fatal("las 5 estrellas iniciales no cuentan")
 	}
-	if !IsAnimalProtector([]int{5, 5, 5, 5, 1}) {
-		t.Fatal("con 4,8 y cinco calificaciones la tiene")
+	if !IsAnimalProtector([]int{5}) || !IsAnimalProtector([]int{5, 5, 5, 5, 4}) {
+		t.Fatal("con 4,8 o más en las reales la tiene")
 	}
-	if IsAnimalProtector([]int{5, 5, 5, 1, 1}) {
-		t.Fatal("con menos de 4,8 no la tiene")
+	if IsAnimalProtector([]int{1}) || IsAnimalProtector([]int{5, 5, 5, 5, 3}) {
+		t.Fatal("con menos de 4,8 en las reales no la tiene")
 	}
 }
 

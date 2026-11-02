@@ -12,11 +12,12 @@ describe("calificación", () => {
     expect(ratingAverage(stars)).toBe(4);
   });
 
-  it("Protector animal pide 4,8 o más y un mínimo de calificaciones reales", () => {
+  it("Protector animal mira solo las calificaciones reales, sin las 5 estrellas iniciales", () => {
     expect(isAnimalProtector([])).toBe(false);
-    expect(isAnimalProtector([5, 5, 5, 5])).toBe(false);
-    expect(isAnimalProtector([5, 5, 5, 5, 1])).toBe(true);
-    expect(isAnimalProtector([5, 5, 5, 1, 1])).toBe(false);
+    expect(isAnimalProtector([5])).toBe(true);
+    expect(isAnimalProtector([5, 5, 5, 5, 4])).toBe(true);
+    expect(isAnimalProtector([1])).toBe(false);
+    expect(isAnimalProtector([5, 5, 5, 5, 3])).toBe(false);
   });
 
   it("muestra los decimales que hacen falta para que coincida con la regla", () => {

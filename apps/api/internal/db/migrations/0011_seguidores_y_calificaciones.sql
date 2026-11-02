@@ -1,9 +1,10 @@
--- Seguidores con solicitud y aceptación. 'declined' guarda que la persona rechazó o eliminó a
--- quien la seguía: no hay bloqueos, así que no se puede volver a insistir de inmediato.
+-- Seguirse con solicitud y aceptación: al aceptar quedan dos filas, una por sentido. 'declined' y
+-- declines guardan los rechazos: no hay bloqueos, así que al tercero se suspende el envío.
 CREATE TABLE follows (
     follower_id text NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     followed_id text NOT NULL REFERENCES users (id) ON DELETE CASCADE,
     status      text NOT NULL CHECK (status IN ('pending', 'accepted', 'declined')),
+    declines    smallint NOT NULL DEFAULT 0,
     created_at  timestamptz NOT NULL DEFAULT now(),
     updated_at  timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (follower_id, followed_id),

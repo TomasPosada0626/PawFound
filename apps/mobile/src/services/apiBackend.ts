@@ -160,7 +160,6 @@ function emptyState(): BackendState {
 }
 
 const KNOWN_CODES = new Set<ErrorCode>([
-  "follow_required",
   "follow_wait",
   "invalid_credentials",
   "email_taken",
@@ -678,7 +677,9 @@ export class ApiBackend {
       pets: removed
         ? this.state.pets.filter((p) => p.id !== petId)
         : this.state.pets.map((p) => (p.id === petId ? { ...p, state: "reunited" as const, reunitedAt: p.reunitedAt ?? at } : p)),
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      threads: this.state.threads.map((t) =>
+        t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
+      ),
       stories: this.state.stories.filter((s) => s.petId !== petId),
       notifications: removed ? this.state.notifications.filter((n) => n.petId !== petId) : this.state.notifications,
     });

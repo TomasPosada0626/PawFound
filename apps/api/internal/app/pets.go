@@ -613,9 +613,8 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 				return err
 			}
 		}
-		// El grupo del caso se cierra solo: queda para leer, sin mensajes nuevos. Los chats directos
-		// no se cierran solos. Las historias del caso se quitan: ya no hay a quién buscar.
-		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID); err != nil {
+		// Las historias del caso se quitan: ya no hay a quién buscar.
+		if err := closeCaseChats(ctx, tx, petID, row.GroupID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE stories SET removed_at = $2 WHERE pet_id = $1 AND removed_at IS NULL`, petID, now); err != nil {
@@ -670,7 +669,7 @@ func (a *App) Share(ctx context.Context, viewerID, petID string) error {
 }
 
 // Withdraw: la familia elimina su publicación, activa o ya cerrada. Deja de verse para todas las
-// personas, también para ella, y su grupo se cierra. La fila se conserva (política de retención).
+// personas, también para ella, y sus chats se cierran. La fila se conserva (política de retención).
 func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 	row, err := a.petRow(ctx, petID)
 	if err != nil {
@@ -688,7 +687,7 @@ func (a *App) Withdraw(ctx context.Context, ac Actor, petID string) error {
 		if _, err := tx.Exec(ctx, `UPDATE pets SET withdrawn_at = $2, contact_phone = NULL, state = CASE WHEN state = 'active' THEN 'archived' ELSE state END WHERE id = $1`, petID, now); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE threads SET archived = true WHERE id = $1`, row.GroupID); err != nil {
+		if err := closeCaseChats(ctx, tx, petID, row.GroupID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `DELETE FROM notifications WHERE pet_id = $1`, petID); err != nil {

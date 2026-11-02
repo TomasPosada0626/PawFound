@@ -1023,12 +1023,10 @@ describe("perfil y preferencias", () => {
     expect(called("DELETE /v1/users/u_t/follow")).toHaveLength(1);
   });
 
-  it("explica por qué no se pudo seguir o dar me gusta", async () => {
+  it("explica por qué no se pudo enviar la solicitud", async () => {
     const backend = await loggedIn();
     route("POST /v1/users/u_t/follow", { status: 409, body: { error: { code: "follow_wait" } } });
     await expect(backend.followUser("u_t")).rejects.toMatchObject({ code: "follow_wait" });
-    route("POST /v1/users/u_t/like", { status: 403, body: { error: { code: "follow_required" } } });
-    await expect(backend.toggleProfileLike("u_t")).rejects.toMatchObject({ code: "follow_required" });
   });
 
   it("ignora las insignias que esta versión de la app todavía no conoce", async () => {

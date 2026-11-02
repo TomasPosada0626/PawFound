@@ -180,19 +180,46 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
-      {/* Seguidores: la lista solo la ve la propia cuenta */}
+      {/* Seguidores: las listas solo las ve la propia cuenta */}
       <Card className="mt-4">
-        <ListRow
-          icon="people-outline"
-          tone="blue"
-          title={t("network.title")}
-          value={String(followInfoOf(state, user.id).followers)}
-          description={
-            networkOf(state).requests.length ? t("network.requestsCount", { count: networkOf(state).requests.length }) : undefined
-          }
-          onPress={() => router.push("/seguidores")}
-          testID="open-followers"
-        />
+        <View className="flex-row">
+          <Pressable
+            accessibilityRole="button"
+            className="flex-1 active:opacity-70"
+            onPress={() => router.push({ pathname: "/seguidores", params: { tab: "followers" } })}
+            testID="open-followers"
+          >
+            <Stat
+              icon="people"
+              color={colors.primaryStrong}
+              value={String(followInfoOf(state, user.id).followers)}
+              label={t("network.followers")}
+            />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            className="flex-1 active:opacity-70"
+            onPress={() => router.push({ pathname: "/seguidores", params: { tab: "following" } })}
+            testID="open-following"
+          >
+            <Stat
+              icon="person-add"
+              color={colors.primaryStrong}
+              value={String(followInfoOf(state, user.id).following)}
+              label={t("network.following")}
+              last
+            />
+          </Pressable>
+        </View>
+        {networkOf(state).requests.length ? (
+          <ListRow
+            icon="mail-unread-outline"
+            tone="blue"
+            title={t("network.requestsCount", { count: networkOf(state).requests.length })}
+            onPress={() => router.push({ pathname: "/seguidores", params: { tab: "requests" } })}
+            testID="open-requests"
+          />
+        ) : null}
         <ListRow
           icon="search-outline"
           tone="blue"

@@ -341,7 +341,7 @@ export default function PetDetailScreen() {
                       testID="join-group"
                     />
                   </View>
-                  {!isOwner ? (
+                  {!isOwner && active ? (
                     <View className="flex-1">
                       <Button
                         label={pet.kind === "lost" ? t("pet.contactOwner") : t("pet.contactFinder")}

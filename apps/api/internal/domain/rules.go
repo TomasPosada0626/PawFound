@@ -131,12 +131,9 @@ const (
 	RatingWindow = 20
 	// RatingStart es lo que vale cada calificación que aún no se ha dado.
 	RatingStart = 5
-	// ProtectorMinRating se expresa como suma sobre RatingWindow (4,8 × 20) para no comparar decimales.
-	ProtectorMinRating = 96
-	// ProtectorMinRatings: como todos empiezan en 5, sin este mínimo toda cuenta nueva tendría la insignia.
-	ProtectorMinRatings = 5
-	// FollowRetryWait es lo que espera quien fue rechazado o eliminado para volver a pedir seguir.
-	FollowRetryWait = 30 * 24 * time.Hour
+	// MaxFollowDeclines rechazos suspenden el envío de solicitudes a esa persona por FollowRetryWait.
+	MaxFollowDeclines = 3
+	FollowRetryWait   = 30 * 24 * time.Hour
 )
 
 func ratingSum(stars []int) int {
@@ -153,9 +150,16 @@ func Rating(stars []int) float64 {
 	return float64(ratingSum(stars)) / RatingWindow
 }
 
-// IsAnimalProtector dice si hoy se tiene "Protector animal": se gana y se pierde con la calificación.
+// IsAnimalProtector dice si hoy se tiene "Protector animal": 4,8 o más en las calificaciones reales,
+// sin contar las 5 estrellas iniciales. Se gana y se pierde según suba o baje.
 func IsAnimalProtector(stars []int) bool {
-	return len(stars) >= ProtectorMinRatings && ratingSum(stars) >= ProtectorMinRating
+	n := min(len(stars), RatingWindow)
+	sum := 0
+	for _, s := range stars[:n] {
+		sum += s
+	}
+	// sum/n >= 4,8, sin comparar decimales.
+	return n > 0 && sum*5 >= n*24
 }
 
 // BadgeProgress es lo que devuelve la API por insignia.

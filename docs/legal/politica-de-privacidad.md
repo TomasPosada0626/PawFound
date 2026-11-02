@@ -50,8 +50,9 @@ Decreto 1377 de 2013 y demás normas concordantes. Contacto:
   historia de su caso. Se quitan al cerrarse el caso o cuando la familia las borra.
 - **Red y reputación**: a quién sigues, quién te sigue, los «me gusta» que das y recibes, y las
   calificaciones que recibes cuando una familia te agradece al cerrar su caso. Las demás personas
-  ven solo tu número de seguidores y tu calificación promedio; las listas son visibles únicamente
-  para ti.
+  ven solo tus números de seguidores y seguidos y tu calificación promedio; las listas son visibles
+  únicamente para ti. Tu ciudad, tu barrio y tu ubicación no se muestran en tu perfil, y tus
+  mascotas guardadas solo las ven las personas con las que te sigues.
 - **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push y
   registros técnicos del servidor, sin el contenido de tus mensajes ni tus datos de cuenta.
 - **Consentimientos**: registro de qué autorizaste o retiraste, cuándo y con qué versión de

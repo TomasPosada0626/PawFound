@@ -44,7 +44,6 @@ export type ErrorCode =
   | "unauthorized"
   | "storage_unavailable"
   | "invalid_image"
-  | "follow_required"
   | "follow_wait"
   | "network"
   | "unknown";
@@ -53,7 +52,12 @@ export type FollowStatus = "none" | "pending" | "accepted";
 export type Network = { requests: string[]; followers: string[]; following: string[]; sent: string[] };
 export type FollowInfo = { followers: number; following: number; status: FollowStatus };
 export type RatingInfo = { average: number; count: number };
-export type FollowEdge = { followerId: string; followedId: string; status: "pending" | "accepted" | "declined" };
+export type FollowEdge = {
+  followerId: string;
+  followedId: string;
+  status: "pending" | "accepted" | "declined";
+  declines?: number;
+};
 
 /** Error de negocio con código traducible (nunca un texto armado en el backend). */
 export class BackendError extends Error {

@@ -296,7 +296,7 @@ describe("mensajería", () => {
     backend.restoreSession("u_carlos");
     await backend.updatePrivacy({ whoCanMessage: "nobody" });
     backend.restoreSession("u_valentina");
-    await expectCode(backend.openDirect("terry"), "cannot_message");
+    await expectCode(backend.openDirect("simba"), "cannot_message");
   });
 
   it("traduce una vez por idioma de los miembros y guarda el idioma original", async () => {
@@ -404,10 +404,10 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     await expectCode(backend.login(DEMO_EMAIL, DEMO_PASSWORD), "invalid_credentials");
   });
 
-  it("seguir pide aceptación; eliminar a un seguidor le impide insistir y le quita el me gusta", async () => {
+  it("seguir es mutuo al aceptar; los me gusta no dependen de seguirse", async () => {
     const backend = makeBackend();
     await signInAs(backend, "u_valentina");
-    await expect(backend.toggleProfileLike("u_daniel")).rejects.toMatchObject({ code: "follow_required" });
+    await expect(backend.toggleProfileLike("u_daniel")).resolves.toBe(true);
     await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
     await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
     await expect(backend.followUser("u_valentina")).rejects.toMatchObject({ code: "not_allowed" });
@@ -417,21 +417,58 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     await backend.loadNetwork();
     expect(networkOf(backend.getSnapshot()).requests).toContain("u_valentina");
     await backend.acceptFollower("u_valentina");
-    expect(followInfoOf(backend.getSnapshot(), "u_daniel").followers).toBe(1);
+    expect(networkOf(backend.getSnapshot())).toMatchObject({ followers: ["u_valentina"], following: ["u_valentina"] });
 
     await signInAs(backend, "u_valentina");
     await backend.loadNetwork();
-    expect(followInfoOf(backend.getSnapshot(), "u_daniel").status).toBe("accepted");
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({ status: "accepted", followers: 1, following: 1 });
     await expect(backend.followUser("u_daniel")).resolves.toBe("accepted");
-    await expect(backend.toggleProfileLike("u_daniel")).resolves.toBe(true);
 
+    // Eliminar termina la relación para las dos, se puede volver a pedir y el me gusta se mantiene.
     await signInAs(backend, "u_daniel");
     await backend.removeFollower("u_valentina");
-    expect(backend.getSnapshot().profileLikes.u_daniel).not.toContain("u_valentina");
+    expect(backend.getSnapshot().profileLikes.u_daniel).toContain("u_valentina");
     await signInAs(backend, "u_valentina");
     await backend.loadNetwork();
-    expect(followInfoOf(backend.getSnapshot(), "u_daniel").status).toBe("none");
+    expect(followInfoOf(backend.getSnapshot(), "u_daniel")).toMatchObject({ status: "none", followers: 0, following: 0 });
+    await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+  });
+
+  it("tres rechazos suspenden el envío de solicitudes", async () => {
+    const backend = makeBackend();
+    for (let i = 0; i < 3; i++) {
+      await signInAs(backend, "u_valentina");
+      await expect(backend.followUser("u_daniel")).resolves.toBe("pending");
+      await signInAs(backend, "u_daniel");
+      await backend.removeFollower("u_valentina");
+    }
+    await signInAs(backend, "u_valentina");
     await expect(backend.followUser("u_daniel")).rejects.toMatchObject({ code: "follow_wait" });
+  });
+
+  it("si los dos se piden seguir quedan siguiéndose, y cancelar no borra los rechazos", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_valentina");
+    await backend.followUser("u_daniel");
+    await signInAs(backend, "u_daniel");
+    await expect(backend.followUser("u_valentina")).resolves.toBe("accepted");
+    await backend.unfollowUser("u_valentina");
+    await backend.followUser("u_valentina");
+    await backend.unfollowUser("u_valentina");
+    await backend.loadNetwork();
+    expect(networkOf(backend.getSnapshot()).sent).not.toContain("u_valentina");
+  });
+
+  it("cerrar el caso o eliminarlo cierra sus chats y ya no se puede escribir desde ahí", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_daniel");
+    const dm = await backend.openDirect("rocky");
+    await signInAs(backend, "u_valentina");
+    await backend.markReunited("rocky", []);
+    const state = backend.getSnapshot();
+    expect(state.threads.find((t) => t.id === dm)?.archived).toBe(true);
+    await signInAs(backend, "u_daniel");
+    await expect(backend.openDirect("rocky")).rejects.toMatchObject({ code: "not_allowed" });
   });
 
   it("busca por nombre de usuario sin importar el @", async () => {

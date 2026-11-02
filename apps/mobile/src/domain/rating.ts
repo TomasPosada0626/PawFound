@@ -5,11 +5,6 @@
  */
 export const RATING_WINDOW = 20;
 export const RATING_START = 5;
-/** "Protector animal": 4,8 × 20, como suma para no comparar decimales. */
-const PROTECTOR_MIN_SUM = 96;
-/** Como todas las cuentas empiezan en 5, sin este mínimo cualquiera tendría la insignia. */
-export const PROTECTOR_MIN_RATINGS = 5;
-
 function ratingSum(stars: readonly number[]): number {
   const recent = stars.slice(0, RATING_WINDOW);
   return recent.reduce((sum, s) => sum + s, (RATING_WINDOW - recent.length) * RATING_START);
@@ -20,8 +15,11 @@ export function ratingAverage(stars: readonly number[]): number {
   return ratingSum(stars) / RATING_WINDOW;
 }
 
+/** "Protector animal": 4,8 o más en las calificaciones reales, sin contar las 5 estrellas iniciales. */
 export function isAnimalProtector(stars: readonly number[]): boolean {
-  return stars.length >= PROTECTOR_MIN_RATINGS && ratingSum(stars) >= PROTECTOR_MIN_SUM;
+  const recent = stars.slice(0, RATING_WINDOW);
+  const sum = recent.reduce((total, s) => total + s, 0);
+  return recent.length > 0 && sum * 5 >= recent.length * 24;
 }
 
 /** "4,8" o "4,75": dos decimales cuando hacen falta, para que coincida con la regla de 4,8. */

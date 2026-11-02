@@ -505,8 +505,10 @@ export class MockBackend {
         reunitedAt: this.iso(),
         ...(helpers.length ? { helperIds: helpers } : {}),
       }),
-      // El grupo se cierra solo: queda para leer, sin mensajes nuevos.
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      // El grupo y los mensajes directos del caso se cierran solos: quedan para leer.
+      threads: this.state.threads.map((t) =>
+        t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
+      ),
       // La historia del caso se quita: ya está en casa.
       stories: this.state.stories.filter((s) => s.petId !== petId),
       // Las ubicaciones compartidas en los mensajes directos del caso dejan de verse.
@@ -522,14 +524,16 @@ export class MockBackend {
     });
   }
 
-  /** Elimina la publicación: deja de verse para todas las personas y su grupo se cierra. */
+  /** Elimina la publicación: deja de verse para todas las personas y sus chats se cierran. */
   async withdrawPet(petId: string): Promise<void> {
     const user = this.requireUser();
     const pet = this.requirePet(petId);
     if (pet.ownerId !== user.id) throw new BackendError("not_allowed");
     this.commit({
       pets: this.state.pets.filter((p) => p.id !== petId),
-      threads: this.state.threads.map((t) => (t.id === pet.groupId ? { ...t, archived: true } : t)),
+      threads: this.state.threads.map((t) =>
+        t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
+      ),
       stories: this.state.stories.filter((s) => s.petId !== petId),
       notifications: this.state.notifications.filter((n) => n.petId !== petId),
       messages: this.hideLocations((m) =>
@@ -717,6 +721,7 @@ export class MockBackend {
     if (otherId === user.id) throw new BackendError("not_allowed");
     const other = this.state.users[otherId];
     if (!other) throw new BackendError("not_found");
+    if (pet.state !== "active") throw new BackendError("not_allowed");
     const prefs = this.state.privacyPrefs[otherId] ?? DEFAULT_PRIVACY_PREFS;
     if (prefs.whoCanMessage === "nobody" || (prefs.whoCanMessage === "verified" && !user.verified)) {
       throw new BackendError("cannot_message");
@@ -1002,10 +1007,6 @@ export class MockBackend {
     if (userId === user.id || !this.state.users[userId]) throw new BackendError("not_allowed");
     const likers = this.state.profileLikes[userId] ?? [];
     const liked = !likers.includes(user.id);
-    const following = this.state.follows.some(
-      (f) => f.followerId === user.id && f.followedId === userId && f.status === "accepted",
-    );
-    if (liked && !following) throw new BackendError("follow_required");
     this.commit({
       profileLikes: {
         ...this.state.profileLikes,
@@ -1090,15 +1091,11 @@ export class MockBackend {
     };
   }
 
-  /** Termina una relación y quita el "me gusta" que dependía de ella. */
-  private endFollow(followerId: string, followedId: string, follows: FollowEdge[]) {
-    this.commit({
-      ...this.networkSnapshot(follows),
-      profileLikes: {
-        ...this.state.profileLikes,
-        [followedId]: (this.state.profileLikes[followedId] ?? []).filter((id) => id !== followerId),
-      },
-    });
+  /** Las dos cuentas dejan de seguirse. Los "me gusta" se conservan. */
+  private withoutEdges(one: string, other: string): FollowEdge[] {
+    return this.state.follows.filter(
+      (f) => !(f.followerId === one && f.followedId === other) && !(f.followerId === other && f.followedId === one),
+    );
   }
 
   async searchUsers(query: string): Promise<User[]> {
@@ -1118,41 +1115,63 @@ export class MockBackend {
     const me = this.requireVerified();
     if (userId === me.id || !this.state.users[userId]) throw new BackendError("not_allowed");
     const edge = this.state.follows.find((f) => f.followerId === me.id && f.followedId === userId);
-    if (edge?.status === "declined") throw new BackendError("follow_wait");
-    if (edge) return edge.status;
-    this.commit(this.networkSnapshot([...this.state.follows, { followerId: me.id, followedId: userId, status: "pending" }]));
+    if (edge && edge.status !== "declined") return edge.status;
+    if ((edge?.declines ?? 0) >= 3) throw new BackendError("follow_wait");
+    const crossed = this.state.follows.some((f) => f.followerId === userId && f.followedId === me.id && f.status === "pending");
+    const others = this.withoutEdges(me.id, userId);
+    if (crossed) {
+      this.commit(this.networkSnapshot([...others, ...this.mutualEdges(me.id, userId)]));
+      return "accepted";
+    }
+    const reverse = this.state.follows.filter((f) => f.followerId === userId && f.followedId === me.id);
+    this.commit(
+      this.networkSnapshot([
+        ...others,
+        ...reverse,
+        { followerId: me.id, followedId: userId, status: "pending", declines: edge?.declines ?? 0 },
+      ]),
+    );
     return "pending";
+  }
+
+  private mutualEdges(one: string, other: string): FollowEdge[] {
+    return [
+      { followerId: one, followedId: other, status: "accepted" },
+      { followerId: other, followedId: one, status: "accepted" },
+    ];
   }
 
   async unfollowUser(userId: string): Promise<void> {
     const me = this.requireUser();
-    this.endFollow(
-      me.id,
-      userId,
-      this.state.follows.filter((f) => f.followerId !== me.id || f.followedId !== userId || f.status === "declined"),
-    );
+    const edge = this.state.follows.find((f) => f.followerId === me.id && f.followedId === userId);
+    if (edge?.status === "accepted") {
+      this.commit(this.networkSnapshot(this.withoutEdges(me.id, userId)));
+    } else if (edge?.status === "pending") {
+      this.commit(this.networkSnapshot(this.state.follows.map((f) => (f === edge ? { ...f, status: "declined" as const } : f))));
+    }
   }
 
   async acceptFollower(userId: string): Promise<void> {
     const me = this.requireUser();
-    this.commit(
-      this.networkSnapshot(
-        this.state.follows.map((f) =>
-          f.followerId === userId && f.followedId === me.id && f.status === "pending" ? { ...f, status: "accepted" as const } : f,
-        ),
-      ),
-    );
+    const pending = this.state.follows.some((f) => f.followerId === userId && f.followedId === me.id && f.status === "pending");
+    if (pending) this.commit(this.networkSnapshot([...this.withoutEdges(me.id, userId), ...this.mutualEdges(me.id, userId)]));
   }
 
+  /** Rechaza una solicitud (al tercer rechazo se suspende el envío) o elimina a un seguidor. */
   async removeFollower(userId: string): Promise<void> {
     const me = this.requireUser();
-    this.endFollow(
-      userId,
-      me.id,
-      this.state.follows.map((f) =>
-        f.followerId === userId && f.followedId === me.id ? { ...f, status: "declined" as const } : f,
-      ),
-    );
+    const edge = this.state.follows.find((f) => f.followerId === userId && f.followedId === me.id);
+    if (edge?.status === "accepted") {
+      this.commit(this.networkSnapshot(this.withoutEdges(me.id, userId)));
+    } else if (edge?.status === "pending") {
+      this.commit(
+        this.networkSnapshot(
+          this.state.follows.map((f) =>
+            f === edge ? { ...f, status: "declined" as const, declines: (f.declines ?? 0) + 1 } : f,
+          ),
+        ),
+      );
+    }
   }
 
   async loadProfile(_userId: string): Promise<void> {

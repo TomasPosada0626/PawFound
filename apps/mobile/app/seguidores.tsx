@@ -1,4 +1,4 @@
-import { Redirect, router } from "expo-router";
+import { Redirect, router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 
@@ -25,7 +25,8 @@ export default function FollowersScreen() {
   const user = useCurrentUser();
   const toast = useToast();
   const network = networkOf(state);
-  const [tab, setTab] = useState<Tab | null>(null);
+  const params = useLocalSearchParams<{ tab?: Tab }>();
+  const [tab, setTab] = useState<Tab | null>(params.tab ?? null);
   const [pending, setPending] = useState<Pending | null>(null);
   const [busy, setBusy] = useState(false);
   const userId = user?.id;

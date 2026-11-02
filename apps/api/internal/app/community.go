@@ -19,8 +19,9 @@ type ProfilePet struct {
 	Photo   *string `json:"photo,omitempty"`
 }
 
-// PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, mascotas, "me gusta" y
-// calificación. De los seguidores solo se muestra el número: la lista es de la propia cuenta.
+// PublicProfile: ningún perfil es oculto. Días en PawFound, insignias, "me gusta" y calificación. La
+// ubicación no se muestra a nadie, las mascotas solo a quienes se siguen, y de los seguidores solo
+// el número: las listas son de la propia cuenta.
 type PublicProfile struct {
 	User         PublicUser             `json:"user"`
 	MemberDays   int                    `json:"memberDays"`
@@ -71,6 +72,12 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
 		return PublicProfile{}, err
 	}
+	if viewerID != userID {
+		p.User.City, p.User.Neighborhood = "", nil
+		if p.FollowStatus != "accepted" {
+			return p, nil
+		}
+	}
 	rows, _ := a.DB.Query(ctx, `SELECT id, name, species, photos FROM owned_pets WHERE owner_id = $1 ORDER BY created_at`, userID)
 	var pet ProfilePet
 	var photos []string
@@ -88,9 +95,7 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 // badgeFacts cuenta los hechos reales de cada insignia (selectors.ts → badgeFacts). Los reportes
 // retirados por moderación o eliminados no cuentan: publicar y borrar no sube de nivel.
 //
-// "Hogar de paso" no se puede comprobar del todo, así que se apoya en lo que sí queda registrado:
-// quien reportó dijo que la tenía consigo, pasó al menos un día y el caso terminó en reencuentro
-// con otra persona que de verdad participó.
+// "Hogar de paso": quien reportó dijo que la tenía consigo y cerró el caso devolviéndola.
 func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map[string]int, error) {
 	f := map[string]int{}
 	if verified {
@@ -101,8 +106,7 @@ func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map
 		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL),
 		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed AND withdrawn_at IS NULL),
 		(SELECT count(*) FROM pets p WHERE p.owner_id = $1 AND p.kind = 'found' AND p.found_custody = 'with_me' AND p.state = 'reunited'
-			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL AND p.reunited_at >= p.created_at + interval '24 hours'
-			AND EXISTS (SELECT 1 FROM pet_helpers h WHERE h.pet_id = p.id)),
+			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
 		(SELECT count(*) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
 			AND NOT p.moderation_removed AND p.withdrawn_at IS NULL),
 		(SELECT count(DISTINCT s.pet_id) FROM sightings s JOIN pets p ON p.id = s.pet_id WHERE s.author_id = $1 AND p.owner_id IS DISTINCT FROM $1
@@ -126,8 +130,8 @@ func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map
 	return f, err
 }
 
-// ToggleLike da o quita un "me gusta" de perfil: solo cuentas verificadas, uno por persona, nunca
-// a uno mismo, y solo a quien se sigue con la solicitud aceptada.
+// ToggleLike da o quita un "me gusta" de perfil: solo cuentas verificadas, uno por persona y nunca
+// a uno mismo. No depende de seguirse.
 func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, int, error) {
 	if err := requireVerified(ac); err != nil {
 		return false, 0, err
@@ -144,13 +148,6 @@ func (a *App) ToggleLike(ctx context.Context, ac Actor, targetID string) (bool, 
 	}
 	liked := tag.RowsAffected() == 0
 	if liked {
-		following, err := a.isFollowing(ctx, ac.ID, targetID)
-		if err != nil {
-			return false, 0, err
-		}
-		if !following {
-			return false, 0, errFollowRequired
-		}
 		if _, err := a.DB.Exec(ctx, `INSERT INTO profile_likes (target_id, liker_id, at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`, targetID, ac.ID, a.now()); err != nil {
 			return false, 0, err
 		}

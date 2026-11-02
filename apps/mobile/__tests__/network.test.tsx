@@ -1,6 +1,6 @@
 /**
- * Red entre personas: buscar por nombre de usuario, seguir con solicitud y aceptación, eliminar
- * seguidores, "me gusta" solo a quien se sigue y estrellas al cerrar un caso.
+ * Red entre personas: buscar por nombre de usuario, seguirse con solicitud y aceptación, eliminar
+ * seguidores, mascotas solo para quienes se siguen y estrellas al cerrar un caso.
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { act, fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
@@ -22,74 +22,58 @@ beforeEach(async () => {
 
 describe("buscar personas", () => {
   it("encuentra por nombre de usuario con o sin @ y abre el perfil", async () => {
-    jest.useFakeTimers();
-    try {
-      await loginAs("u_valentina");
-      const app = await open("/buscar-personas");
-      const input = await screen.findByTestId("search-people-input");
-      expect(screen.getByText("Escribe al menos 3 letras. No hace falta el @.")).toBeOnTheScreen();
+    await loginAs("u_valentina");
+    const app = await open("/buscar-personas");
+    const input = await screen.findByTestId("search-people-input");
+    expect(screen.getByText("Escribe al menos 3 letras. No hace falta el @.")).toBeOnTheScreen();
 
-      // Con dos letras todavía no busca.
-      await fireEvent.changeText(input, "ma");
-      await act(async () => {
-        await jest.advanceTimersByTimeAsync(400);
-      });
-      expect(screen.queryByTestId("person-u_maria")).not.toBeOnTheScreen();
+    // Con dos letras todavía no busca: se deja pasar la pausa de escritura.
+    await fireEvent.changeText(input, "ma");
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(400);
+    });
+    expect(screen.queryByTestId("person-u_maria")).not.toBeOnTheScreen();
 
-      await fireEvent.changeText(input, "@mar");
-      expect(screen.getByText("Buscando…")).toBeOnTheScreen();
-      await act(async () => {
-        await jest.advanceTimersByTimeAsync(400);
-      });
-      expect(screen.getByTestId("person-u_maria")).toBeOnTheScreen();
+    await fireEvent.changeText(input, "@mar");
+    expect(await screen.findByTestId("person-u_maria")).toBeOnTheScreen();
 
-      await fireEvent.changeText(input, "nadie_con_ese_nombre");
-      await act(async () => {
-        await jest.advanceTimersByTimeAsync(400);
-      });
-      expect(screen.getByText("No encontramos a nadie con ese nombre de usuario.")).toBeOnTheScreen();
+    await fireEvent.changeText(input, "nadie_con_ese_nombre");
+    expect(await screen.findByText("No encontramos a nadie con ese nombre de usuario.")).toBeOnTheScreen();
 
-      await fireEvent.changeText(input, "mar");
-      await act(async () => {
-        await jest.advanceTimersByTimeAsync(400);
-      });
-      await fireEvent.press(screen.getByLabelText(/^María G\./));
-      await waitFor(() => expect(app.getPathname()).toBe("/user/u_maria"));
-    } finally {
-      jest.useRealTimers();
-    }
+    await fireEvent.changeText(input, "mar");
+    await fireEvent.press(await screen.findByLabelText(/^María G\./));
+    await waitFor(() => expect(app.getPathname()).toBe("/user/u_maria"));
   });
 });
 
-describe("seguir a otra persona", () => {
+describe("seguirse", () => {
   it("envía la solicitud, la cancela y explica para qué sirve", async () => {
     await loginAs("u_valentina");
     await open("/user/u_daniel");
-    expect(await screen.findByText(/Si te acepta/)).toBeOnTheScreen();
+    expect(await screen.findByText(/Si acepta, se seguirán mutuamente/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("follow-user"));
     expect(await screen.findByText("Solicitud enviada")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("follow-user"));
     expect(await screen.findByText("Seguir")).toBeOnTheScreen();
   });
 
-  it("no deja dar me gusta sin seguir a la persona", async () => {
+  it("se puede dar me gusta sin seguir a la persona", async () => {
     await loginAs("u_valentina");
     await open("/user/u_daniel");
-    await screen.findByTestId("follow-user");
+    expect(await screen.findByText("3 me gusta")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("like-profile"));
-    expect(await screen.findByText("Sigue a esta persona para darle me gusta.")).toBeOnTheScreen();
-    expect(screen.getByText("3 me gusta")).toBeOnTheScreen();
+    expect(await screen.findByText("4 me gusta")).toBeOnTheScreen();
   });
 
-  it("dejar de seguir pide confirmación y quita el me gusta", async () => {
+  it("dejar de seguir pide confirmación y el me gusta se mantiene", async () => {
     await loginAs("u_valentina");
     await open("/user/u_maria");
     expect(await screen.findByText("2 me gusta")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("follow-user"));
     expect(await screen.findByText("¿Dejar de seguir a María G.?")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("confirm-accept"));
-    expect(await screen.findByText("1 me gusta")).toBeOnTheScreen();
     expect(await screen.findByText("Seguir")).toBeOnTheScreen();
+    expect(screen.getByText("2 me gusta")).toBeOnTheScreen();
   });
 
   it("sin cuenta pide iniciar sesión", async () => {
@@ -98,13 +82,27 @@ describe("seguir a otra persona", () => {
     await waitFor(() => expect(app.getPathname()).toBe("/auth/login"));
   });
 
-  it("el perfil de otra persona muestra el número pero no abre la lista", async () => {
+  it("el perfil de otra persona muestra los números pero no abre las listas", async () => {
     await loginAs("u_daniel");
     const app = await open("/user/u_valentina");
     expect(await screen.findByLabelText("1 Seguidores")).toBeOnTheScreen();
+    expect(screen.getByLabelText("1 Siguiendo")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("public-followers"));
     expect(app.getPathname()).toBe("/user/u_valentina");
     expect(screen.queryByTestId("followers-screen")).not.toBeOnTheScreen();
+  });
+
+  it("las mascotas de un perfil solo las ven quienes se siguen", async () => {
+    await loginAs("u_daniel");
+    await open("/user/u_valentina");
+    expect(await screen.findByText("Solo quienes se siguen con esta persona pueden ver sus mascotas.")).toBeOnTheScreen();
+    expect(screen.queryByTestId("public-pets")).not.toBeOnTheScreen();
+  });
+
+  it("quien se sigue con la persona sí ve sus mascotas", async () => {
+    await loginAs("u_maria");
+    await open("/user/u_valentina");
+    expect(await screen.findByTestId("public-pets")).toBeOnTheScreen();
   });
 
   it("muestra la calificación: toda cuenta empieza en 5 estrellas", async () => {
@@ -116,17 +114,26 @@ describe("seguir a otra persona", () => {
 });
 
 describe("mis seguidores", () => {
+  it("muestra los dos números en mi perfil y abre cada lista", async () => {
+    await loginAs("u_valentina");
+    await open("/profile");
+    expect(await screen.findByLabelText("1 Seguidores")).toBeOnTheScreen();
+    expect(screen.getByLabelText("1 Siguiendo")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("open-following"));
+    expect(await screen.findByTestId("unfollow-u_maria")).toBeOnTheScreen();
+  });
+
   it("acepta una solicitud, elimina un seguidor y deja de seguir", async () => {
     await loginAs("u_valentina");
     await open("/profile");
     expect(await screen.findByText("1 solicitud nueva")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("open-followers"));
+    await fireEvent.press(screen.getByText("1 solicitud nueva"));
 
     // Con solicitudes pendientes es lo primero que se ve.
     expect(await screen.findByTestId("person-u_carlos")).toBeOnTheScreen();
     expect(screen.getByText("Solicitudes (1)")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("accept-u_carlos"));
-    expect(await screen.findByText("Ahora Carlos R. te sigue.")).toBeOnTheScreen();
+    expect(await screen.findByText("Ahora tú y Carlos R. se siguen.")).toBeOnTheScreen();
     expect(await screen.findByText("Seguidores (2)")).toBeOnTheScreen();
 
     await fireEvent.press(screen.getByTestId("tab-followers"));
@@ -139,7 +146,7 @@ describe("mis seguidores", () => {
     // La solicitud enviada aparece aquí y se puede cancelar.
     await fireEvent.press(await screen.findByTestId("cancel-u_laura"));
     await waitFor(() => expect(screen.queryByTestId("cancel-u_laura")).not.toBeOnTheScreen());
-    await fireEvent.press(await screen.findByTestId("unfollow-u_maria"));
+    await fireEvent.press(await screen.findByTestId("unfollow-u_carlos"));
     await fireEvent.press(await screen.findByTestId("confirm-accept"));
     expect(await screen.findByText("Aún no sigues a nadie.")).toBeOnTheScreen();
   });
@@ -150,7 +157,7 @@ describe("mis seguidores", () => {
     await fireEvent.press(await screen.findByTestId("decline-u_carlos"));
     expect(await screen.findByText("Solicitudes (0)")).toBeOnTheScreen();
     expect(
-      screen.getByText("Solo tú ves estas listas. Las demás personas ven únicamente el número en tu perfil."),
+      screen.getByText("Solo tú ves estas listas. Las demás personas ven únicamente los números en tu perfil."),
     ).toBeOnTheScreen();
   });
 

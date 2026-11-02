@@ -21,7 +21,7 @@ type Person struct {
 	Username string `json:"username"`
 }
 
-// Network es la red de la propia cuenta. Nadie más puede verla: los perfiles solo muestran el número.
+// Network es la red de la propia cuenta. Nadie más puede verla: los perfiles solo muestran los números.
 type Network struct {
 	Requests  []Person `json:"requests"`
 	Followers []Person `json:"followers"`
@@ -29,11 +29,10 @@ type Network struct {
 	Sent      []Person `json:"sent"`
 }
 
-// Códigos de error propios de los seguidores. Coinciden con ErrorCode de la app.
 var (
-	errFollowRequired = newErr(http.StatusForbidden, "follow_required", nil)
-	errFollowWait     = newErr(http.StatusConflict, "follow_wait", nil)
-	usernameSearchRE  = regexp.MustCompile(`^[a-z0-9_]{3,20}$`)
+	// errFollowWait: el código coincide con ErrorCode de la app.
+	errFollowWait    = newErr(http.StatusConflict, "follow_wait", nil)
+	usernameSearchRE = regexp.MustCompile(`^[a-z0-9_]{3,20}$`)
 )
 
 // scanPeople lee filas con (id, name, username, avatar, photo_id, email_verified, created_at, lang).
@@ -91,8 +90,17 @@ func (a *App) MyNetwork(ctx context.Context, ac Actor) (Network, error) {
 	return n, err
 }
 
-// Follow envía una solicitud para seguir a otra cuenta. Quien fue rechazado o eliminado espera
-// domain.FollowRetryWait antes de volver a pedirlo, para que nadie insista.
+// befriend deja a las dos cuentas siguiéndose: seguir es mutuo.
+func befriend(ctx context.Context, tx pgx.Tx, one, other string, now time.Time) error {
+	_, err := tx.Exec(ctx, `INSERT INTO follows (follower_id, followed_id, status, declines, created_at, updated_at)
+		VALUES ($1, $2, 'accepted', 0, $3, $3), ($2, $1, 'accepted', 0, $3, $3)
+		ON CONFLICT (follower_id, followed_id) DO UPDATE SET status = 'accepted', declines = 0, updated_at = $3`, one, other, now)
+	return err
+}
+
+// Follow envía una solicitud. Se puede volver a enviar tras un rechazo, pero al tercero queda
+// suspendida por domain.FollowRetryWait. Si la otra persona ya había pedido seguir a esta cuenta,
+// no hace falta esperar: quedan siguiéndose.
 func (a *App) Follow(ctx context.Context, ac Actor, targetID string) (string, error) {
 	if err := requireVerified(ac); err != nil {
 		return "", err
@@ -106,18 +114,41 @@ func (a *App) Follow(ctx context.Context, ac Actor, targetID string) (string, er
 	now := a.now()
 	var status string
 	var updatedAt time.Time
-	err := a.DB.QueryRow(ctx, `SELECT status, updated_at FROM follows WHERE follower_id = $1 AND followed_id = $2`, ac.ID, targetID).Scan(&status, &updatedAt)
+	var declines int
+	err := a.DB.QueryRow(ctx, `SELECT status, updated_at, declines FROM follows WHERE follower_id = $1 AND followed_id = $2`, ac.ID, targetID).
+		Scan(&status, &updatedAt, &declines)
 	switch {
 	case err == nil && status != "declined":
 		return status, nil
-	case err == nil && now.Sub(updatedAt) < domain.FollowRetryWait:
-		return "", errFollowWait
 	case err != nil && !errors.Is(err, pgx.ErrNoRows):
 		return "", err
+	case declines >= domain.MaxFollowDeclines:
+		if now.Sub(updatedAt) < domain.FollowRetryWait {
+			return "", errFollowWait
+		}
+		declines = 0
 	}
-	if _, err := a.DB.Exec(ctx, `INSERT INTO follows (follower_id, followed_id, status, created_at, updated_at) VALUES ($1, $2, 'pending', $3, $3)
-		ON CONFLICT (follower_id, followed_id) DO UPDATE SET status = 'pending', created_at = $3, updated_at = $3`, ac.ID, targetID, now); err != nil {
+	var mutual bool
+	err = a.withTx(ctx, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE follows SET status = 'accepted', updated_at = $3 WHERE follower_id = $1 AND followed_id = $2 AND status = 'pending'`, targetID, ac.ID, now)
+		if err != nil {
+			return err
+		}
+		if mutual = tag.RowsAffected() > 0; mutual {
+			return befriend(ctx, tx, ac.ID, targetID, now)
+		}
+		_, err = tx.Exec(ctx, `INSERT INTO follows (follower_id, followed_id, status, declines, created_at, updated_at) VALUES ($1, $2, 'pending', $3, $4, $4)
+			ON CONFLICT (follower_id, followed_id) DO UPDATE SET status = 'pending', declines = $3, updated_at = $4`, ac.ID, targetID, declines, now)
+		return err
+	})
+	if err != nil {
 		return "", err
+	}
+	if mutual {
+		a.background(func(ctx context.Context) {
+			a.pushFollow(ctx, targetID, "follow_accepted", ac.ShortName(), "/user/"+ac.ID)
+		})
+		return "accepted", nil
 	}
 	a.background(func(ctx context.Context) {
 		a.pushFollow(ctx, targetID, "follow_request", ac.ShortName(), "/seguidores")
@@ -125,21 +156,22 @@ func (a *App) Follow(ctx context.Context, ac Actor, targetID string) (string, er
 	return "pending", nil
 }
 
-// Unfollow deja de seguir o cancela la solicitud propia. Un "me gusta" exige seguir, así que se
-// va con el seguimiento. El rechazo no se borra: conserva la espera para volver a pedirlo.
-func (a *App) Unfollow(ctx context.Context, ac Actor, targetID string) error {
-	return a.endFollow(ctx, ac.ID, targetID, `DELETE FROM follows WHERE follower_id = $1 AND followed_id = $2 AND status <> 'declined'`)
-}
-
-// AcceptFollower acepta una solicitud recibida.
+// AcceptFollower acepta una solicitud recibida: desde ahí las dos cuentas se siguen.
 func (a *App) AcceptFollower(ctx context.Context, ac Actor, followerID string) error {
-	tag, err := a.DB.Exec(ctx, `UPDATE follows SET status = 'accepted', updated_at = $3
-		WHERE follower_id = $1 AND followed_id = $2 AND status = 'pending'`, followerID, ac.ID, a.now())
+	now := a.now()
+	err := a.withTx(ctx, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE follows SET status = 'accepted', updated_at = $3
+			WHERE follower_id = $1 AND followed_id = $2 AND status = 'pending'`, followerID, ac.ID, now)
+		if err != nil {
+			return err
+		}
+		if tag.RowsAffected() == 0 {
+			return ErrNotFound
+		}
+		return befriend(ctx, tx, ac.ID, followerID, now)
+	})
 	if err != nil {
 		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrNotFound
 	}
 	a.background(func(ctx context.Context) {
 		a.pushFollow(ctx, followerID, "follow_accepted", ac.ShortName(), "/user/"+ac.ID)
@@ -147,33 +179,60 @@ func (a *App) AcceptFollower(ctx context.Context, ac Actor, followerID string) e
 	return nil
 }
 
-// RemoveFollower rechaza una solicitud o elimina a un seguidor. No le avisa a la otra persona.
-func (a *App) RemoveFollower(ctx context.Context, ac Actor, followerID string) error {
-	return a.endFollow(ctx, followerID, ac.ID, `UPDATE follows SET status = 'declined', updated_at = $3
-		WHERE follower_id = $1 AND followed_id = $2 AND status <> 'declined'`, a.now())
+// unfriend termina la relación en los dos sentidos. Los "me gusta" se conservan.
+func unfriend(ctx context.Context, tx pgx.Tx, one, other string) error {
+	_, err := tx.Exec(ctx, `DELETE FROM follows WHERE (follower_id = $1 AND followed_id = $2) OR (follower_id = $2 AND followed_id = $1)`, one, other)
+	return err
 }
 
-// endFollow termina la relación y quita el "me gusta" que dependía de ella, todo o nada.
-func (a *App) endFollow(ctx context.Context, followerID, followedID, sql string, extra ...any) error {
+// followStatus lee el estado de una relación; sin relación devuelve ErrNotFound.
+func followStatus(ctx context.Context, tx pgx.Tx, followerID, followedID string) (string, int, error) {
+	var status string
+	var declines int
+	err := tx.QueryRow(ctx, `SELECT status, declines FROM follows WHERE follower_id = $1 AND followed_id = $2 FOR UPDATE`, followerID, followedID).Scan(&status, &declines)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", 0, ErrNotFound
+	}
+	return status, declines, err
+}
+
+// Unfollow deja de seguir, para los dos, o cancela la solicitud propia. Cancelar no borra los
+// rechazos acumulados: si no, bastaría cancelar para no llegar nunca a la suspensión.
+func (a *App) Unfollow(ctx context.Context, ac Actor, targetID string) error {
 	return a.withTx(ctx, func(tx pgx.Tx) error {
-		tag, err := tx.Exec(ctx, sql, append([]any{followerID, followedID}, extra...)...)
+		status, _, err := followStatus(ctx, tx, ac.ID, targetID)
 		if err != nil {
 			return err
 		}
-		if tag.RowsAffected() == 0 {
-			return ErrNotFound
+		switch status {
+		case "accepted":
+			return unfriend(ctx, tx, ac.ID, targetID)
+		case "pending":
+			_, err = tx.Exec(ctx, `UPDATE follows SET status = 'declined' WHERE follower_id = $1 AND followed_id = $2`, ac.ID, targetID)
+			return err
 		}
-		_, err = tx.Exec(ctx, `DELETE FROM profile_likes WHERE liker_id = $1 AND target_id = $2`, followerID, followedID)
-		return err
+		return ErrNotFound
 	})
 }
 
-// isFollowing dice si la cuenta sigue a otra con la solicitud aceptada.
-func (a *App) isFollowing(ctx context.Context, followerID, followedID string) (bool, error) {
-	var ok bool
-	err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM follows WHERE follower_id = $1 AND followed_id = $2 AND status = 'accepted')`,
-		followerID, followedID).Scan(&ok)
-	return ok, err
+// RemoveFollower rechaza una solicitud (cuenta para la suspensión) o elimina a un seguidor, y en
+// ese caso dejan de seguirse los dos. No le avisa a la otra persona.
+func (a *App) RemoveFollower(ctx context.Context, ac Actor, followerID string) error {
+	return a.withTx(ctx, func(tx pgx.Tx) error {
+		status, declines, err := followStatus(ctx, tx, followerID, ac.ID)
+		if err != nil {
+			return err
+		}
+		switch status {
+		case "accepted":
+			return unfriend(ctx, tx, ac.ID, followerID)
+		case "pending":
+			_, err = tx.Exec(ctx, `UPDATE follows SET status = 'declined', declines = $3, updated_at = $4 WHERE follower_id = $1 AND followed_id = $2`,
+				followerID, ac.ID, declines+1, a.now())
+			return err
+		}
+		return ErrNotFound
+	})
 }
 
 // notifyFollowers avisa a quienes siguen a la familia. Un aviso por caso: friend_lost no llega a
@@ -202,11 +261,11 @@ func (a *App) notifyFollowers(ctx context.Context, row petRow, kind string, skip
 var followTexts = map[string]map[string][2]string{
 	"es": {
 		"follow_request":  {"Nueva solicitud", "{name} quiere seguirte en PawFound"},
-		"follow_accepted": {"Solicitud aceptada", "{name} aceptó tu solicitud. Te avisaremos si su mascota se pierde."},
+		"follow_accepted": {"Solicitud aceptada", "{name} aceptó tu solicitud. Ahora se siguen."},
 	},
 	"en": {
 		"follow_request":  {"New request", "{name} wants to follow you on PawFound"},
-		"follow_accepted": {"Request accepted", "{name} accepted your request. We'll let you know if their pet goes missing."},
+		"follow_accepted": {"Request accepted", "{name} accepted your request. Now you follow each other."},
 	},
 }
 
