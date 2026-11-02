@@ -646,7 +646,6 @@ export const en: Translations = {
     foundStat: "Pets found",
     rating: "Rating",
     ratingCount: { one: "(1 rating)", other: "({count} ratings)" },
-    noRatings: "No ratings yet",
     badges: "Badges earned",
     myBadges: "My badges",
     noBadges: "No badges yet. You'll earn them by helping reunite pets with their families.",

@@ -647,7 +647,6 @@ export const es = {
     foundStat: "Mascotas encontradas",
     rating: "Calificación",
     ratingCount: { one: "(1 calificación)", other: "({count} calificaciones)" },
-    noRatings: "Sin calificaciones aún",
     badges: "Insignias obtenidas",
     myBadges: "Mis insignias",
     noBadges: "Aún no tienes insignias. Las ganarás ayudando a reunir mascotas con sus familias.",

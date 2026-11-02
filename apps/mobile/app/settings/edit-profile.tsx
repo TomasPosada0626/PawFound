@@ -228,9 +228,8 @@ export default function EditProfileScreen() {
         <View className="flex-row items-center gap-2 rounded-2xl border border-border p-3">
           <Icon name="star" size={22} color="#F5A524" />
           <Text variant="heading">{formatRating(stats.ratingAvg, locale)}</Text>
-          <Text variant="caption">
-            {stats.ratingCount > 0 ? t("profile.ratingCount", { count: stats.ratingCount }) : t("profile.noRatings")}
-          </Text>
+          {/* Sin calificaciones reales solo se ven las estrellas y el número. */}
+          {stats.ratingCount > 0 ? <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text> : null}
         </View>
       </SettingsCard>
 
