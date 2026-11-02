@@ -54,7 +54,7 @@ export function AlertsOffBanner({ userId, showAction = true }: { userId: string;
             icon="notifications-outline"
             variant="outline"
             compact
-            onPress={() => router.push("/settings/notifications")}
+            onPress={() => router.push({ pathname: "/auth/alerts", params: { next: "/" } })}
             testID="alerts-off-cta"
           />
         ) : undefined

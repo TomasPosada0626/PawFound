@@ -30,6 +30,7 @@ jest.mock("expo-location", () => ({
   getCurrentPositionAsync: jest.fn(async () => ({ coords: { latitude: 6.2449, longitude: -75.5912 } })),
   reverseGeocodeAsync: jest.fn(async () => [{ district: "Laureles", city: "Medellín", subregion: null, street: null }]),
   requestBackgroundPermissionsAsync: jest.fn(async () => ({ status: "granted" })),
+  getBackgroundPermissionsAsync: jest.fn(async () => ({ status: "undetermined" })),
   startLocationUpdatesAsync: jest.fn(async () => {}),
   stopLocationUpdatesAsync: jest.fn(async () => {}),
   hasStartedLocationUpdatesAsync: jest.fn(async () => false),

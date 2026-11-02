@@ -1,0 +1,60 @@
+name: Respaldo de la base de datos
+
+# Copia cifrada en un bucket privado de Cloudflare R2. Nunca como artefacto de GitHub Actions:
+# el repositorio es público y la base tiene datos personales.
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  respaldo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DATABASE_URL: ${{ secrets.RESPALDO_DATABASE_URL }}
+      RESPALDO_CLAVE: ${{ secrets.RESPALDO_CLAVE }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.RESPALDO_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.RESPALDO_R2_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+      R2_ENDPOINT: https://${{ secrets.RESPALDO_R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+      R2_BUCKET: ${{ secrets.RESPALDO_R2_BUCKET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Comprobar la configuración
+        id: config
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$RESPALDO_CLAVE" ] || [ -z "$R2_BUCKET" ]; then
+            echo "::warning::Los respaldos no están configurados: faltan secretos (docs/DESPLIEGUE.md)."
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "listo=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Instalar pg_dump
+        if: steps.config.outputs.listo == 'true'
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+      - name: Respaldar y subir
+        if: steps.config.outputs.listo == 'true'
+        run: |
+          archivo="pawfound-$(date -u +%Y-%m-%d).dump.gpg"
+          bash scripts/respaldo.sh "$RUNNER_TEMP/$archivo"
+          aws s3 cp "$RUNNER_TEMP/$archivo" "s3://$R2_BUCKET/$archivo" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+      - name: Borrar los de más de 30 días
+        if: steps.config.outputs.listo == 'true'
+        run: |
+          limite="$(date -u -d '30 days ago' +%Y-%m-%d)"
+          aws s3 ls "s3://$R2_BUCKET/" --endpoint-url "$R2_ENDPOINT" | awk '{print $4}' | while read -r nombre; do
+            fecha="${nombre#pawfound-}"
+            fecha="${fecha%.dump.gpg}"
+            if [[ "$fecha" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] && [[ "$fecha" < "$limite" ]]; then
+              aws s3 rm "s3://$R2_BUCKET/$nombre" --endpoint-url "$R2_ENDPOINT" --only-show-errors
+            fi
+          done

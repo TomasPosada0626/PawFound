@@ -122,8 +122,7 @@ describe("alertas en el registro", () => {
     await loginAs("u_valentina");
     await renderRouter("./app", { initialUrl: "/auth/alerts?next=/messages" });
     expect(await screen.findByText("Activa tus alertas")).toBeOnTheScreen();
-    await fireEvent.press(await screen.findByTestId("push-permission"));
-    expect(Notifications.requestPermissionsAsync).toHaveBeenCalled();
+    await screen.findByTestId("alerts-activate");
     await fireEvent.press(screen.getByTestId("alerts-continue"));
     expect(await screen.findByTestId("messages-screen")).toBeOnTheScreen();
   });

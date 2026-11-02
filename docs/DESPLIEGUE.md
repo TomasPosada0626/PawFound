@@ -157,7 +157,26 @@ muestra Play Console; si no, los enlaces no abren la app instalada desde la tien
 
 ## 10. Respaldos
 
-Los datos viven en Neon y las fotos en Cloudflare R2. Antes del lanzamiento, confirmar en el panel de
-Neon cuánto tiempo atrás permite restaurar el plan actual y probar una restauración. Un respaldo
-manual se hace con `pg_dump` usando la cadena de conexión de Neon, y **nunca** se sube al repositorio
-ni a artefactos de GitHub Actions: el repositorio es público y contiene datos personales.
+Cada día, `.github/workflows/respaldo.yml` guarda una copia **cifrada** de la base en un bucket
+privado de Cloudflare R2 y borra las de más de 30 días. Sin los secretos configurados, avisa y no
+hace nada. Las copias nunca van en artefactos de GitHub Actions: el repositorio es público.
+
+Para activarlo:
+
+1. En Cloudflare R2, crear un bucket privado `pawfound-respaldos` y un token con permiso de lectura
+   y escritura solo para ese bucket.
+2. En GitHub → Settings → Secrets and variables → Actions, crear:
+   `RESPALDO_DATABASE_URL` (cadena de conexión de Neon), `RESPALDO_CLAVE` (una clave larga),
+   `RESPALDO_R2_ACCOUNT_ID`, `RESPALDO_R2_BUCKET`, `RESPALDO_R2_ACCESS_KEY_ID` y
+   `RESPALDO_R2_SECRET_ACCESS_KEY`.
+3. Guardar `RESPALDO_CLAVE` también fuera de GitHub: **sin ella los respaldos no se pueden abrir**.
+4. Correr el trabajo a mano desde la pestaña Actions y confirmar que aparece el archivo.
+
+Para restaurar, en una base **vacía** con PostGIS activado (el script se niega si ya tiene tablas):
+
+```sh
+DATABASE_URL=postgres://... RESPALDO_CLAVE=... scripts/restaurar.sh pawfound-AAAA-MM-DD.dump.gpg
+```
+
+Las fotos no van en el respaldo: viven en R2. Neon también permite restaurar la base a un momento
+anterior dentro del plazo de su plan; confirmar ese plazo en su panel.

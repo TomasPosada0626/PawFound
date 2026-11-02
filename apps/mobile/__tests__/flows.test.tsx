@@ -89,10 +89,10 @@ describe("registro y verificación por correo", () => {
 
     // Paso siguiente: activar las alertas, con su porqué y sin obligar.
     expect(await screen.findByTestId("alerts-onboarding")).toBeOnTheScreen();
-    expect(screen.getByText(/Las alertas son gratis/)).toBeOnTheScreen();
-    // Sin zona todavía: el letrero explica que así no llegan las alertas.
+    // Antes de pedir el permiso explica para qué es la ubicación (lo exige Google Play).
+    expect(screen.getByTestId("alerts-privacy")).toHaveTextContent(/también con la app cerrada/);
     expect(await screen.findByText("No recibirás alertas de mascotas perdidas")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByText("Continuar sin alertas"));
+    await fireEvent.press(screen.getByText("Ahora no"));
     await waitFor(() => expect(screen.queryByTestId("alerts-onboarding")).toBeNull());
   });
 
