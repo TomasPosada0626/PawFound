@@ -386,7 +386,7 @@ func (a *App) closeAdoption(ctx context.Context, ac Actor, id, status string) er
 		return ErrNotAllowed
 	}
 	now := a.now()
-	var declined []string
+	var declined, adopters []string
 	err = a.withTx(ctx, func(tx pgx.Tx) error {
 		var adoptedAt *time.Time
 		if status == "adopted" {
@@ -397,7 +397,13 @@ func (a *App) closeAdoption(ctx context.Context, ac Actor, id, status string) er
 		}
 		rows, _ := tx.Query(ctx, `UPDATE adoption_applications SET status = 'declined', decided_at = $2
 			WHERE adoption_id = $1 AND status = 'pending' RETURNING applicant_id`, id, now)
-		declined, err = pgx.CollectRows(rows, pgx.RowTo[string])
+		if declined, err = pgx.CollectRows(rows, pgx.RowTo[string]); err != nil {
+			return err
+		}
+		if status == "adopted" {
+			rows, _ := tx.Query(ctx, `SELECT applicant_id FROM adoption_applications WHERE adoption_id = $1 AND status = 'accepted'`, id)
+			adopters, err = pgx.CollectRows(rows, pgx.RowTo[string])
+		}
 		return err
 	})
 	if err != nil {
@@ -406,6 +412,9 @@ func (a *App) closeAdoption(ctx context.Context, ac Actor, id, status string) er
 	a.background(func(ctx context.Context) {
 		for _, userID := range declined {
 			a.pushAdoption(ctx, userID, "application_closed", row.Name, "/pawfamily/solicitudes")
+		}
+		for _, userID := range adopters {
+			a.pushAdoption(ctx, userID, "adoption_completed", row.Name, "/profile")
 		}
 	})
 	return nil
@@ -681,16 +690,18 @@ var adoptionTexts = map[string]map[string][2]string{
 		"application_accepted": {"🎉 ¡Aceptaron tu solicitud!", "Puedes coordinar la adopción de {name} por el chat."},
 		"application_declined": {"Solicitud de adopción", "Esta vez {name} irá a otro hogar. ¡Gracias por querer adoptar!"},
 		"application_closed":   {"Solicitud de adopción", "{name} ya no está disponible. ¡Gracias por querer adoptar!"},
-		"shelter_verified":     {"✅ Refugio verificado", "{name} ya aparece como refugio verificado en PawFamily."},
-		"shelter_rejected":     {"Verificación de refugio", "No pudimos verificar a {name}. Revisa el NIT y vuelve a intentarlo."},
+		"shelter_verified":     {"✅ Refugio verificado", "{name} vuelve a aparecer como refugio verificado en PawFamily."},
+		"shelter_rejected":     {"Verificación de refugio", "Moderación quitó la verificación de {name}. Escríbenos si crees que es un error."},
+		"adoption_completed":   {"🏡 ¡Bienvenido el nuevo integrante!", "{name} ya es parte de tu familia. Ganaste la insignia «Nuevo integrante»."},
 	},
 	"en": {
 		"application_new":      {"🏡 New adoption request", "Someone wants to adopt {name}. Check the request in PawFamily."},
 		"application_accepted": {"🎉 Your request was accepted!", "You can arrange {name}'s adoption in the chat."},
 		"application_declined": {"Adoption request", "This time {name} will go to another home. Thanks for wanting to adopt!"},
 		"application_closed":   {"Adoption request", "{name} is no longer available. Thanks for wanting to adopt!"},
-		"shelter_verified":     {"✅ Shelter verified", "{name} now shows as a verified shelter in PawFamily."},
-		"shelter_rejected":     {"Shelter verification", "We couldn't verify {name}. Check the NIT and try again."},
+		"shelter_verified":     {"✅ Shelter verified", "{name} shows as a verified shelter in PawFamily again."},
+		"shelter_rejected":     {"Shelter verification", "Moderation removed {name}'s verification. Write to us if you think it's a mistake."},
+		"adoption_completed":   {"🏡 Welcome, new family member!", "{name} is now part of your family. You earned the “New member” badge."},
 	},
 }
 

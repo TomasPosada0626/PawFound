@@ -21,6 +21,7 @@ export const BADGES: Record<BadgeId, { icon: IconName; from: string; to: string 
   quick: { icon: "flash", from: "#FFC83D", to: "#D98A00" },
   protector: { icon: "star", from: "#F2B51D", to: "#B87400" },
   popular: { icon: "heart-circle", from: "#FF6B8B", to: "#C42D52" },
+  new_member: { icon: "sparkles", from: "#7ED957", to: "#2E9E4F" },
 };
 
 /** Lo que cambia con el nivel: cada uno se ve claramente mejor que el anterior. */

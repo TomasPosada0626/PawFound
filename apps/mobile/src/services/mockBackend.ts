@@ -1220,11 +1220,11 @@ export class MockBackend {
     if (!this.state.adoptions.some((a) => a.id === id)) throw new BackendError("not_found");
   }
 
-  async requestShelterVerification(name: string, nit: string): Promise<void> {
+  async verifyShelter(name: string, nit: string): Promise<void> {
     const user = this.requireVerified();
     if (!name.trim() || !normalizeNit(nit)) throw new BackendError("invalid_input");
-    if (user.shelterStatus === "verified") throw new BackendError("not_allowed");
-    this.commit({ users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "pending" } } });
+    if (user.shelterStatus === "rejected") throw new BackendError("not_allowed");
+    this.commit({ users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "verified" } } });
   }
 
   async acceptAdoptionTerms(): Promise<void> {

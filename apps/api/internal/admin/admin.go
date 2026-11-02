@@ -109,7 +109,7 @@ var actionLabels = map[string]string{
 	"unmute": "Levantó la restricción", "remove_message": "Retiró un mensaje", "restore_message": "Restauró un mensaje",
 	"remove_pet": "Retiró una publicación", "restore_pet": "Restauró una publicación",
 	"remove_adoption": "Retiró una adopción", "restore_adoption": "Restauró una adopción",
-	"verify_shelter": "Verificó un refugio", "reject_shelter": "Rechazó la verificación de un refugio", "suspend": "Suspendió la cuenta",
+	"verify_shelter": "Devolvió la verificación de un refugio", "reject_shelter": "Quitó la verificación de un refugio", "suspend": "Suspendió la cuenta",
 	"unsuspend": "Reactivó la cuenta", "remove_photo": "Quitó la foto de perfil",
 }
 
@@ -437,9 +437,9 @@ func (p *Panel) users(w http.ResponseWriter, r *http.Request) {
 	p.render(w, r, http.StatusOK, "users", view{Title: "Cuentas", Section: "users", Data: map[string]any{"Q": q, "Users": found}})
 }
 
-// shelters lista los refugios que pidieron la verificación con NIT.
+// shelters lista los refugios verificados con NIT, para revisarlos y quitar la verificación si hace falta.
 func (p *Panel) shelters(w http.ResponseWriter, r *http.Request) {
-	requests, err := p.App.PendingShelters(r.Context())
+	requests, err := p.App.Shelters(r.Context())
 	if err != nil {
 		p.fail(w, err)
 		return

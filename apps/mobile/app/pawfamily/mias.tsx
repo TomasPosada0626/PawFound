@@ -5,7 +5,7 @@ import { View } from "react-native";
 import { Screen } from "@/components/layout";
 import { AdoptionCard, PawFamilyHeader } from "@/components/pawfamily";
 import { Button } from "@/components/ui/Button";
-import { EmptyState } from "@/components/ui/Controls";
+import { Banner, EmptyState } from "@/components/ui/Controls";
 import { Text } from "@/components/ui/Text";
 import { useI18n } from "@/i18n/I18nProvider";
 import { adoptionView } from "@/services/selectors";
@@ -41,6 +41,9 @@ export default function MyAdoptionsScreen() {
 
   return (
     <Screen header={<PawFamilyHeader back title={t("pawfamily.mine")} />} testID="my-adoptions">
+      <View className="mb-3">
+        <Banner icon="mail-outline" body={t("pawfamily.spamNote")} />
+      </View>
       {ids !== null && list.length === 0 ? (
         <EmptyState
           icon="heart-outline"

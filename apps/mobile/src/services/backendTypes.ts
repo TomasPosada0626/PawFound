@@ -48,6 +48,7 @@ export type ErrorCode =
   | "follow_wait"
   | "adoption_terms"
   | "already_applied"
+  | "nit_taken"
   | "network"
   | "unknown";
 

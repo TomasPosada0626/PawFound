@@ -121,6 +121,7 @@ var BadgeRules = []BadgeRule{
 	{"spreader", "community", []int{1, 10, 50}},
 	{"community", "community", []int{3, 10, 25}},
 	{"popular", "community", []int{50, 100, 250, 500, 1000}},
+	{"new_member", "reunions", []int{1}},
 }
 
 // Calificación por ayudar en un caso. Toda cuenta empieza con RatingWindow calificaciones de 5

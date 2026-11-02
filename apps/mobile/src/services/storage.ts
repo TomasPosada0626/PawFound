@@ -23,6 +23,8 @@ export const STORAGE_KEYS = {
   storiesSeen: "pawfound.storiesSeen",
   /** Políticas de PawFamily aceptadas en este dispositivo. */
   pawfamilyTerms: "pawfound.pawfamilyTerms",
+  /** En PawFamily: persona natural o refugio. */
+  pawfamilyRole: "pawfound.pawfamilyRole",
 } as const;
 
 export async function readJSON<T>(key: string): Promise<T | null> {

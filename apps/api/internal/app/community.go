@@ -117,7 +117,7 @@ func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map
 	if verified {
 		f["verified"] = 1
 	}
-	var reporter, rescuer, eyes, quick, angel, reunion, spreader, community, likes int
+	var reporter, rescuer, eyes, quick, angel, reunion, spreader, community, likes, adopted int
 	err := a.DB.QueryRow(ctx, `SELECT
 		(SELECT count(*) FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL),
 		(SELECT count(*) FROM pets WHERE owner_id = $1 AND kind = 'found' AND NOT moderation_removed AND withdrawn_at IS NULL),
@@ -130,13 +130,16 @@ func (a *App) badgeFacts(ctx context.Context, userID string, verified bool) (map
 		(SELECT count(*) FROM pet_shares WHERE user_id = $1),
 		(SELECT count(*) FROM thread_members tm JOIN threads t ON t.id = tm.thread_id WHERE tm.user_id = $1 AND t.kind = 'group'
 			AND NOT EXISTS (SELECT 1 FROM pets p WHERE p.group_id = t.id AND p.owner_id = $1)),
-		(SELECT count(*) FROM profile_likes WHERE target_id = $1)`, userID).
-		Scan(&reporter, &rescuer, &eyes, &quick, &angel, &reunion, &spreader, &community, &likes)
+		(SELECT count(*) FROM profile_likes WHERE target_id = $1),
+		(SELECT count(*) FROM adoption_applications x JOIN adoptions d ON d.id = x.adoption_id
+			WHERE x.applicant_id = $1 AND x.status = 'accepted' AND d.status = 'adopted' AND NOT d.moderation_removed)`, userID).
+		Scan(&reporter, &rescuer, &eyes, &quick, &angel, &reunion, &spreader, &community, &likes, &adopted)
 	if err != nil {
 		return f, err
 	}
 	f["reporter"], f["rescuer"], f["eyes"], f["quick"] = reporter, rescuer, eyes, quick
 	f["paw_angel"], f["reunion"], f["spreader"], f["community"], f["popular"] = angel, reunion, spreader, community, likes
+	f["new_member"] = adopted
 	stars, _, err := a.rating(ctx, userID)
 	if domain.IsAnimalProtector(stars) {
 		f["protector"] = 1

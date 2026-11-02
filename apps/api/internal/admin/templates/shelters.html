@@ -1,10 +1,10 @@
 {{define "content"}}
-<h1>Refugios por verificar</h1>
-<p class="muted">Confirma en el RUES o en la DIAN que el NIT corresponda al refugio antes de aprobarlo. El dígito de verificación ya se comprobó.</p>
+<h1>Refugios verificados</h1>
+<p class="muted">La app los verifica al instante cuando el dígito de verificación del NIT es correcto (DIAN). Revisa en el RUES o la DIAN que el NIT corresponda al refugio; si no, quita la verificación: la cuenta no podrá volver a verificarse sola.</p>
 {{if .Data.Requests}}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Refugio</th><th>NIT</th><th>Cuenta</th><th>Pedido</th><th></th></tr></thead>
+  <thead><tr><th>Refugio</th><th>NIT</th><th>Cuenta</th><th>Verificado</th><th></th></tr></thead>
   <tbody>
   {{range .Data.Requests}}
   <tr>
@@ -13,10 +13,9 @@
     <td><a href="/admin/users/{{.UserID}}">{{.Name}}</a><br><span class="muted">@{{.Username}} · {{.Email}}</span></td>
     <td>{{date .RequestedAt}}</td>
     <td>
-      <form method="post" action="/admin/users/{{.UserID}}" class="row">
+      <form method="post" action="/admin/users/{{.UserID}}">
         <input type="hidden" name="csrf" value="{{$.CSRF}}">
-        <button type="submit" name="action" value="verify_shelter" class="primary small">Aprobar</button>
-        <button type="submit" name="action" value="reject_shelter" class="small">Rechazar</button>
+        <button type="submit" name="action" value="reject_shelter" class="small">Quitar verificación</button>
       </form>
     </td>
   </tr>
@@ -24,5 +23,5 @@
   </tbody>
 </table>
 </div>
-{{else}}<p class="empty card">No hay refugios esperando verificación.</p>{{end}}
+{{else}}<p class="empty card">Todavía no hay refugios verificados.</p>{{end}}
 {{end}}

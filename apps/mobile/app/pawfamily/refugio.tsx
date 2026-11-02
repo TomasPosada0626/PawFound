@@ -1,4 +1,4 @@
-import { Redirect } from "expo-router";
+import { Redirect, router } from "expo-router";
 import { useState } from "react";
 import { View } from "react-native";
 
@@ -13,9 +13,13 @@ import { normalizeNit } from "@/domain/shelter";
 import { errorMessage } from "@/features/errorMessages";
 import { useI18n } from "@/i18n/I18nProvider";
 import { BackendError } from "@/services/backendTypes";
+import { STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useCurrentUser } from "@/store/backend";
 
-/** Un refugio pide la verificación adicional con su NIT; moderación la revisa. */
+/**
+ * Entrar como refugio: nombre y NIT. Si el dígito de verificación de la DIAN es correcto, la
+ * insignia de refugio verificado se otorga al instante y se pasa al panel del refugio.
+ */
 export default function ShelterScreen() {
   const { t } = useI18n();
   const backend = useBackend();
@@ -29,6 +33,11 @@ export default function ShelterScreen() {
   if (!user) return <Redirect href={{ pathname: "/auth/login", params: { next: "/pawfamily/refugio" } }} />;
   const status = user.shelterStatus;
 
+  const enterAsShelter = async () => {
+    await writeJSON(STORAGE_KEYS.pawfamilyRole, "shelter");
+    router.replace("/pawfamily");
+  };
+
   const send = async () => {
     const next = {
       name: name.trim() ? undefined : t("errors.required"),
@@ -38,10 +47,13 @@ export default function ShelterScreen() {
     if (next.name || next.nit) return;
     setSending(true);
     try {
-      await backend.requestShelterVerification(name, nit);
-      toast(t("pawfamily.shelterSent"));
+      await backend.verifyShelter(name, nit);
+      toast(t("pawfamily.shelterVerifiedToast", { name: name.trim() }));
+      await enterAsShelter();
     } catch (err) {
-      toast(errorMessage(err instanceof BackendError ? err.code : "unknown", t), "error");
+      const code = err instanceof BackendError ? err.code : "unknown";
+      if (code === "nit_taken") setErrors({ nit: t("pawfamily.shelterNitTaken") });
+      else toast(errorMessage(code, t), "error");
     } finally {
       setSending(false);
     }
@@ -52,19 +64,21 @@ export default function ShelterScreen() {
       <Text variant="body" tone="muted">
         {t("pawfamily.shelterIntro")}
       </Text>
-      {status ? (
-        <View className="mt-4 gap-2" testID={`shelter-${status}`}>
-          {status === "verified" ? <ShelterTag /> : null}
+      {status === "verified" ? (
+        <View className="mt-4 gap-3" testID="shelter-verified">
+          <ShelterTag />
+          <Banner icon="shield-checkmark-outline" body={t("pawfamily.shelter_verified", { name: user.shelterName ?? "" })} />
+          <Button label={t("pawfamily.shelterEnter")} onPress={() => void enterAsShelter()} testID="shelter-enter" />
+        </View>
+      ) : status === "rejected" ? (
+        <View className="mt-4" testID="shelter-rejected">
           <Banner
-            icon={
-              status === "verified" ? "shield-checkmark-outline" : status === "pending" ? "time-outline" : "alert-circle-outline"
-            }
-            tone={status === "rejected" ? "warning" : "primary"}
-            body={t(`pawfamily.shelter_${status}`, { name: user.shelterName ?? "" })}
+            icon="alert-circle-outline"
+            tone="warning"
+            body={t("pawfamily.shelter_rejected", { name: user.shelterName ?? "" })}
           />
         </View>
-      ) : null}
-      {status === "verified" || status === "pending" ? null : (
+      ) : (
         <View className="mt-4 gap-3">
           <TextField
             label={t("pawfamily.shelterName")}

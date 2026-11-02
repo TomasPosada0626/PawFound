@@ -1,11 +1,12 @@
 import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, ScrollView, View } from "react-native";
 
 import { Screen } from "@/components/layout";
-import { AdoptionCard, PawFamilyHeader, PawFamilyMark, PawFamilyWordmark } from "@/components/pawfamily";
+import { AdoptionCard, PawFamilyBrand, PawFamilyHeader, ShelterTag } from "@/components/pawfamily";
 import { Button } from "@/components/ui/Button";
-import { Banner, Checkbox, Chip, EmptyState, ListRow } from "@/components/ui/Controls";
+import { Banner, Card, Checkbox, Chip, EmptyState, ListRow } from "@/components/ui/Controls";
+import { Icon, type IconName } from "@/components/ui/Icon";
 import { Text } from "@/components/ui/Text";
 import { ADOPTION_RADII, DEFAULT_ADOPTION_FILTERS, type AdoptionFilters } from "@/domain/adoption";
 import { distanceMeters } from "@/domain/geo";
@@ -16,30 +17,179 @@ import { adoptionView } from "@/services/selectors";
 import { readJSON, STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useBackendState, useCurrentUser } from "@/store/backend";
 import { useUserLocation } from "@/store/location";
+import { useTheme } from "@/theme/ThemeProvider";
+
+export type PawFamilyRole = "person" | "shelter";
 
 /**
- * PawFamily: mascotas en adopción cerca de ti. Al entrar por primera vez hay que aceptar las
- * políticas de adopción responsable y gratuita.
+ * PawFamily: adopción responsable y gratuita. Al entrar se aceptan las políticas y se elige cómo
+ * usarla: una persona natural busca mascotas y también puede dar en adopción; un refugio,
+ * verificado con su NIT, publica sus mascotas y responde solicitudes.
  */
 export default function PawFamilyScreen() {
+  const user = useCurrentUser();
+  const [accepted, setAccepted] = useState<boolean | null>(null);
+  const [role, setRole] = useState<PawFamilyRole | null | undefined>(undefined);
+  const isShelter = user?.shelterStatus === "verified";
+
+  useEffect(() => {
+    void Promise.all([readJSON<boolean>(STORAGE_KEYS.pawfamilyTerms), readJSON<PawFamilyRole>(STORAGE_KEYS.pawfamilyRole)])
+      .then(([terms, saved]) => {
+        setAccepted(Boolean(terms));
+        setRole(saved ?? null);
+      })
+      .catch(() => {
+        setAccepted(false);
+        setRole(null);
+      });
+  }, []);
+
+  const choose = useCallback((next: PawFamilyRole | null) => {
+    setRole(next);
+    void writeJSON(STORAGE_KEYS.pawfamilyRole, next);
+  }, []);
+
+  if (accepted === null || role === undefined) return <Screen header={<PawFamilyHeader />}>{null}</Screen>;
+  if (!accepted) return <Terms onAccept={() => setAccepted(true)} />;
+  // Un refugio verificado entra directo a su panel; si perdió la verificación, vuelve a elegir.
+  const current = role ?? (isShelter ? "shelter" : null);
+  if (current === "shelter" && isShelter) return <ShelterHub onChangeRole={() => choose("person")} />;
+  if (current === "person") return <PersonHub onChangeRole={() => choose(null)} />;
+  return <RoleChoice onPerson={() => choose("person")} />;
+}
+
+/** Políticas de PawFamily: hay que aceptarlas antes de entrar. */
+function Terms({ onAccept }: { onAccept: () => void }) {
+  const { t } = useI18n();
+  const backend = useBackend();
+  const user = useCurrentUser();
+  const [checked, setChecked] = useState(false);
+  const points = ["pawfamily.termsFree", "pawfamily.termsTruth", "pawfamily.termsReport", "pawfamily.termsDecision"] as const;
+  return (
+    <Screen header={<PawFamilyHeader />} testID="pawfamily-terms">
+      <View className="items-center gap-2">
+        <PawFamilyBrand size={30} />
+        <Text variant="title" className="mt-3 text-center" accessibilityRole="header">
+          {t("pawfamily.termsTitle")}
+        </Text>
+        <Text variant="body" tone="muted" className="text-center">
+          {t("pawfamily.termsIntro")}
+        </Text>
+      </View>
+      <Card className="mt-5">
+        <View className="gap-3">
+          {points.map((key) => (
+            <View key={key} className="flex-row gap-3">
+              <Text variant="bodyStrong">•</Text>
+              <Text variant="body" className="flex-1">
+                {t(key)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </Card>
+      <View className="mt-5">
+        <Checkbox checked={checked} onChange={setChecked} label={t("pawfamily.termsAccept")} testID="pawfamily-terms-check" />
+      </View>
+      <View className="mt-4">
+        <Button
+          label={t("pawfamily.termsContinue")}
+          disabled={!checked}
+          onPress={() => {
+            void writeJSON(STORAGE_KEYS.pawfamilyTerms, true);
+            if (user) void backend.acceptAdoptionTerms().catch(() => {});
+            onAccept();
+          }}
+          testID="pawfamily-terms-accept"
+        />
+      </View>
+    </Screen>
+  );
+}
+
+/** ¿Persona natural o refugio? Define lo que se muestra al entrar. */
+function RoleChoice({ onPerson }: { onPerson: () => void }) {
+  const { t } = useI18n();
+  const requireAccount = useAuthGate();
+  return (
+    <Screen header={<PawFamilyHeader />} testID="pawfamily-role">
+      <Text variant="title" className="text-center" accessibilityRole="header">
+        {t("pawfamily.roleTitle")}
+      </Text>
+      <Text variant="body" tone="muted" className="mt-1 text-center">
+        {t("pawfamily.roleIntro")}
+      </Text>
+      <View className="mt-5 gap-3">
+        <RoleCard
+          icon="person-outline"
+          title={t("pawfamily.rolePerson")}
+          body={t("pawfamily.rolePersonBody")}
+          onPress={onPerson}
+          testID="role-person"
+        />
+        <RoleCard
+          icon="business-outline"
+          title={t("pawfamily.roleShelter")}
+          body={t("pawfamily.roleShelterBody")}
+          onPress={() => {
+            if (requireAccount("/pawfamily/refugio")) router.push("/pawfamily/refugio");
+          }}
+          testID="role-shelter"
+        />
+      </View>
+    </Screen>
+  );
+}
+
+function RoleCard({
+  icon,
+  title,
+  body,
+  onPress,
+  testID,
+}: {
+  icon: IconName;
+  title: string;
+  body: string;
+  onPress: () => void;
+  testID: string;
+}) {
+  const { colors } = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${body}`}
+      onPress={onPress}
+      className="flex-row items-center gap-4 rounded-3xl border border-border/60 bg-surface p-5 active:opacity-80"
+      testID={testID}
+    >
+      <View className="h-14 w-14 items-center justify-center rounded-2xl bg-primary-soft">
+        <Icon name={icon} size={28} color={colors.primaryStrong} />
+      </View>
+      <View className="flex-1 gap-1">
+        <Text variant="subheading">{title}</Text>
+        <Text variant="caption" tone="body">
+          {body}
+        </Text>
+      </View>
+      <Icon name="chevron-forward" size={20} color={colors.muted} />
+    </Pressable>
+  );
+}
+
+/** Persona natural: mascotas cerca para adoptar, y también puede dar en adopción. */
+function PersonHub({ onChangeRole }: { onChangeRole: () => void }) {
   const { t } = useI18n();
   const backend = useBackend();
   const state = useBackendState();
   const user = useCurrentUser();
   const requireAccount = useAuthGate();
   const { location } = useUserLocation();
-  const [accepted, setAccepted] = useState<boolean | null>(null);
   const [filters, setFilters] = useState<AdoptionFilters>(DEFAULT_ADOPTION_FILTERS);
   const [wholeCity, setWholeCity] = useState(false);
   const [city, setCity] = useState<string | null>(null);
   const [ids, setIds] = useState<string[] | null>(null);
   const profileCity = user?.city;
-
-  useEffect(() => {
-    readJSON<boolean>(STORAGE_KEYS.pawfamilyTerms)
-      .then((value) => setAccepted(Boolean(value)))
-      .catch(() => setAccepted(false));
-  }, []);
 
   useEffect(() => {
     let live = true;
@@ -53,7 +203,6 @@ export default function PawFamilyScreen() {
 
   const query = useMemo(() => ({ ...filters, city: wholeCity && city ? city : undefined }), [filters, wholeCity, city]);
   useEffect(() => {
-    if (!accepted) return;
     let live = true;
     backend
       .loadAdoptions(location, query)
@@ -66,20 +215,7 @@ export default function PawFamilyScreen() {
     return () => {
       live = false;
     };
-  }, [accepted, backend, location, query, state.adoptionVersion]);
-
-  if (accepted === null) return <Screen header={<PawFamilyHeader />}>{null}</Screen>;
-  if (!accepted) {
-    return (
-      <Terms
-        onAccept={async () => {
-          await writeJSON(STORAGE_KEYS.pawfamilyTerms, true);
-          if (user) void backend.acceptAdoptionTerms().catch(() => {});
-          setAccepted(true);
-        }}
-      />
-    );
-  }
+  }, [backend, location, query, state.adoptionVersion]);
 
   const set = <K extends keyof AdoptionFilters>(key: K, value: AdoptionFilters[K]) =>
     setFilters((f) => ({ ...f, [key]: f[key] === value ? undefined : value }));
@@ -109,19 +245,6 @@ export default function PawFamilyScreen() {
             />
           </>
         ) : null}
-      </View>
-
-      <View className="mt-3">
-        <ListRow
-          icon="shield-checkmark-outline"
-          tone="lost"
-          title={t("pawfamily.shelterQuestion")}
-          description={t("pawfamily.shelterQuestionBody")}
-          onPress={() => {
-            if (requireAccount("/pawfamily/refugio")) router.push("/pawfamily/refugio");
-          }}
-          testID="open-shelter"
-        />
       </View>
 
       <Text variant="captionStrong" className="mb-2 mt-4">
@@ -206,53 +329,103 @@ export default function PawFamilyScreen() {
           ))
         )}
       </View>
+
+      <Card className="mt-2">
+        <ListRow icon="swap-horizontal-outline" title={t("pawfamily.changeRole")} onPress={onChangeRole} testID="change-role" />
+      </Card>
     </Screen>
   );
 }
 
-/** Políticas de PawFamily: hay que aceptarlas antes de entrar. */
-function Terms({ onAccept }: { onAccept: () => Promise<void> }) {
+/** Refugio verificado: publica sus mascotas y responde las solicitudes. */
+function ShelterHub({ onChangeRole }: { onChangeRole: () => void }) {
   const { t } = useI18n();
-  const [checked, setChecked] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const points = ["pawfamily.termsFree", "pawfamily.termsTruth", "pawfamily.termsReport", "pawfamily.termsDecision"] as const;
+  const backend = useBackend();
+  const state = useBackendState();
+  const user = useCurrentUser();
+  const [ids, setIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    backend
+      .loadMyAdoptions()
+      .then((list) => {
+        if (live) setIds(list);
+      })
+      .catch(() => {
+        if (live) setIds([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [backend, state.adoptionVersion]);
+
+  const list = (ids ?? []).map((id) => adoptionView(state, id)).filter((a) => a !== undefined);
+  const pending = list.reduce((sum, a) => sum + (a.pending ?? 0), 0);
+  const adopted = list.filter((a) => a.status === "adopted").length;
+
   return (
-    <Screen header={<PawFamilyHeader />} testID="pawfamily-terms">
-      <View className="items-center gap-2">
-        <PawFamilyMark size={72} />
-        <PawFamilyWordmark size={30} />
-        <Text variant="title" className="mt-2 text-center" accessibilityRole="header">
-          {t("pawfamily.termsTitle")}
-        </Text>
-        <Text variant="body" tone="muted" className="text-center">
-          {t("pawfamily.termsIntro")}
-        </Text>
-      </View>
-      <View className="mt-5 gap-3">
-        {points.map((key) => (
-          <View key={key} className="flex-row gap-3">
-            <Text variant="bodyStrong">•</Text>
-            <Text variant="body" className="flex-1">
-              {t(key)}
-            </Text>
+    <Screen header={<PawFamilyHeader />} testID="pawfamily-shelter">
+      <Card>
+        <View className="gap-2">
+          <ShelterTag />
+          <Text variant="title" accessibilityRole="header">
+            {user?.shelterName}
+          </Text>
+          <View className="mt-1 flex-row">
+            <Stat value={list.length} label={t("pawfamily.statPosts")} />
+            <Stat value={pending} label={t("pawfamily.statPending")} />
+            <Stat value={adopted} label={t("pawfamily.statAdopted")} />
           </View>
-        ))}
-      </View>
-      <View className="mt-5">
-        <Checkbox checked={checked} onChange={setChecked} label={t("pawfamily.termsAccept")} testID="pawfamily-terms-check" />
-      </View>
-      <View className="mt-4">
+        </View>
+      </Card>
+      <View className="mt-3">
         <Button
-          label={t("pawfamily.termsContinue")}
-          disabled={!checked}
-          loading={saving}
-          onPress={() => {
-            setSaving(true);
-            void onAccept().finally(() => setSaving(false));
-          }}
-          testID="pawfamily-terms-accept"
+          icon="add"
+          label={t("pawfamily.publishShelter")}
+          onPress={() => router.push("/pawfamily/publicar")}
+          testID="shelter-publish"
         />
       </View>
+      <View className="mt-3">
+        <Banner icon="mail-outline" body={t("pawfamily.spamNote")} />
+      </View>
+      <Text variant="subheading" className="mb-2 mt-5" accessibilityRole="header">
+        {t("pawfamily.shelterPosts")}
+      </Text>
+      {ids !== null && list.length === 0 ? (
+        <EmptyState icon="paw-outline" title={t("pawfamily.shelterEmpty")} />
+      ) : (
+        list.map((adoption) => (
+          <View key={adoption.id}>
+            <AdoptionCard adoption={adoption} />
+            {adoption.pending ? (
+              <Text variant="captionStrong" tone="primary" className="-mt-2 mb-3 ml-2">
+                {t("pawfamily.pendingCount", { count: adoption.pending })}
+              </Text>
+            ) : null}
+          </View>
+        ))
+      )}
+      <Card className="mt-2">
+        <ListRow
+          icon="swap-horizontal-outline"
+          title={t("pawfamily.changeToPerson")}
+          onPress={onChangeRole}
+          testID="change-role"
+        />
+      </Card>
     </Screen>
+  );
+}
+
+function Stat({ value, label }: { value: number; label: string }) {
+  return (
+    <View className="flex-1 items-center" accessible accessibilityLabel={`${value} ${label}`}>
+      <Text variant="heading">{String(value)}</Text>
+      <Text variant="caption" className="text-center">
+        {label}
+      </Text>
+    </View>
   );
 }

@@ -8,7 +8,10 @@ import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-li
 import { STORAGE_KEYS } from "@/services/storage";
 
 const loginAs = async (userId: string) => AsyncStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userId));
-const acceptedTerms = async () => AsyncStorage.setItem(STORAGE_KEYS.pawfamilyTerms, "true");
+const acceptedTerms = async (role = "person") => {
+  await AsyncStorage.setItem(STORAGE_KEYS.pawfamilyTerms, "true");
+  await AsyncStorage.setItem(STORAGE_KEYS.pawfamilyRole, JSON.stringify(role));
+};
 
 async function open(url: string) {
   const pending = renderRouter("./app", { initialUrl: url });
@@ -22,9 +25,10 @@ beforeEach(async () => {
 });
 
 describe("entrar a PawFamily", () => {
-  it("se llega desde Inicio y primero hay que aceptar las políticas", async () => {
+  it("se llega desde Inicio, se aceptan las políticas y se elige persona natural", async () => {
     const app = await open("/");
-    await fireEvent.press(await screen.findByTestId("open-pawfamily"));
+    expect(await screen.findByText("¿Buscas un nuevo miembro para tu familia?")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("open-pawfamily"));
     expect(await screen.findByTestId("pawfamily-terms")).toBeOnTheScreen();
     expect(app.getPathname()).toBe("/pawfamily");
     expect(screen.getByText(/100 % gratuita/)).toBeOnTheScreen();
@@ -33,8 +37,25 @@ describe("entrar a PawFamily", () => {
     expect(screen.getByTestId("pawfamily-terms")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("pawfamily-terms-check"));
     await fireEvent.press(screen.getByTestId("pawfamily-terms-accept"));
+    expect(await screen.findByTestId("pawfamily-role")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("role-person"));
     expect(await screen.findByTestId("adoption-ad_canela")).toBeOnTheScreen();
     expect(await AsyncStorage.getItem(STORAGE_KEYS.pawfamilyTerms)).toBe("true");
+    // Se puede volver a elegir.
+    await fireEvent.press(screen.getByTestId("change-role"));
+    expect(await screen.findByTestId("pawfamily-role")).toBeOnTheScreen();
+  });
+
+  it("las tarjetas muestran toda la información de la mascota", async () => {
+    await acceptedTerms();
+    await open("/pawfamily");
+    const card = await screen.findByTestId("adoption-ad_canela");
+    expect(card).toHaveTextContent(/Canela/);
+    expect(card).toHaveTextContent(/Perro · Criolla/);
+    expect(card).toHaveTextContent(/Hembra/);
+    expect(card).toHaveTextContent(/Vacunas al día · Esterilizada/);
+    expect(card).toHaveTextContent(/Juguetona y muy cariñosa/);
+    expect(card).toHaveTextContent(/Fundación Huellitas/);
   });
 
   it("se puede volver a PawFound", async () => {
@@ -151,6 +172,11 @@ describe("dar en adopción", () => {
     await fireEvent.press(await screen.findByTestId("publish-send"));
     expect(await screen.findByText("Agrega al menos una foto.")).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("publish-add-photo"));
+    expect(await screen.findByText("Fotos (1 de 5). La primera es la portada.")).toBeOnTheScreen();
+    // Se puede quitar una foto y volver a agregarla.
+    await fireEvent.press(screen.getByTestId("publish-remove-photo-0"));
+    expect(await screen.findByText("Fotos (0 de 5). La primera es la portada.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("publish-add-photo"));
     await fireEvent.changeText(screen.getByTestId("publish-name"), "Nala");
     await fireEvent.press(screen.getByTestId("publish-species-cat"));
     await fireEvent.changeText(screen.getByTestId("publish-description"), "Gatica tranquila y cariñosa, ya esterilizada.");
@@ -180,11 +206,12 @@ describe("dar en adopción", () => {
 });
 
 describe("refugios", () => {
-  it("piden la verificación con un NIT válido y quedan pendientes", async () => {
+  it("un refugio se verifica al instante con un NIT válido y entra a su panel", async () => {
     await loginAs("u_valentina");
-    await acceptedTerms();
-    await open("/pawfamily");
-    await fireEvent.press(await screen.findByTestId("open-shelter"));
+    await acceptedTerms("none");
+    await AsyncStorage.removeItem(STORAGE_KEYS.pawfamilyRole);
+    const app = await open("/pawfamily");
+    await fireEvent.press(await screen.findByTestId("role-shelter"));
     expect(await screen.findByTestId("shelter-screen")).toBeOnTheScreen();
     await fireEvent.changeText(screen.getByTestId("shelter-name"), "Fundación Patitas");
     await fireEvent.changeText(screen.getByTestId("shelter-nit"), "900.123.456-1");
@@ -192,8 +219,24 @@ describe("refugios", () => {
     expect(await screen.findByText("Revisa el NIT: el dígito de verificación no coincide.")).toBeOnTheScreen();
     await fireEvent.changeText(screen.getByTestId("shelter-nit"), "900.123.456-8");
     await fireEvent.press(screen.getByTestId("shelter-send"));
-    expect(await screen.findByTestId("shelter-pending")).toBeOnTheScreen();
-    expect(screen.queryByTestId("shelter-send")).not.toBeOnTheScreen();
+    expect(await screen.findByTestId("pawfamily-shelter")).toBeOnTheScreen();
+    expect(app.getPathname()).toBe("/pawfamily");
+    expect(screen.getByText("Fundación Patitas")).toBeOnTheScreen();
+    expect(screen.getByTestId("shelter-tag")).toBeOnTheScreen();
+    expect(screen.getByText(/revisa la carpeta de spam/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("shelter-publish"));
+    await waitFor(() => expect(app.getPathname()).toBe("/pawfamily/publicar"));
+  });
+
+  it("un refugio verificado ve sus publicaciones y solicitudes", async () => {
+    await loginAs("u_daniel");
+    await acceptedTerms("shelter");
+    await open("/pawfamily");
+    expect(await screen.findByTestId("pawfamily-shelter")).toBeOnTheScreen();
+    expect(await screen.findByText("1 solicitud por responder")).toBeOnTheScreen();
+    expect(screen.getByLabelText("3 Publicadas")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("change-role"));
+    expect(await screen.findByTestId("pawfamily")).toBeOnTheScreen();
   });
 
   it("un refugio verificado se ve en sus publicaciones", async () => {

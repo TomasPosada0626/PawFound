@@ -150,6 +150,12 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
     ).length,
     protector: isAnimalProtector(state.ratingStars?.[userId] ?? []) ? 1 : 0,
     popular: (state.profileLikes[userId] ?? []).length,
+    new_member: (state.adoptionApplications ?? []).filter(
+      (a) =>
+        a.applicantId === userId &&
+        a.status === "accepted" &&
+        state.adoptions?.find((d) => d.id === a.adoptionId)?.status === "adopted",
+    ).length,
     spreader: (state.shareLog[userId] ?? []).length,
     community: state.threads.filter((t) => t.kind === "group" && t.memberIds.includes(userId) && !ownGroups.has(t.id)).length,
   };

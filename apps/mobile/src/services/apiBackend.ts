@@ -187,6 +187,7 @@ const KNOWN_CODES = new Set<ErrorCode>([
   "follow_wait",
   "adoption_terms",
   "already_applied",
+  "nit_taken",
   "invalid_credentials",
   "email_taken",
   "phone_taken",
@@ -724,13 +725,15 @@ export class ApiBackend {
     this.mergeAdoptions([await this.request<ApiAdoption>("GET", `/v1/adoptions/${id}`)]);
   }
 
-  /** Un refugio pide la verificación adicional con su NIT; queda pendiente de moderación. */
-  async requestShelterVerification(name: string, nit: string): Promise<void> {
+  /** Verifica la cuenta como refugio con su NIT: con un dígito de verificación válido queda verificada. */
+  async verifyShelter(name: string, nit: string): Promise<void> {
     await this.request("POST", "/v1/me/shelter", { name, nit });
     const me = this.state.sessionUserId;
     const user = me ? this.state.users[me] : undefined;
     if (user) {
-      this.commit({ users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "pending" } } });
+      this.commit({
+        users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "verified" } },
+      });
     }
   }
 

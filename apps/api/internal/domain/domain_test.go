@@ -140,7 +140,7 @@ func TestBadges(t *testing.T) {
 	for _, p := range progress {
 		byID[p.ID] = p
 	}
-	if len(progress) != 11 || progress[0].ID != "verified" {
+	if len(progress) != 12 || progress[0].ID != "verified" {
 		t.Fatalf("orden o cantidad: %+v", progress)
 	}
 	if r := byID["reporter"]; r.Tier != 2 || r.Next == nil || *r.Next != 10 {

@@ -24,7 +24,10 @@ const MAX_PHOTOS = 5;
 
 type Form = Omit<AdoptionInput, "location"> & { location: LatLng | null };
 
-/** Dar una mascota en adopción. La dirección es opcional y solo la ve la persona aceptada. */
+/**
+ * Dar una mascota en adopción: al menos una foto y hasta cinco. La dirección es opcional y solo la
+ * ve la persona aceptada para adoptar.
+ */
 export default function PublishAdoptionScreen() {
   const { t } = useI18n();
   const { colors } = useTheme();
@@ -52,7 +55,7 @@ export default function PublishAdoptionScreen() {
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
 
-  const addPhoto = async () => {
+  const addPhotos = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       toast(t("report.photoPermission"), "error");
@@ -64,6 +67,7 @@ export default function PublishAdoptionScreen() {
       quality: 0.7,
       exif: false,
       allowsMultipleSelection: true,
+      selectionLimit: MAX_PHOTOS - form.photos.length,
     });
     if (result.canceled) return;
     setForm((f) => ({ ...f, photos: [...f.photos, ...result.assets.map((a) => a.uri)].slice(0, MAX_PHOTOS) }));
@@ -121,20 +125,41 @@ export default function PublishAdoptionScreen() {
     <Screen header={<PawFamilyHeader back title={t("pawfamily.publishTitle")} />} testID="adoption-publish">
       <View className="gap-3">
         <Banner icon="heart-outline" body={t("pawfamily.freeBanner")} />
-        <Text variant="captionStrong">{t("pawfamily.photos")}</Text>
+        <Text variant="captionStrong">{t("pawfamily.photosCount", { count: form.photos.length, max: MAX_PHOTOS })}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-          {form.photos.map((uri) => (
-            <Image key={uri} source={{ uri }} style={{ width: 88, height: 88, borderRadius: 16 }} />
+          {form.photos.map((uri, index) => (
+            <View key={uri}>
+              <Image source={{ uri }} style={{ width: 96, height: 96, borderRadius: 16 }} />
+              {index === 0 ? (
+                <View className="absolute bottom-1 left-1 rounded-full bg-black/60 px-2 py-0.5">
+                  <Text variant="label" style={{ color: "#FFFFFF" }}>
+                    {t("pawfamily.coverPhoto")}
+                  </Text>
+                </View>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("pawfamily.removePhoto")}
+                onPress={() => setForm((f) => ({ ...f, photos: f.photos.filter((p) => p !== uri) }))}
+                className="absolute -right-1 -top-1 h-8 w-8 items-center justify-center rounded-full bg-surface shadow-sm"
+                testID={`publish-remove-photo-${index}`}
+              >
+                <Icon name="close" size={18} color={colors.ink} />
+              </Pressable>
+            </View>
           ))}
           {form.photos.length < MAX_PHOTOS ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("pawfamily.addPhoto")}
-              onPress={() => void addPhoto()}
-              className="h-[88px] w-[88px] items-center justify-center rounded-2xl border-2 border-dashed border-border active:opacity-70"
+              onPress={() => void addPhotos()}
+              className="h-24 w-24 items-center justify-center gap-1 rounded-2xl border-2 border-dashed border-border active:opacity-70"
               testID="publish-add-photo"
             >
               <Icon name="camera-outline" size={26} color={colors.muted} />
+              <Text variant="label" tone="muted">
+                {t("pawfamily.addPhoto")}
+              </Text>
             </Pressable>
           ) : null}
         </ScrollView>
@@ -214,6 +239,7 @@ export default function PublishAdoptionScreen() {
           hint={t("pawfamily.addressHint")}
           testID="publish-address"
         />
+        <Banner icon="mail-outline" body={t("pawfamily.spamNote")} />
         <Button
           label={t("pawfamily.publishSend")}
           icon="heart"
