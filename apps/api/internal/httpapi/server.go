@@ -98,6 +98,10 @@ func (s *Server) routes(r chi.Router) {
 
 	// Lectura pública: el mapa, un caso y los perfiles se ven sin sesión (los enlaces
 	// compartidos por WhatsApp abren el caso). Con sesión, se personaliza la respuesta.
+	// Solo un número, y sin consultar la base: también lo ve quien explora sin cuenta.
+	r.Get("/online", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]int{"count": s.App.Hub.Online()})
+	})
 	r.Group(func(r chi.Router) {
 		r.Use(s.optionalAuth)
 		r.Get("/pets", s.nearby)

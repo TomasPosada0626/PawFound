@@ -24,8 +24,9 @@ type Event struct {
 
 // Hub reparte eventos a las conexiones abiertas de cada cuenta.
 type Hub struct {
-	mu    sync.RWMutex
-	conns map[string]map[chan Event]struct{}
+	mu       sync.RWMutex
+	conns    map[string]map[chan Event]struct{}
+	presence *time.Timer
 }
 
 // NewHub crea un hub vacío.
@@ -41,6 +42,7 @@ func (h *Hub) subscribe(userID string) chan Event {
 		h.conns[userID] = map[chan Event]struct{}{}
 	}
 	h.conns[userID][ch] = struct{}{}
+	h.presenceChanged()
 	return ch
 }
 
@@ -54,6 +56,7 @@ func (h *Hub) unsubscribe(userID string, ch chan Event) {
 		}
 		if len(set) == 0 {
 			delete(h.conns, userID)
+			h.presenceChanged()
 		}
 	}
 }
@@ -81,6 +84,30 @@ func (h *Hub) Disconnect(userID string) {
 		close(ch)
 	}
 	delete(h.conns, userID)
+	h.presenceChanged()
+}
+
+// presenceWindow agrupa las entradas y salidas: si muchas personas abren la app a la vez, se avisa
+// una sola vez. Quien la llame debe tener el candado.
+const presenceWindow = 2 * time.Second
+
+func (h *Hub) presenceChanged() {
+	if h.presence != nil {
+		return
+	}
+	h.presence = time.AfterFunc(presenceWindow, func() {
+		h.mu.Lock()
+		h.presence = nil
+		h.mu.Unlock()
+		h.Broadcast(Event{Type: "online", Data: h.Online()})
+	})
+}
+
+// Online cuenta las personas con la app abierta ahora. Varias conexiones de una cuenta son una.
+func (h *Hub) Online() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.conns)
 }
 
 // Broadcast envía el evento a todas las conexiones abiertas, sin bloquear. Solo para datos

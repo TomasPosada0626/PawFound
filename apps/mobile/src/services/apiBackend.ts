@@ -84,6 +84,7 @@ type ApiUser = {
   createdAt: string;
   mutedUntil?: string;
   lang: Lang;
+  founder?: boolean;
 };
 type ApiSummary = {
   id: string;
@@ -138,6 +139,7 @@ function emptyState(): BackendState {
     stories: [],
     places: [],
     remoteBadges: {},
+    onlineCount: null,
     nearbyLoaded: false,
     threadsLoaded: false,
     activeSessions: 0,
@@ -176,6 +178,7 @@ export class ApiBackend {
   private codeSentAt = 0;
   private socket: WebSocket | null = null;
   private nearbyCenter: LatLng | null = null;
+  private appActive = true;
   private refreshing: Promise<RenewResult> | null = null;
   /** Token push registrado por este celular, para darlo de baja al cerrar sesión. */
   private pushToken: string | null = null;
@@ -364,6 +367,7 @@ export class ApiBackend {
       ratingSum: 0,
       ratingCount: 0,
       lang: u.lang,
+      founder: u.founder,
     };
   }
 
@@ -483,7 +487,7 @@ export class ApiBackend {
 
   /** Mensajes y notificaciones en vivo. El token va en el primer mensaje, nunca en la URL. */
   private connectRealtime() {
-    if (this.socket || !this.tokens || typeof WebSocket === "undefined") return;
+    if (this.socket || !this.tokens || !this.appActive || typeof WebSocket === "undefined") return;
     const socket = new WebSocket(`${this.baseUrl.replace(/^http/, "ws")}/v1/ws`);
     this.socket = socket;
     socket.onopen = () => socket.send(JSON.stringify({ type: "auth", token: this.tokens?.access }));
@@ -497,6 +501,7 @@ export class ApiBackend {
             this.commit({ notifications: [n, ...this.state.notifications] });
           if (!this.state.pets.some((p) => p.id === n.petId)) void this.loadPet(n.petId);
         }
+        if (data.type === "online") this.commit({ onlineCount: data.data as number });
         if (data.type === "pet") {
           const pet = data.data as ApiPet;
           if (!this.getPet(pet.id)) this.mergePets([pet]);
@@ -628,7 +633,29 @@ export class ApiBackend {
     void this.sync();
     // Por si se cortó la conexión en vivo, y para quien explora sin cuenta (no la tiene).
     if (this.nearbyCenter) void this.loadNearby(this.nearbyCenter).catch(() => {});
+    void this.loadOnline();
     return 0;
+  }
+
+  /** Cuántas personas tienen la app abierta. Sin conexión en vivo se consulta en cada ronda. */
+  private async loadOnline() {
+    try {
+      const { count } = await this.request<{ count: number }>("GET", "/v1/online");
+      this.commit({ onlineCount: count });
+    } catch {
+      // Sin red: se reintenta en la próxima ronda.
+    }
+  }
+
+  /** Solo cuenta como conectada quien tiene la app abierta: al salir se cierra la conexión en vivo. */
+  setAppActive(active: boolean): void {
+    this.appActive = active;
+    if (active) {
+      this.connectRealtime();
+      return;
+    }
+    this.socket?.close();
+    this.socket = null;
   }
 
   /** Aplica el cierre de un caso en este celular, sin esperar a la próxima sincronización. */

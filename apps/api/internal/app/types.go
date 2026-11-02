@@ -30,11 +30,12 @@ type User struct {
 	MutedUntil   *time.Time `json:"mutedUntil,omitempty" db:"muted_until"`
 	Lang         string     `json:"lang" db:"lang"`
 	Role         string     `json:"role" db:"role"`
+	Founder      bool       `json:"founder,omitempty" db:"founder"`
 	RatingSum    int        `json:"ratingSum" db:"-"`
 	RatingCount  int        `json:"ratingCount" db:"-"`
 }
 
-const userCols = `id, name, username, email, phone, email_verified, avatar, photo_id, title, bio, city, neighborhood, created_at, muted_until, lang, role`
+const userCols = `id, name, username, email, phone, email_verified, avatar, photo_id, title, bio, city, neighborhood, created_at, muted_until, lang, role, founder`
 
 // PublicUser es lo que ven las demás personas: nombre corto, nunca correo ni celular.
 type PublicUser struct {
@@ -50,11 +51,13 @@ type PublicUser struct {
 	Verified     bool      `json:"verified"`
 	CreatedAt    time.Time `json:"createdAt"`
 	Lang         string    `json:"lang"`
+	Founder      bool      `json:"founder,omitempty"`
 }
 
 func publicOf(u User) PublicUser {
 	return PublicUser{
-		ID: u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, PhotoURL: u.PhotoURL, Title: u.Title, Bio: u.Bio,
+		Founder: u.Founder,
+		ID:      u.ID, Name: shortName(u.Name), Username: u.Username, Avatar: u.Avatar, PhotoURL: u.PhotoURL, Title: u.Title, Bio: u.Bio,
 		City: u.City, Neighborhood: u.Neighborhood, Verified: u.Verified, CreatedAt: u.CreatedAt, Lang: u.Lang,
 	}
 }

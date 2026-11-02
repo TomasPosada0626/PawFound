@@ -180,3 +180,14 @@ DATABASE_URL=postgres://... RESPALDO_CLAVE=... scripts/restaurar.sh pawfound-AAA
 
 Las fotos no van en el respaldo: viven en R2. Neon también permite restaurar la base a un momento
 anterior dentro del plazo de su plan; confirmar ese plazo en su panel.
+
+## 11. Comandos de administración
+
+Se corren en el computador, contra la base de producción, con `DATABASE_URL` de Neon y las variables
+de R2 en la terminal (`ENV=development` y cualquier `JWT_SECRET` de 32 o más caracteres):
+
+- `go run ./cmd/api fundador <usuario>`: identifica la cuenta de quien creó PawFound.
+- `go run ./cmd/api limpiar-pruebas`: muestra cuánto borraría, sin borrar nada.
+- `go run ./cmd/api limpiar-pruebas --confirmar`: borra reportes, chats, notificaciones, historias, me
+  gusta y sus fotos. Conserva las cuentas, las sesiones, "Mis mascotas" y las alertas. **Es irreversible:**
+  sacar antes un respaldo con `scripts/respaldo.sh`.
