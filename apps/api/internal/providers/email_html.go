@@ -159,3 +159,16 @@ func resetHTML(brand EmailBrand, link string) (string, error) {
 		"Greeting": c.Greeting, "Intro": c.Intro, "ButtonLabel": c.ButtonLabel, "ButtonFallback": c.ButtonFallback, "Link": link,
 	})
 }
+
+// noticeHTML arma un aviso con un botón, con el mismo diseño que los demás correos.
+func noticeHTML(brand EmailBrand, n Notice) (string, error) {
+	c := resetCopy
+	c.Lang, c.Preheader, c.Safety, c.Ignore = n.Lang, n.Preheader, n.Safety, n.Ignore
+	fallback := c.ButtonFallback
+	if n.Lang == "en" {
+		fallback = "If the button doesn't work, copy this link into your browser:"
+	}
+	return render(brand, c, resetBody, map[string]string{
+		"Greeting": n.Title, "Intro": n.Intro, "ButtonLabel": n.Button, "ButtonFallback": fallback, "Link": n.Link,
+	})
+}

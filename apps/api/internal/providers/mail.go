@@ -80,6 +80,11 @@ func (m SMTPMailer) SendPasswordReset(_ context.Context, email, link string) err
 
 var errHeaderInjection = errors.New("dirección de correo inválida")
 
+// SendNotice envía el aviso en texto plano.
+func (m SMTPMailer) SendNotice(_ context.Context, email, _ string, n Notice) error {
+	return m.send(email, n.Subject, noticeText(n))
+}
+
 func (m SMTPMailer) send(to, subject, body string) error {
 	if m.Host == "" || m.From == "" {
 		return ErrDisabled

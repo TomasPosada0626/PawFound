@@ -1,6 +1,6 @@
 # Política de privacidad
 
-Última actualización: 2 de noviembre de 2026. Versión: 1.1.
+Última actualización: 2 de noviembre de 2026. Versión: 1.2.
 
 ## 1. Quién trata tus datos
 
@@ -54,6 +54,10 @@ Decreto 1377 de 2013 y demás normas concordantes. Contacto:
   únicamente para ti. Tu ciudad, tu barrio y tu ubicación no se muestran en tu perfil, y tus
   mascotas guardadas (fotos, raza, edad, tamaño, color y descripción, sin las señas particulares) solo
   las ven las personas que te siguen.
+- **PawFamily (adopción)**: lo que publicas para dar una mascota en adopción (fotos, datos, zona y, si
+  quieres, la dirección) y lo que envías para adoptar: tu nombre, cuántas personas viven contigo, tu barrio
+  y ciudad, si has tenido mascotas y cuántas, y por qué quieres adoptar. La solicitud solo la ve quien
+  publicó, y la dirección solo quien publicó y la persona aceptada para adoptar.
 - **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push y
   registros técnicos del servidor, sin el contenido de tus mensajes ni tus datos de cuenta.
 - **Consentimientos**: registro de qué autorizaste o retiraste, cuándo y con qué versión de

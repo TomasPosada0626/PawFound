@@ -41,6 +41,14 @@ func TestBrevoMailer(t *testing.T) {
 	if err := m.SendPasswordReset(ctx, "ana@x.co", "https://x/reset"); err != nil {
 		t.Fatal(err)
 	}
+	for _, lang := range []string{"es", "en"} {
+		if err := m.SendNotice(ctx, "ana@x.co", "Ana", AdoptionRequestNotice("Luna", "https://x", lang)); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(got["subject"].(string), "Luna") || !strings.Contains(got["htmlContent"].(string), "https://x") {
+			t.Fatalf("aviso %s = %v", lang, got)
+		}
+	}
 
 	failing := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)

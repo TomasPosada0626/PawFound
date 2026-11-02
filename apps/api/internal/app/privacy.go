@@ -226,7 +226,7 @@ type UploadedMedia struct {
 // cuenta verificada, como publicar.
 func (a *App) Upload(ctx context.Context, ac Actor, purpose string, raw []byte) (UploadedMedia, error) {
 	switch purpose {
-	case "pet", "chat", "story", "avatar":
+	case "pet", "chat", "story", "avatar", "adoption":
 		if err := requireVerified(ac); err != nil {
 			return UploadedMedia{}, err
 		}

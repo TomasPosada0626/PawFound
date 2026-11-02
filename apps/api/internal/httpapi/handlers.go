@@ -560,3 +560,88 @@ func (s *Server) media(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cross-Origin-Resource-Policy", "cross-origin")
 	_, _ = io.Copy(w, f)
 }
+
+// --- PawFamily -------------------------------------------------------------
+
+func (s *Server) adoptions(w http.ResponseWriter, r *http.Request) {
+	lat, ok1 := floatParam(r, "lat")
+	lng, ok2 := floatParam(r, "lng")
+	if !ok1 || !ok2 {
+		writeError(w, &app.Error{Code: "invalid_input", Status: http.StatusBadRequest, Params: map[string]any{"field": "location"}})
+		return
+	}
+	q := r.URL.Query()
+	radius, _ := strconv.Atoi(q.Get("radius"))
+	list, err := s.App.SearchAdoptions(r.Context(), viewerID(r), app.AdoptionQuery{
+		Center: geo.Point{Lat: lat, Lng: lng}, Radius: radius, City: q.Get("city"), Species: q.Get("species"),
+		Size: q.Get("size"), Age: q.Get("age"), Sex: q.Get("sex"),
+	})
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) adoption(w http.ResponseWriter, r *http.Request) {
+	ad, err := s.App.GetAdoption(r.Context(), viewerID(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, ad, err)
+}
+
+func (s *Server) acceptAdoptionTerms(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.AcceptAdoptionTerms(r.Context(), actor(r)))
+}
+
+func (s *Server) createAdoption(w http.ResponseWriter, r *http.Request) {
+	var in app.AdoptionInput
+	if !decode(w, r, &in) {
+		return
+	}
+	ad, err := s.App.CreateAdoption(r.Context(), actor(r), in)
+	respond(w, http.StatusCreated, ad, err)
+}
+
+func (s *Server) myAdoptions(w http.ResponseWriter, r *http.Request) {
+	list, err := s.App.MyAdoptions(r.Context(), actor(r))
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) myApplications(w http.ResponseWriter, r *http.Request) {
+	list, err := s.App.MyApplications(r.Context(), actor(r))
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) markAdopted(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.MarkAdopted(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
+
+func (s *Server) withdrawAdoption(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.WithdrawAdoption(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
+
+func (s *Server) adoptionApplications(w http.ResponseWriter, r *http.Request) {
+	list, err := s.App.AdoptionApplications(r.Context(), actor(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
+	var in app.ApplicationInput
+	if !decode(w, r, &in) {
+		return
+	}
+	application, err := s.App.Apply(r.Context(), actor(r), chi.URLParam(r, "id"), in)
+	respond(w, http.StatusCreated, application, err)
+}
+
+func (s *Server) reportAdoption(w http.ResponseWriter, r *http.Request) {
+	var in app.AdoptionReportInput
+	if !decode(w, r, &in) {
+		return
+	}
+	respond(w, 0, nil, s.App.ReportAdoption(r.Context(), actor(r), chi.URLParam(r, "id"), in))
+}
+
+func (s *Server) acceptApplication(w http.ResponseWriter, r *http.Request) {
+	threadID, err := s.App.AcceptApplication(r.Context(), actor(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, map[string]string{"threadId": threadID}, err)
+}
+
+func (s *Server) declineApplication(w http.ResponseWriter, r *http.Request) {
+	respond(w, 0, nil, s.App.DeclineApplication(r.Context(), actor(r), chi.URLParam(r, "id")))
+}
