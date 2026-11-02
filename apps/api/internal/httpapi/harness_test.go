@@ -75,8 +75,8 @@ func (p *fakePush) all() []providers.PushMessage {
 }
 
 type fakeMailer struct {
-	links []string
-	codes map[string]string
+	links   []string
+	codes   map[string]string
 	notices []string
 }
 

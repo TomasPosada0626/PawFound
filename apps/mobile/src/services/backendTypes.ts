@@ -1,3 +1,4 @@
+import type { Adoption, AdoptionApplication } from "@/domain/adoption";
 import type { BadgeProgress } from "@/domain/badges";
 import type {
   AgeRange,
@@ -45,6 +46,9 @@ export type ErrorCode =
   | "storage_unavailable"
   | "invalid_image"
   | "follow_wait"
+  | "adoption_terms"
+  | "already_applied"
+  | "nit_taken"
   | "network"
   | "unknown";
 
@@ -120,6 +124,12 @@ export type BackendState = {
   follows: FollowEdge[];
   /** Solo en demostración: estrellas recibidas, de la más reciente a la más antigua. */
   ratingStars: Record<string, number[]>;
+  /** PawFamily: publicaciones cargadas (lista, propias y de las solicitudes). */
+  adoptions: Adoption[];
+  /** PawFamily: solicitudes propias y las recibidas en publicaciones propias. */
+  adoptionApplications: AdoptionApplication[];
+  /** Sube cuando llega un aviso de PawFamily en vivo, para volver a cargar las listas. */
+  adoptionVersion: number;
   /** Ya llegó la primera carga de mascotas cercanas (mientras tanto se muestran esqueletos). */
   /** Personas con la app abierta ahora; null hasta saberlo. */
   onlineCount: number | null;

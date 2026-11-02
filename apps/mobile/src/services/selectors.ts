@@ -3,6 +3,7 @@ import { distanceMeters } from "@/domain/geo";
 import { isAnimalProtector, ratingAverage } from "@/domain/rating";
 import type { AppNotification, LatLng, Message, OwnedPet, PetCase, Species, StoryItem, Thread, User } from "@/domain/types";
 
+import type { Adoption } from "@/domain/adoption";
 import type { BackendState, FollowInfo, Network, RatingInfo } from "./backendTypes";
 
 /** Quita tildes sin depender de String.normalize (soporte parcial en Hermes). */
@@ -149,6 +150,12 @@ export function badgeFacts(state: BackendState, userId: string): BadgeFacts {
     ).length,
     protector: isAnimalProtector(state.ratingStars?.[userId] ?? []) ? 1 : 0,
     popular: (state.profileLikes[userId] ?? []).length,
+    new_member: (state.adoptionApplications ?? []).filter(
+      (a) =>
+        a.applicantId === userId &&
+        a.status === "accepted" &&
+        state.adoptions?.find((d) => d.id === a.adoptionId)?.status === "adopted",
+    ).length,
     spreader: (state.shareLog[userId] ?? []).length,
     community: state.threads.filter((t) => t.kind === "group" && t.memberIds.includes(userId) && !ownGroups.has(t.id)).length,
   };
@@ -250,4 +257,27 @@ export function storySlides(pet: PetCase, stories: StoryItem[]): StorySlide[] {
 
 export function storySlideIds(pet: PetCase, items: StoryItem[]): string[] {
   return storySlides(pet, items).map((s) => s.id);
+}
+
+/**
+ * Una publicación de PawFamily vista por la cuenta actual: la dirección solo para quien publicó o
+ * para quien fue aceptado, y las solicitudes por responder solo para quien publicó.
+ */
+export function adoptionView(state: BackendState, id: string): Adoption | undefined {
+  const adoption = state.adoptions?.find((a) => a.id === id);
+  if (!adoption) return undefined;
+  const me = state.sessionUserId;
+  const applications = (state.adoptionApplications ?? []).filter((a) => a.adoptionId === id);
+  const mine = applications.find((a) => a.applicantId === me)?.status ?? adoption.myApplication;
+  const isOwner = adoption.ownerId === me;
+  return {
+    ...adoption,
+    address: isOwner || mine === "accepted" ? adoption.address : undefined,
+    myApplication: mine,
+    pending: isOwner
+      ? applications.length
+        ? applications.filter((a) => a.status === "pending").length
+        : (adoption.pending ?? 0)
+      : undefined,
+  };
 }

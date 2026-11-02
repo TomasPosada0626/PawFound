@@ -263,7 +263,7 @@ type ModerationInput struct {
 var moderationActions = map[string]bool{
 	"dismiss": true, "warn": true, "mute": true, "unmute": true, "remove_message": true, "restore_message": true,
 	"remove_pet": true, "restore_pet": true, "suspend": true, "unsuspend": true, "remove_photo": true,
-	"remove_adoption": true, "restore_adoption": true,
+	"remove_adoption": true, "restore_adoption": true, "verify_shelter": true, "reject_shelter": true,
 }
 
 // Moderate aplica una decisión, la registra y resuelve el reporte asociado.
@@ -320,10 +320,12 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 			}
 		}
 	}
-	var removedPhoto string
+	var removedPhoto, shelter string
 	err := a.withTx(ctx, func(tx pgx.Tx) error {
 		var err error
 		switch in.Action {
+		case "verify_shelter", "reject_shelter":
+			shelter, err = decideShelter(ctx, tx, in.UserID, in.Action == "verify_shelter")
 		case "remove_photo":
 			// La foto vuelve al avatar; el archivo se borra después de guardar la decisión.
 			err = tx.QueryRow(ctx, `UPDATE users u SET photo_id = NULL FROM (SELECT id, photo_id FROM users WHERE id = $1 FOR UPDATE) old
@@ -394,6 +396,13 @@ func (a *App) Moderate(ctx context.Context, mod Actor, in ModerationInput) error
 	})
 	if err == nil && in.Action == "suspend" {
 		a.Hub.Disconnect(in.UserID)
+	}
+	if err == nil && shelter != "" {
+		kind := "shelter_rejected"
+		if in.Action == "verify_shelter" {
+			kind = "shelter_verified"
+		}
+		a.background(func(ctx context.Context) { a.pushAdoption(ctx, in.UserID, kind, shelter, "/pawfamily/refugio") })
 	}
 	if err == nil && removedPhoto != "" {
 		a.deleteMedia(ctx, removedPhoto)

@@ -133,6 +133,7 @@ func (s *Server) routes(r chi.Router) {
 		r.Get("/me/export", s.export)
 		r.Get("/me/network", s.myNetwork)
 		r.Post("/me/adoption-terms", s.acceptAdoptionTerms)
+		r.Post("/me/shelter", s.requestShelter)
 		r.Get("/me/adoptions", s.myAdoptions)
 		r.Get("/me/adoption-applications", s.myApplications)
 		r.Post("/adoptions", s.createAdoption)

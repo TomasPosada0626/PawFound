@@ -91,7 +91,10 @@ func TestEveryOperationFailsCleanlyWithoutDatabase(t *testing.T) {
 		"Terms":    func() error { return a.AcceptAdoptionTerms(ctx, ac) },
 		"Adopt":    func() error { _, err := a.CreateAdoption(ctx, ac, app.AdoptionInput{}); return err },
 		"GetAd":    func() error { _, err := a.GetAdoption(ctx, "", "p"); return err },
-		"SearchAd": func() error { _, err := a.SearchAdoptions(ctx, "", app.AdoptionQuery{Center: geo.Point{Lat: 6, Lng: -75}}); return err },
+		"SearchAd": func() error {
+			_, err := a.SearchAdoptions(ctx, "", app.AdoptionQuery{Center: geo.Point{Lat: 6, Lng: -75}})
+			return err
+		},
 		"MyAds":    func() error { _, err := a.MyAdoptions(ctx, ac); return err },
 		"MyApps":   func() error { _, err := a.MyApplications(ctx, ac); return err },
 		"AdApps":   func() error { _, err := a.AdoptionApplications(ctx, ac, "p"); return err },

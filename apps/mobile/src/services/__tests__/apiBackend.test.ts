@@ -960,6 +960,128 @@ describe("perfil y preferencias", () => {
     expect(backend.getSnapshot().profileLikes.u_carlos).not.toContain("u_ana");
   });
 
+  it("PawFamily: busca, publica, se postula y responde solicitudes", async () => {
+    const backend = await loggedIn();
+    const owner = {
+      id: "u_o",
+      shortName: "Refugio",
+      avatar: "dog",
+      verified: true,
+      createdAt: "2026-01-01T00:00:00Z",
+      lang: "es",
+    };
+    const adoption = (over: object = {}) => ({
+      id: "ad_1",
+      owner,
+      name: "Canela",
+      species: "dog",
+      sex: "female",
+      age: "young",
+      size: "medium",
+      description: "Juguetona",
+      vaccinated: true,
+      sterilized: true,
+      photos: ["https://x/c.jpg"],
+      location: { latitude: 6.24, longitude: -75.59 },
+      zone: "Laureles, Medellín",
+      status: "available",
+      createdAt: "2026-11-01T00:00:00Z",
+      ...over,
+    });
+    route("GET /v1/adoptions?lat=6.2&lng=-75.5&radius=5000&city=Medell%C3%ADn&species=dog&sex=female", {
+      status: 200,
+      body: [adoption()],
+    });
+    await expect(
+      backend.loadAdoptions(
+        { latitude: 6.2, longitude: -75.5 },
+        { radiusKm: 5, city: "Medellín", species: "dog", sex: "female" },
+      ),
+    ).resolves.toEqual(["ad_1"]);
+    expect(backend.getSnapshot().adoptions[0]).toMatchObject({ id: "ad_1", ownerId: "u_o", name: "Canela" });
+    expect(backend.getSnapshot().users.u_o?.name).toBe("Refugio");
+
+    route("POST /v1/me/adoption-terms", { status: 204 });
+    await backend.acceptAdoptionTerms();
+    route("POST /v1/me/shelter", { status: 204 });
+    await backend.verifyShelter("Fundación Patitas", "900.123.456-8");
+    expect(backend.getSnapshot().users.u_ana).toMatchObject({ shelterName: "Fundación Patitas", shelterStatus: "verified" });
+    expect(called("POST /v1/me/shelter")[0]?.body).toEqual({ name: "Fundación Patitas", nit: "900.123.456-8" });
+    route("POST /v1/adoptions", { status: 201, body: adoption({ id: "ad_2", owner: { ...owner, id: "u_ana" } }) });
+    await expect(
+      backend.createAdoption({
+        name: "Canela",
+        species: "dog",
+        sex: "female",
+        age: "young",
+        size: "medium",
+        description: "Juguetona",
+        vaccinated: true,
+        sterilized: true,
+        photos: ["https://x/c.jpg"],
+        location: { latitude: 6.24, longitude: -75.59 },
+        zone: "Laureles, Medellín",
+      }),
+    ).resolves.toBe("ad_2");
+    expect(called("POST /v1/adoptions")[0]?.body).toMatchObject({ photos: ["https://x/c.jpg"], name: "Canela" });
+
+    route("GET /v1/me/adoptions", { status: 200, body: [adoption({ id: "ad_2", pending: 1 })] });
+    await expect(backend.loadMyAdoptions()).resolves.toEqual(["ad_2"]);
+
+    const applicant = { ...owner, id: "u_c", shortName: "Camila" };
+    const application = (over: object = {}) => ({
+      id: "ap_1",
+      adoptionId: "ad_1",
+      applicant,
+      fullName: "Camila",
+      household: 3,
+      neighborhood: "Laureles",
+      city: "Medellín",
+      hadPets: false,
+      petsCount: 0,
+      reason: "Tenemos patio y mucho tiempo.",
+      status: "pending",
+      createdAt: "2026-11-01T00:00:00Z",
+      ...over,
+    });
+    route("POST /v1/adoptions/ad_1/apply", {
+      status: 201,
+      body: application({ adoption: adoption({ myApplication: "pending" }) }),
+    });
+    route("GET /v1/adoptions/ad_1", { status: 200, body: adoption({ myApplication: "pending" }) });
+    await backend.applyToAdoption("ad_1", {
+      fullName: "Camila",
+      household: 3,
+      neighborhood: "Laureles",
+      city: "Medellín",
+      hadPets: false,
+      petsCount: 0,
+      reason: "Tenemos patio y mucho tiempo.",
+    });
+    expect(backend.getSnapshot().adoptionApplications[0]).toMatchObject({ id: "ap_1", applicantId: "u_c", status: "pending" });
+
+    route("GET /v1/me/adoption-applications", { status: 200, body: [application({ status: "accepted", threadId: "dm_9" })] });
+    await backend.loadMyApplications();
+    expect(backend.getSnapshot().adoptionApplications[0]).toMatchObject({ status: "accepted", threadId: "dm_9" });
+
+    route("GET /v1/adoptions/ad_1/applications", { status: 200, body: [application()] });
+    route("POST /v1/adoption-applications/ap_1/accept", { status: 200, body: { threadId: "dm_9" } });
+    route("GET /v1/threads/dm_9", { status: 404, body: { error: { code: "not_found" } } });
+    await expect(backend.acceptApplication("ap_1")).resolves.toBe("dm_9");
+    route("POST /v1/adoption-applications/ap_1/decline", { status: 204 });
+    await backend.declineApplication("ap_1");
+    expect(backend.getSnapshot().adoptionApplications.find((a) => a.id === "ap_1")?.status).toBe("declined");
+
+    route("POST /v1/adoptions/ad_1/adopted", { status: 204 });
+    await backend.markAdopted("ad_1");
+    route("POST /v1/adoptions/ad_1/report", { status: 204 });
+    await backend.reportAdoption("ad_1", "money", "Pide dinero");
+    expect(called("POST /v1/adoptions/ad_1/report")[0]?.body).toEqual({ reason: "money", note: "Pide dinero" });
+    route("DELETE /v1/adoptions/ad_2", { status: 204 });
+    await backend.withdrawAdoption("ad_2");
+    expect(backend.getSnapshot().adoptions.some((a) => a.id === "ad_2")).toBe(false);
+  });
+
   it("busca personas, y la red trae las listas propias con su nombre de usuario", async () => {
     const backend = await loggedIn();
     const person = (id: string, username: string) => ({

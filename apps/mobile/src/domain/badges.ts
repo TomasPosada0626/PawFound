@@ -21,7 +21,8 @@ export type BadgeId =
   | "reunion"
   | "spreader"
   | "community"
-  | "popular";
+  | "popular"
+  | "new_member";
 
 export type BadgeCategory = "identity" | "help" | "reunions" | "community";
 
@@ -44,6 +45,8 @@ export const BADGE_RULES: Record<BadgeId, BadgeRule> = {
   spreader: { category: "community", thresholds: [1, 10, 50] },
   community: { category: "community", thresholds: [3, 10, 25] },
   popular: { category: "community", thresholds: [50, 100, 250, 500, 1000] },
+  // Adoptó una mascota en PawFamily.
+  new_member: { category: "reunions", thresholds: [1] },
 };
 
 /** Orden de presentación: identidad, ayuda directa, reencuentros, comunidad. */

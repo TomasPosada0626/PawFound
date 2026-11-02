@@ -489,6 +489,16 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     expect(userBadgeProgress(state, "u_daniel").find((b) => b.id === "protector")?.tier).toBe(0);
   });
 
+  it("adoptar en PawFamily da la insignia «Nuevo integrante»", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_maria");
+    expect(userBadgeProgress(backend.getSnapshot(), "u_maria").find((b) => b.id === "new_member")?.tier).toBe(0);
+    await signInAs(backend, "u_daniel");
+    await backend.acceptApplication("ap_maria_canela");
+    await backend.markAdopted("ad_canela");
+    expect(userBadgeProgress(backend.getSnapshot(), "u_maria").find((b) => b.id === "new_member")?.tier).toBe(1);
+  });
+
   it("estadísticas, insignias y actividad salen de datos reales", () => {
     const backend = makeBackend();
     const state = backend.getSnapshot();

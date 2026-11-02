@@ -140,7 +140,7 @@ func TestBadges(t *testing.T) {
 	for _, p := range progress {
 		byID[p.ID] = p
 	}
-	if len(progress) != 11 || progress[0].ID != "verified" {
+	if len(progress) != 12 || progress[0].ID != "verified" {
 		t.Fatalf("orden o cantidad: %+v", progress)
 	}
 	if r := byID["reporter"]; r.Tier != 2 || r.Next == nil || *r.Next != 10 {
@@ -293,5 +293,18 @@ func TestOwnedMatchesSharedFixture(t *testing.T) {
 	}
 	if _, ok := MatchOwned(Case{Kind: "lost", State: "active", Species: "dog"}, OwnedPet{Species: "dog"}); ok {
 		t.Error("un reporte de perdida nunca es coincidencia de una mascota propia")
+	}
+}
+
+func TestNIT(t *testing.T) {
+	for raw, want := range map[string]string{"900123456-8": "900123456-8", "900.123.456-8": "900123456-8", "9001234568": "900123456-8", " 860.034.313-7 ": "860034313-7"} {
+		if got, ok := NormalizeNIT(raw); !ok || got != want {
+			t.Errorf("%q = %q %v", raw, got, ok)
+		}
+	}
+	for _, raw := range []string{"900123456-1", "abc", "12", "9001234568x", ""} {
+		if _, ok := NormalizeNIT(raw); ok {
+			t.Errorf("%q debería ser inválido", raw)
+		}
 	}
 }
