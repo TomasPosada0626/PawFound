@@ -324,9 +324,25 @@ func (a *App) rotateWithin(ctx context.Context, userID, family string) (Session,
 
 // Logout revoca la familia del refresh token (cierra esa sesión en ese dispositivo).
 func (a *App) Logout(ctx context.Context, token string) error {
-	_, err := a.DB.Exec(ctx, `UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2)
-		WHERE family = (SELECT family FROM refresh_tokens WHERE token_hash = $1)`, auth.HashToken(token), a.now())
-	return err
+	now := a.now()
+	return a.withTx(ctx, func(tx pgx.Tx) error {
+		var userID string
+		err := tx.QueryRow(ctx, `UPDATE refresh_tokens SET revoked_at = coalesce(revoked_at, $2)
+			WHERE family = (SELECT family FROM refresh_tokens WHERE token_hash = $1) RETURNING user_id`, auth.HashToken(token), now).Scan(&userID)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		// Las alertas siguen mientras haya una sesión abierta; con la última cerrada, la ubicación se borra.
+		tag, err := tx.Exec(ctx, `DELETE FROM alert_zones WHERE user_id = $1 AND NOT EXISTS (
+			SELECT 1 FROM refresh_tokens r WHERE r.user_id = $1 AND r.revoked_at IS NULL AND r.expires_at > $2)`, userID, now)
+		if err != nil || tag.RowsAffected() == 0 {
+			return err
+		}
+		return recordConsent(ctx, tx, userID, "location", false, now)
+	})
 }
 
 // --- Verificación del correo ----------------------------------------------

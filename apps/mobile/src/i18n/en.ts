@@ -1000,7 +1000,7 @@ export const en: Translations = {
     liveEnabled: "Done: we\’ll alert you about lost pets near wherever you are.",
     liveDisabled: "Turned off. We deleted your last location and you won\’t get Angel Alerts.",
     livePrivacy:
-      "We only keep your last approximate point (250 m), with no route history. It is deleted if not updated in 24 hours and is never shown to anyone.",
+      "We only keep your last approximate point (250 m), with no route history. It is deleted when you log out or if not updated in 30 days, and is never shown to anyone.",
     disclosureTitle: "Your location for Angel Alerts",
     disclosureBody:
       "PawFound uses your approximate location, also when the app is closed or not in use, only to alert you when a pet goes missing near you. We keep only your last point, approximated to 250 m, with no history, and it is never shown to other people. You can turn it off anytime.",

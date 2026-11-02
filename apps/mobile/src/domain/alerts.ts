@@ -19,8 +19,8 @@ export const MAX_ALERTS_PER_DAY = 5;
 /** A menos de esta distancia del reporte llega de inmediato, aunque el círculo sea menor. */
 export const ALERT_MIN_RADIUS = 250;
 
-/** Una ubicación sin actualizar en este tiempo deja de usarse (no se avisa por un lugar viejo). */
-export const ALERT_LOCATION_TTL_H = 24;
+/** Una ubicación sin actualizar en este tiempo deja de usarse. Es largo: quieta o con la app cerrada no llegan puntos nuevos. */
+export const ALERT_LOCATION_TTL_H = 30 * 24;
 
 export type AlertCandidate = {
   userId: string;
