@@ -98,15 +98,16 @@ func adminHeaders(next http.Handler) http.Handler {
 
 var reasonLabels = map[string]string{
 	"spam": "Spam", "rude": "Groserías o acoso", "scam": "Estafa o fraude",
-	"inappropriate": "Contenido inapropiado", "other": "Otro motivo",
+	"inappropriate": "Contenido inapropiado", "other": "Otro motivo", "money": "Pide dinero por adoptar",
 }
 
-var targetLabels = map[string]string{"user": "Persona", "message": "Mensaje", "pet": "Publicación"}
+var targetLabels = map[string]string{"user": "Persona", "message": "Mensaje", "pet": "Publicación", "adoption": "Adopción"}
 
 var actionLabels = map[string]string{
 	"dismiss": "Descartó el reporte", "warn": "Envió un aviso", "mute": "Restringió los mensajes",
 	"unmute": "Levantó la restricción", "remove_message": "Retiró un mensaje", "restore_message": "Restauró un mensaje",
-	"remove_pet": "Retiró una publicación", "restore_pet": "Restauró una publicación", "suspend": "Suspendió la cuenta",
+	"remove_pet": "Retiró una publicación", "restore_pet": "Restauró una publicación",
+	"remove_adoption": "Retiró una adopción", "restore_adoption": "Restauró una adopción", "suspend": "Suspendió la cuenta",
 	"unsuspend": "Reactivó la cuenta", "remove_photo": "Quitó la foto de perfil",
 }
 
@@ -144,7 +145,7 @@ var funcs = template.FuncMap{
 	},
 	"decide": func(d app.ReportDetail, csrf string) decideView {
 		v := decideView{
-			Suggest: d.Suggest, HasMessage: d.Message != nil, HasPet: d.Pet != nil, IsReport: true, CSRF: csrf,
+			Suggest: d.Suggest, HasMessage: d.Message != nil, HasPet: d.Pet != nil, HasAdoption: d.Adoption != nil, IsReport: true, CSRF: csrf,
 			Action: "/admin/reports/" + d.Item.ID,
 		}
 		if d.Reported != nil {
@@ -183,15 +184,16 @@ var funcs = template.FuncMap{
 
 // decideView alimenta el formulario de decisión (templates/actions.html).
 type decideView struct {
-	Suggest    string
-	HasMessage bool
-	HasPet     bool
-	HasPhoto   bool
-	IsReport   bool
-	Muted      bool
-	Suspended  bool
-	CSRF       string
-	Action     string
+	Suggest     string
+	HasMessage  bool
+	HasPet      bool
+	HasAdoption bool
+	HasPhoto    bool
+	IsReport    bool
+	Muted       bool
+	Suspended   bool
+	CSRF        string
+	Action      string
 }
 
 func label(m map[string]string, key string) string {

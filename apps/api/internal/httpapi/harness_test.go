@@ -77,6 +77,7 @@ func (p *fakePush) all() []providers.PushMessage {
 type fakeMailer struct {
 	links []string
 	codes map[string]string
+	notices []string
 }
 
 func (m *fakeMailer) SendVerificationCode(_ context.Context, email, _, code, _ string) error {
@@ -84,6 +85,11 @@ func (m *fakeMailer) SendVerificationCode(_ context.Context, email, _, code, _ s
 		m.codes = map[string]string{}
 	}
 	m.codes[email] = code
+	return nil
+}
+
+func (m *fakeMailer) SendNotice(_ context.Context, email, _ string, n providers.Notice) error {
+	m.notices = append(m.notices, email+": "+n.Subject)
 	return nil
 }
 
