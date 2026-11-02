@@ -3,6 +3,7 @@ import { View } from "react-native";
 
 import { shortName } from "@/domain/privacy";
 import type { PetCase } from "@/domain/types";
+import { petSentence } from "@/features/petNames";
 import { useI18n } from "@/i18n/I18nProvider";
 import { MAX_HELPERS } from "@/services/mockBackend";
 import { reunionHelperCandidates, type HelperCandidate } from "@/services/selectors";
@@ -21,14 +22,12 @@ import { Text } from "./ui/Text";
  */
 export function ReunionSheet({
   pet,
-  name,
   visible,
   loading,
   onConfirm,
   onCancel,
 }: {
   pet: PetCase;
-  name: string;
   visible: boolean;
   loading?: boolean;
   onConfirm: (helperIds: string[]) => void;
@@ -60,7 +59,7 @@ export function ReunionSheet({
     setSelected((prev) => (next ? [...prev, userId].slice(0, MAX_HELPERS) : prev.filter((id) => id !== userId)));
 
   return (
-    <Sheet visible={visible} onClose={onCancel} title={t("pet.reuniteConfirmTitle", { name })} testID="reunion-sheet">
+    <Sheet visible={visible} onClose={onCancel} title={petSentence(t, "pet.reuniteConfirmTitle", pet)} testID="reunion-sheet">
       <Text variant="body" className="mb-4">
         {t("pet.reuniteConfirmBody")}
       </Text>
@@ -69,7 +68,7 @@ export function ReunionSheet({
           <View className="flex-row items-center gap-3">
             <BadgeHex id="paw_angel" tier={1} size={48} />
             <View className="flex-1">
-              <Text variant="bodyStrong">{t("pet.thankTitle", { name })}</Text>
+              <Text variant="bodyStrong">{pet.name ? t("pet.thankTitle", { name: pet.name }) : t("pet.thankTitleUnnamed")}</Text>
               <Text variant="caption">{t("pet.thankBody")}</Text>
             </View>
           </View>

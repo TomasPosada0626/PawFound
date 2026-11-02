@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
 
 import { isQuietTime } from "@/domain/alerts";
-import { notificationUrl } from "@/features/notifications";
+import { notificationTexts, notificationUrl } from "@/features/notifications";
 import { useI18n } from "@/i18n/I18nProvider";
 import { currentPoint, setAlertLocationSink, syncAlertLocation } from "@/services/alertLocation";
 import {
@@ -16,8 +16,6 @@ import {
   safeNotificationUrl,
 } from "@/services/pushNotifications";
 import { useBackend, useBackendState } from "@/store/backend";
-
-import { petDisplayName } from "./pets";
 
 const JOBS_INTERVAL_MS = 60_000;
 
@@ -129,10 +127,8 @@ export function BackgroundServices() {
         const pet = state.pets.find((p) => p.id === n.petId);
         if (!pet) continue;
         const owned = n.ownedPetId ? state.ownedPets.find((p) => p.id === n.ownedPetId) : undefined;
-        const name = owned?.name ?? petDisplayName(pet, t);
         void presentLocal({
-          title: t(`notifications.${n.kind}`, { name }),
-          body: t(`notifications.body_${n.kind}`, { name }),
+          ...notificationTexts(n, pet, owned?.name, t),
           url: notificationUrl(n),
           channel: n.kind === "angel_alert" || n.kind === "life_circle" ? CHANNELS.angel : CHANNELS.updates,
           silent,

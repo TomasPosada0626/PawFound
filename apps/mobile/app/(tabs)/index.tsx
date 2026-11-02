@@ -8,7 +8,7 @@ import { AlertsOffBanner } from "@/components/AlertsOffBanner";
 import { HomeMenu } from "@/components/HomeMenu";
 import { AppHeader, Screen } from "@/components/layout";
 import { NotificationRow } from "@/components/notifications";
-import { PetCard, PetPhoto, UserAvatar } from "@/components/pets";
+import { PetCard, PetPhoto, petDisplayName, UserAvatar } from "@/components/pets";
 import { Card, EmptyState, SectionHeader } from "@/components/ui/Controls";
 import { PetCardSkeleton } from "@/components/ui/Skeleton";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -264,7 +264,7 @@ export default function HomeScreen() {
                   <Icon name="share-social" size={22} color={colors.primaryStrong} />
                 </View>
                 <Text variant="body" className="flex-1">
-                  {t("home.activityShared", { name: mostShared.name ?? t("common.unnamed"), count: mostShared.shareCount })}
+                  {t("home.activityShared", { name: petDisplayName(mostShared, t), count: mostShared.shareCount })}
                 </Text>
                 <Icon name="chevron-forward" size={18} color={colors.muted} />
               </Pressable>

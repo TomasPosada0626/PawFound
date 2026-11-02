@@ -7,6 +7,7 @@ import { AccessibilityInfo, Animated, Easing, Pressable, TextInput, View } from 
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { petDisplayName } from "@/components/pets";
+import { petSentence } from "@/features/petNames";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { IconButton } from "@/components/ui/IconButton";
@@ -264,7 +265,7 @@ function SlideContent({ slide, pet, name, locale }: { slide: StorySlide; pet: Pe
             {`${pet.kind === "lost" ? t("stories.infoLost", { zone: pet.zone }) : t("stories.infoFound", { zone: pet.zone })} · ${shortDate(new Date(pet.lastSeenAt), locale as "es")}`}
           </Text>
           <Text variant="caption" tone="white" className="mt-2 text-center opacity-85">
-            {t("stories.persist", { name })}
+            {petSentence(t, "stories.persist", pet)}
           </Text>
         </View>
       </LinearGradient>
@@ -291,10 +292,10 @@ function SlideContent({ slide, pet, name, locale }: { slide: StorySlide; pet: Pe
   );
 }
 
-function slideLabel(slide: StorySlide, pet: { kind: string; zone: string }, name: string, t: ReturnType<typeof useI18n>["t"]) {
+function slideLabel(slide: StorySlide, pet: PetCase, name: string, t: ReturnType<typeof useI18n>["t"]) {
   if (slide.type === "info")
     return `${pet.kind === "lost" ? t("story.headlineLost") : t("story.headlineFound")}: ${name}, ${pet.zone}`;
-  if (slide.type === "photo") return t("stories.photoOf", { name });
+  if (slide.type === "photo") return petSentence(t, "stories.photoOf", pet);
   return `${t("stories.updateBy")}: ${slide.text}`;
 }
 
