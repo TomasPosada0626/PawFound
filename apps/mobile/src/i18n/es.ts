@@ -1009,7 +1009,7 @@ export const es = {
     liveEnabled: "Listo: te avisaremos de mascotas perdidas cerca de donde estés.",
     liveDisabled: "Desactivadas. Borramos tu última ubicación y ya no recibirás Alertas Ángel.",
     livePrivacy:
-      "Solo guardamos el último punto aproximado (250 m), sin historial de recorridos. Se borra si no se actualiza en 24 horas y nunca se muestra a nadie.",
+      "Solo guardamos el último punto aproximado (250 m), sin historial de recorridos. Se borra al cerrar sesión o si no se actualiza en 30 días, y nunca se muestra a nadie.",
     disclosureTitle: "Tu ubicación para las Alertas Ángel",
     disclosureBody:
       "PawFound usa tu ubicación aproximada, también cuando la app está cerrada o no la estás usando, solo para avisarte cuando se pierde una mascota cerca de donde estás. Guardamos únicamente el último punto, aproximado a 250 m, sin historial, y nunca se muestra a otras personas. Puedes desactivarlo cuando quieras.",

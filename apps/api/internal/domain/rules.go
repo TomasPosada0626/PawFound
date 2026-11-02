@@ -80,8 +80,10 @@ const MaxAlertsPerDay = 5
 // de vida inicial sea menor (alerts.ts → ALERT_MIN_RADIUS).
 const AlertMinRadius = 250
 
-// AlertLocationTTL: una ubicación sin actualizar en 24 h deja de usarse.
-const AlertLocationTTL = 24 * time.Hour
+// AlertLocationTTL: una ubicación sin actualizar en 30 días deja de usarse y se borra. Es largo a
+// propósito: con la app cerrada o el celular quieto no llegan puntos nuevos, y la alerta debe
+// llegar igual con el último conocido. Al cerrar sesión se borra de inmediato.
+const AlertLocationTTL = 30 * 24 * time.Hour
 
 // Límites de la comunidad (mockBackend.ts).
 const (

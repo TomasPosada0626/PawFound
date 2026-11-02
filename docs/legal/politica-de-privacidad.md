@@ -32,8 +32,9 @@ Estatutaria 1581 de 2012, su Decreto 1377 de 2013 y demás normas concordantes.
 - **Ubicación para las Alertas Ángel** ("Alertas donde estés"), solo si la activas: el
   celular envía su posición, también con la app cerrada, cuando te mueves unos 250 m.
   Guardamos únicamente el último punto, aproximado a una celda de 250 m, sin historial de
-  recorridos; se descarta si no se actualiza en 24 horas y nunca se muestra a nadie. Puedes
-  desactivarla en cualquier momento y se borra.
+  recorridos; se borra al cerrar tu sesión o si no se actualiza en 30 días, y nunca se muestra
+  a nadie. Mientras tu sesión siga abierta, la alerta te puede llegar con la app cerrada según
+  ese último punto. Puedes desactivarla en cualquier momento y se borra.
 - **Mensajes**: contenido de tus conversaciones directas y de grupo dentro de la app,
   incluidas las fotos que envíes. Las fotos se guardan sin metadatos (EXIF ni GPS) y solo
   las ven quienes participan en esa conversación.

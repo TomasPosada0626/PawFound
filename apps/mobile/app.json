@@ -11,7 +11,9 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "app.pawfound",
-      "associatedDomains": ["applinks:pawfound.pages.dev"]
+      "associatedDomains": [
+        "applinks:pawfound.pages.dev"
+      ]
     },
     "android": {
       "package": "app.pawfound",
@@ -22,7 +24,11 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "blockedPermissions": ["android.permission.ACCESS_BACKGROUND_LOCATION", "android.permission.RECORD_AUDIO"],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -39,15 +45,16 @@
               "pathPrefix": "/mascota"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_BACKGROUND_LOCATION",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_LOCATION"
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
       ]
     },
     "web": {
@@ -60,10 +67,8 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "PawFound usa tu ubicación para mostrarte mascotas reportadas cerca y ubicar tus reportes. Tu ubicación exacta nunca se muestra a otras personas.",
-          "locationAlwaysAndWhenInUsePermission": "PawFound usa tu ubicación aproximada, también con la app cerrada, solo para avisarte cuando se pierde una mascota cerca de donde estás. Nunca se muestra a otras personas.",
           "isAndroidBackgroundLocationEnabled": true,
-          "isIosBackgroundLocationEnabled": true
+          "isAndroidForegroundServiceEnabled": false
         }
       ],
       [

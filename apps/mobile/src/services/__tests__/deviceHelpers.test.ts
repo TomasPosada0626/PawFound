@@ -1,4 +1,6 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import * as TaskManager from "expo-task-manager";
 import { Image } from "react-native";
 
@@ -14,6 +16,18 @@ import {
 } from "../alertLocation";
 import { directionsUrl, navigationApps, vetSearchUrl } from "../directions";
 import { photoExists, shrinkPhoto } from "../photoShrink";
+import { ME_KEY, TOKENS_KEY } from "../sessionKeys";
+
+jest.mock("expo-secure-store", () => {
+  const store = new Map<string, string>();
+  return {
+    getItemAsync: jest.fn(async (key: string) => store.get(key) ?? null),
+    setItemAsync: jest.fn(async (key: string, value: string) => void store.set(key, value)),
+    deleteItemAsync: jest.fn(async (key: string) => void store.delete(key)),
+  };
+});
+
+jest.mock("@/config", () => ({ ...jest.requireActual("@/config"), API_URL: "https://api.test" }));
 
 const mockContext = {
   resize: jest.fn(),
@@ -109,6 +123,83 @@ describe("fotos antes de subirlas", () => {
       return undefined as never;
     });
     await expect(photoExists("file:///a.jpg")).resolves.toBe(false);
+  });
+});
+
+describe("el punto del GPS con la app cerrada", () => {
+  const task = () => taskCall?.[1] as (input: unknown) => Promise<void>;
+  const moved = { data: { locations: [{ coords: point }] }, error: null };
+  const session = async (zone: string | null = "Laureles") => {
+    await SecureStore.setItemAsync(TOKENS_KEY, JSON.stringify({ access: "a1", refresh: "r1" }));
+    await AsyncStorage.setItem(ME_KEY, JSON.stringify({ alertZone: zone ? { zone } : null }));
+  };
+  const reply = (status: number, body: unknown = null) => ({ status, ok: status < 300, json: async () => body }) as Response;
+  const fetchMock = jest.fn();
+  const started = jest.mocked(Location.hasStartedLocationUpdatesAsync);
+  const stop = jest.mocked(Location.stopLocationUpdatesAsync);
+
+  beforeEach(async () => {
+    fetchMock.mockReset();
+    global.fetch = fetchMock as unknown as typeof fetch;
+    stop.mockClear();
+    started.mockResolvedValue(true);
+    setAlertLocationSink(null);
+    await SecureStore.deleteItemAsync(TOKENS_KEY);
+    await AsyncStorage.clear();
+  });
+
+  it("con la sesión guardada envía el punto, sin necesitar la app abierta", async () => {
+    await session();
+    fetchMock.mockResolvedValueOnce(reply(200));
+    await task()(moved);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("https://api.test/v1/me/location");
+    expect(init.method).toBe("PUT");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer a1");
+    expect(JSON.parse(init.body as string)).toEqual({ location: point, zone: "Laureles" });
+    expect(stop).not.toHaveBeenCalled();
+  });
+
+  it("con el token vencido lo renueva, lo guarda y repite el envío", async () => {
+    await session();
+    fetchMock.mockResolvedValueOnce(reply(401));
+    fetchMock.mockResolvedValueOnce(reply(200, { accessToken: "a2", refreshToken: "r2" }));
+    fetchMock.mockResolvedValueOnce(reply(200));
+    await task()(moved);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("https://api.test/v1/auth/refresh");
+    expect((fetchMock.mock.calls[2]?.[1] as RequestInit).headers).toMatchObject({ Authorization: "Bearer a2" });
+    expect(JSON.parse((await SecureStore.getItemAsync(TOKENS_KEY)) ?? "{}")).toEqual({ access: "a2", refresh: "r2" });
+  });
+
+  it("sin sesión o con las alertas apagadas deja de seguir la ubicación", async () => {
+    await task()(moved);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledTimes(1);
+    await session(null);
+    await task()(moved);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledTimes(2);
+  });
+
+  it("si la API rechaza la sesión deja de seguirla, pero un fallo temporal no", async () => {
+    await session();
+    fetchMock.mockResolvedValueOnce(reply(401));
+    fetchMock.mockResolvedValueOnce(reply(503));
+    await task()(moved);
+    expect(stop).not.toHaveBeenCalled();
+
+    fetchMock.mockResolvedValueOnce(reply(401));
+    fetchMock.mockResolvedValueOnce(reply(401));
+    await task()(moved);
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(await SecureStore.getItemAsync(TOKENS_KEY)).not.toBeNull();
+  });
+
+  it("sin red no falla la tarea", async () => {
+    await session();
+    fetchMock.mockRejectedValueOnce(new Error("sin red"));
+    await expect(task()(moved)).resolves.toBeUndefined();
+    expect(stop).not.toHaveBeenCalled();
   });
 });
 

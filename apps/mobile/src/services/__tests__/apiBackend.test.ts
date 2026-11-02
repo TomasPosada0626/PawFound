@@ -1,7 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Files from "expo-file-system/legacy";
+import * as Location from "expo-location";
 
 import { ApiBackend } from "../apiBackend";
 import { BackendError } from "../backendTypes";
+import { ME_KEY } from "../sessionKeys";
 
 jest.mock("expo-secure-store", () => {
   const store = new Map<string, string>();
@@ -740,6 +743,23 @@ describe("ubicación de las alertas", () => {
     await backend.setAlertZone(null);
     expect(called("DELETE /v1/me/location")).toHaveLength(1);
     expect(backend.getSnapshot().alertZones.u_ana).toBeUndefined();
+  });
+
+  it("deja la zona donde la lee la tarea que corre con la app cerrada", async () => {
+    const backend = await loggedIn();
+    route("PUT /v1/me/location", { status: 200, body: { ...zone, updatedAt: "ahora" } });
+    await backend.setAlertZone(zone);
+    expect(JSON.parse((await AsyncStorage.getItem(ME_KEY)) ?? "{}").alertZone).toMatchObject({ zone: "Laureles" });
+    await backend.setAlertZone(null);
+    expect(JSON.parse((await AsyncStorage.getItem(ME_KEY)) ?? "{}").alertZone).toBeNull();
+  });
+
+  it("al cerrar sesión deja de seguir la ubicación", async () => {
+    const backend = await loggedIn();
+    jest.mocked(Location.hasStartedLocationUpdatesAsync).mockResolvedValueOnce(true);
+    jest.mocked(Location.stopLocationUpdatesAsync).mockClear();
+    await backend.logout();
+    expect(Location.stopLocationUpdatesAsync).toHaveBeenCalledTimes(1);
   });
 
   it("sin sesión no se puede activar, y actualizar el GPS sin red no molesta", async () => {

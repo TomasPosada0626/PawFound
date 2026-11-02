@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/domain"
 )
 
 const lockKey = 721_105_2027
@@ -74,6 +75,7 @@ func Cleanup(ctx context.Context, a *app.App) error {
 		{`DELETE FROM admin_sessions WHERE expires_at < $1`, now},
 		{`DELETE FROM password_resets WHERE expires_at < $1`, now},
 		{`DELETE FROM email_verifications WHERE sent_at < $1::timestamptz - interval '1 day'`, now},
+		{`DELETE FROM alert_zones WHERE updated_at < $1`, now.Add(-domain.AlertLocationTTL)},
 	}
 	for _, s := range stmts {
 		if _, err := a.DB.Exec(ctx, s.sql, s.arg); err != nil {
