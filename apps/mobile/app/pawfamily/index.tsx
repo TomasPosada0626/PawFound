@@ -1,12 +1,13 @@
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 
 import { Screen } from "@/components/layout";
 import { AdoptionCard, PawFamilyBrand, PawFamilyHeader, ShelterTag } from "@/components/pawfamily";
 import { Button } from "@/components/ui/Button";
-import { Banner, Card, Checkbox, Chip, EmptyState, ListRow } from "@/components/ui/Controls";
+import { Banner, Card, Checkbox, EmptyState, ListRow, ToggleRow } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { ADOPTION_RADII, DEFAULT_ADOPTION_FILTERS, type AdoptionFilters } from "@/domain/adoption";
 import { distanceMeters } from "@/domain/geo";
@@ -189,6 +190,8 @@ function PersonHub({ onChangeRole }: { onChangeRole: () => void }) {
   const [wholeCity, setWholeCity] = useState(false);
   const [city, setCity] = useState<string | null>(null);
   const [ids, setIds] = useState<string[] | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const { colors } = useTheme();
   const profileCity = user?.city;
 
   useEffect(() => {
@@ -217,13 +220,30 @@ function PersonHub({ onChangeRole }: { onChangeRole: () => void }) {
     };
   }, [backend, location, query, state.adoptionVersion]);
 
-  const set = <K extends keyof AdoptionFilters>(key: K, value: AdoptionFilters[K]) =>
-    setFilters((f) => ({ ...f, [key]: f[key] === value ? undefined : value }));
-  const clear = (key: "species" | "sex" | "size" | "age") => setFilters((f) => ({ ...f, [key]: undefined }));
-  const filtering =
-    wholeCity ||
-    filters.radiusKm !== DEFAULT_ADOPTION_FILTERS.radiusKm ||
-    Boolean(filters.species || filters.sex || filters.size || filters.age);
+  // Cada categoría es de una sola opción: "Todos" (undefined) la quita.
+  const setFilter = <K extends "species" | "sex" | "size" | "age">(key: K, value: AdoptionFilters[K]) =>
+    setFilters((f) => ({ ...f, [key]: value }));
+  const reset = () => {
+    setFilters(DEFAULT_ADOPTION_FILTERS);
+    setWholeCity(false);
+  };
+  const distanceChanged = wholeCity || filters.radiusKm !== DEFAULT_ADOPTION_FILTERS.radiusKm;
+  const pills = [
+    filters.species ? { key: "species", label: t(`species.${filters.species}`) } : null,
+    filters.sex ? { key: "sex", label: t(filters.sex === "female" ? "pawfamily.female" : "pawfamily.male") } : null,
+    filters.size ? { key: "size", label: t(`size.${filters.size}`) } : null,
+    filters.age ? { key: "age", label: t(`ageShort.${filters.age}`) } : null,
+  ]
+    .filter((p): p is { key: "species" | "sex" | "size" | "age"; label: string } => p !== null)
+    .map((p) => ({ ...p, onRemove: () => setFilter(p.key, undefined) }));
+  const activeCount = pills.length + (distanceChanged ? 1 : 0);
+  const filtering = activeCount > 0;
+  const distanceLabel = wholeCity && city ? t("pawfamily.wholeCity", { city }) : t("pawfamily.km", { count: filters.radiusKm });
+  const count = ids?.length ?? 0;
+  const summary =
+    wholeCity && city
+      ? t("pawfamily.resultsCity", { count, city })
+      : t("pawfamily.resultsNear", { count, distance: t("pawfamily.km", { count: filters.radiusKm }) });
   const list = (ids ?? []).map((id) => adoptionView(state, id)).filter((a) => a !== undefined);
 
   return (
@@ -255,107 +275,142 @@ function PersonHub({ onChangeRole }: { onChangeRole: () => void }) {
         ) : null}
       </View>
 
-      {/* Filtros: cada categoría por separado y a la vista, para combinarlas. */}
-      <Card className="mt-4" testID="adoption-filters">
-        <View className="flex-row items-center justify-between">
-          <Text variant="subheading" accessibilityRole="header">
-            {t("pawfamily.filters")}
-          </Text>
-          {filtering ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setFilters(DEFAULT_ADOPTION_FILTERS);
-                setWholeCity(false);
-              }}
-              className="min-h-[44px] justify-center px-2 active:opacity-70"
-              testID="filters-clear"
-            >
-              <Text variant="captionStrong" tone="primary">
-                {t("pawfamily.clearFilters")}
-              </Text>
-            </Pressable>
-          ) : null}
-        </View>
-        <FilterGroup label={t("pawfamily.distance")}>
-          {ADOPTION_RADII.map((km) => (
-            <Chip
-              key={km}
-              label={t("pawfamily.km", { count: km })}
-              selected={!wholeCity && filters.radiusKm === km}
-              onPress={() => {
-                setWholeCity(false);
-                setFilters((f) => ({ ...f, radiusKm: km }));
-              }}
-              testID={`radius-${km}`}
+      {/* Filtros: una barra compacta con lo activo y el resto en una hoja, como en las apps de búsqueda. */}
+      <View className="mt-5 gap-2" testID="adoption-filters">
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={activeCount ? t("pawfamily.filtersActive", { count: activeCount }) : t("pawfamily.filters")}
+            onPress={() => setFiltersOpen(true)}
+            className="min-h-[44px] flex-row items-center gap-2 rounded-full border border-border bg-surface px-4 active:opacity-80"
+            testID="open-filters"
+          >
+            <Icon name="options-outline" size={18} color={colors.ink} />
+            <Text variant="captionStrong">{t("pawfamily.filters")}</Text>
+            {activeCount ? (
+              <View className="h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-strong px-1.5">
+                <Text variant="label" tone="white">
+                  {String(activeCount)}
+                </Text>
+              </View>
+            ) : null}
+          </Pressable>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 8 }}>
+            <FilterPill
+              icon="location-outline"
+              label={distanceLabel}
+              onPress={() => setFiltersOpen(true)}
+              testID="pill-distance"
             />
-          ))}
+            {pills.map((pill) => (
+              <FilterPill key={pill.key} label={pill.label} onRemove={pill.onRemove} testID={`pill-${pill.key}`} />
+            ))}
+          </ScrollView>
+        </View>
+        <Text variant="caption" tone="body" accessibilityLiveRegion="polite" testID="adoption-count">
+          {ids === null ? t("pawfamily.loading") : summary}
+        </Text>
+      </View>
+
+      <Sheet
+        visible={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title={t("pawfamily.filters")}
+        subtitle={t("pawfamily.filtersHint")}
+        testID="filters-sheet"
+        footer={
+          <View className="flex-row gap-3">
+            <View className="flex-1">
+              <Button
+                variant="ghost"
+                label={t("pawfamily.clearFilters")}
+                disabled={!filtering}
+                onPress={reset}
+                testID="filters-clear"
+              />
+            </View>
+            <View className="flex-[2]">
+              <Button
+                label={ids === null ? t("pawfamily.seeResults") : t("pawfamily.seeCount", { count: ids.length })}
+                onPress={() => setFiltersOpen(false)}
+                testID="filters-apply"
+              />
+            </View>
+          </View>
+        }
+      >
+        <FilterSection title={t("pawfamily.distance")}>
+          <View className="flex-row flex-wrap gap-2">
+            {ADOPTION_RADII.map((km) => (
+              <OptionTile
+                key={km}
+                label={t("pawfamily.km", { count: km })}
+                selected={!wholeCity && filters.radiusKm === km}
+                onPress={() => {
+                  setWholeCity(false);
+                  setFilters((f) => ({ ...f, radiusKm: km }));
+                }}
+                testID={`radius-${km}`}
+              />
+            ))}
+          </View>
           {city ? (
-            <Chip
-              label={t("pawfamily.wholeCity", { city })}
-              selected={wholeCity}
-              onPress={() => setWholeCity((v) => !v)}
+            <ToggleRow
+              icon="business-outline"
+              title={t("pawfamily.wholeCity", { city })}
+              description={t("pawfamily.wholeCityDesc")}
+              value={wholeCity}
+              onChange={setWholeCity}
               testID="whole-city"
             />
           ) : null}
-        </FilterGroup>
-        <FilterGroup label={t("pawfamily.animal")}>
-          <Chip
-            label={t("pawfamily.all")}
-            selected={!filters.species}
-            onPress={() => clear("species")}
-            testID="filter-species-all"
+        </FilterSection>
+        <FilterSection title={t("pawfamily.animal")}>
+          <Segmented
+            value={filters.species}
+            onChange={(v) => setFilter("species", v)}
+            options={[
+              { value: undefined, label: t("pawfamily.all"), testID: "filter-species-all" },
+              ...(["dog", "cat", "other"] as const).map((v) => ({ value: v, label: t(`species.${v}`), testID: `filter-${v}` })),
+            ]}
           />
-          {(["dog", "cat", "other"] as const).map((species) => (
-            <Chip
-              key={species}
-              label={t(`species.${species}`)}
-              selected={filters.species === species}
-              onPress={() => set("species", species)}
-              testID={`filter-${species}`}
-            />
-          ))}
-        </FilterGroup>
-        <FilterGroup label={t("pet.sex")}>
-          <Chip label={t("pawfamily.all")} selected={!filters.sex} onPress={() => clear("sex")} testID="filter-sex-all" />
-          <Chip
-            label={t("pawfamily.female")}
-            selected={filters.sex === "female"}
-            onPress={() => set("sex", "female")}
-            testID="filter-female"
+        </FilterSection>
+        <FilterSection title={t("pet.sex")}>
+          <Segmented
+            value={filters.sex}
+            onChange={(v) => setFilter("sex", v)}
+            options={[
+              { value: undefined, label: t("pawfamily.all"), testID: "filter-sex-all" },
+              { value: "female" as const, label: t("pawfamily.female"), icon: "female" as const, testID: "filter-female" },
+              { value: "male" as const, label: t("pawfamily.male"), icon: "male" as const, testID: "filter-male" },
+            ]}
           />
-          <Chip
-            label={t("pawfamily.male")}
-            selected={filters.sex === "male"}
-            onPress={() => set("sex", "male")}
-            testID="filter-male"
+        </FilterSection>
+        <FilterSection title={t("pet.size")}>
+          <Segmented
+            value={filters.size}
+            onChange={(v) => setFilter("size", v)}
+            options={[
+              { value: undefined, label: t("pawfamily.all"), testID: "filter-size-all" },
+              ...(["small", "medium", "large"] as const).map((v) => ({ value: v, label: t(`size.${v}`), testID: `filter-${v}` })),
+            ]}
           />
-        </FilterGroup>
-        <FilterGroup label={t("pet.size")}>
-          <Chip label={t("pawfamily.all")} selected={!filters.size} onPress={() => clear("size")} testID="filter-size-all" />
-          {(["small", "medium", "large"] as const).map((size) => (
-            <Chip
-              key={size}
-              label={t(`size.${size}`)}
-              selected={filters.size === size}
-              onPress={() => set("size", size)}
-              testID={`filter-${size}`}
-            />
-          ))}
-        </FilterGroup>
-        <FilterGroup label={t("pet.age")} last>
-          <Chip label={t("pawfamily.all")} selected={!filters.age} onPress={() => clear("age")} testID="filter-age-all" />
-          {(["puppy", "young", "adult", "senior"] as const).map((age) => (
-            <Chip
-              key={age}
-              label={t(`age.${age}`)}
-              selected={filters.age === age}
-              onPress={() => set("age", age)}
-              testID={`filter-${age}`}
-            />
-          ))}
-        </FilterGroup>
-      </Card>
+        </FilterSection>
+        <FilterSection title={t("pet.age")} last>
+          <Segmented
+            value={filters.age}
+            onChange={(v) => setFilter("age", v)}
+            options={[
+              { value: undefined, label: t("pawfamily.all"), testID: "filter-age-all" },
+              ...(["puppy", "young", "adult", "senior"] as const).map((v) => ({
+                value: v,
+                label: t(`ageShort.${v}`),
+                testID: `filter-${v}`,
+              })),
+            ]}
+          />
+        </FilterSection>
+      </Sheet>
 
       <View className="mt-4">
         {ids === null ? (
@@ -458,14 +513,140 @@ function ShelterHub({ onChangeRole }: { onChangeRole: () => void }) {
   );
 }
 
-/** Un grupo de filtros con su título; las opciones se acomodan en varias líneas, siempre visibles. */
-function FilterGroup({ label, last, children }: { label: string; last?: boolean; children: ReactNode }) {
+/** Una categoría de la hoja de filtros, con su título y una línea que la separa de la siguiente. */
+function FilterSection({ title, last, children }: { title: string; last?: boolean; children: ReactNode }) {
   return (
-    <View className={last ? "mt-3" : "mt-3 border-b border-border pb-3"}>
-      <Text variant="captionStrong" className="mb-2">
+    <View className={last ? "gap-2.5 py-4" : "gap-2.5 border-b border-border/60 py-4"}>
+      <Text variant="bodyStrong" accessibilityRole="header">
+        {title}
+      </Text>
+      {children}
+    </View>
+  );
+}
+
+type SegmentOption<V> = { value: V; label: string; icon?: IconName; testID: string };
+
+/** Control segmentado: opciones del mismo ancho en una sola pieza; la elegida se resalta. */
+function Segmented<V extends string | undefined>({
+  options,
+  value,
+  onChange,
+}: {
+  options: SegmentOption<V>[];
+  value: V;
+  onChange: (value: V) => void;
+}) {
+  const { colors } = useTheme();
+  return (
+    <View className="flex-row rounded-2xl bg-surface-alt p-1" accessibilityRole="radiogroup">
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <Pressable
+            key={option.testID}
+            accessibilityRole="radio"
+            accessibilityLabel={option.label}
+            accessibilityState={{ selected, checked: selected }}
+            onPress={() => onChange(option.value)}
+            className={
+              selected
+                ? "min-h-[44px] flex-1 flex-row items-center justify-center gap-1 rounded-xl bg-surface px-1 shadow-sm shadow-black/10"
+                : "min-h-[44px] flex-1 flex-row items-center justify-center gap-1 rounded-xl px-1 active:opacity-70"
+            }
+            testID={option.testID}
+          >
+            {option.icon ? <Icon name={option.icon} size={15} color={selected ? colors.primaryStrong : colors.muted} /> : null}
+            <Text
+              variant="captionStrong"
+              tone={selected ? "primary" : "body"}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.8}
+            >
+              {option.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Opción de distancia: tres por fila, del mismo tamaño. */
+function OptionTile({
+  label,
+  selected,
+  onPress,
+  testID,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  testID: string;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected, checked: selected }}
+      onPress={onPress}
+      className={
+        selected
+          ? "min-h-[48px] grow basis-[30%] items-center justify-center rounded-2xl border-2 border-primary-strong bg-primary-soft"
+          : "min-h-[48px] grow basis-[30%] items-center justify-center rounded-2xl border border-border bg-surface active:opacity-70"
+      }
+      testID={testID}
+    >
+      <Text variant="bodyStrong" tone={selected ? "primary" : "ink"}>
         {label}
       </Text>
-      <View className="flex-row flex-wrap gap-2">{children}</View>
+    </Pressable>
+  );
+}
+
+/** Etiqueta de un filtro activo en la barra: se quita con la x o abre los filtros. */
+function FilterPill({
+  label,
+  icon,
+  onPress,
+  onRemove,
+  testID,
+}: {
+  label: string;
+  icon?: IconName;
+  onPress?: () => void;
+  onRemove?: () => void;
+  testID: string;
+}) {
+  const { t } = useI18n();
+  const { colors } = useTheme();
+  return (
+    <View className="min-h-[44px] flex-row items-center rounded-full bg-primary-soft pl-3.5 pr-1" testID={testID}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPress={onPress}
+        disabled={!onPress}
+        className="min-h-[44px] flex-row items-center gap-1.5 pr-2.5 active:opacity-70"
+      >
+        {icon ? <Icon name={icon} size={15} color={colors.primaryStrong} /> : null}
+        <Text variant="captionStrong" tone="primary">
+          {label}
+        </Text>
+      </Pressable>
+      {onRemove ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("pawfamily.removeFilter", { name: label })}
+          onPress={onRemove}
+          hitSlop={6}
+          className="h-8 w-8 items-center justify-center rounded-full active:opacity-70"
+          testID={`${testID}-remove`}
+        >
+          <Icon name="close" size={16} color={colors.primaryStrong} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }
