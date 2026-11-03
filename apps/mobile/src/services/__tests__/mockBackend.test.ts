@@ -523,8 +523,9 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     await signInAs(backend, "u_valentina");
     await backend.markReunited("rocky", ["u_daniel"], { u_daniel: 3 });
     const state = backend.getSnapshot();
-    expect(ratingOf(state, "u_daniel")).toEqual({ average: 4.9, count: 1 });
-    expect(userStats(state, "u_daniel")).toMatchObject({ ratingAvg: 4.9, ratingCount: 1 });
+    // Con una sola calificación todavía no hay promedio (se ve desde la décima).
+    expect(ratingOf(state, "u_daniel")).toEqual({ average: 0, count: 1 });
+    expect(userStats(state, "u_daniel")).toMatchObject({ ratingAvg: 0, ratingCount: 1 });
     expect(userBadgeProgress(state, "u_daniel").find((b) => b.id === "protector")?.tier).toBe(0);
   });
 
@@ -541,7 +542,7 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
   it("estadísticas, insignias y actividad salen de datos reales", () => {
     const backend = makeBackend();
     const state = backend.getSnapshot();
-    expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 5, ratingCount: 0 });
+    expect(userStats(state, "u_valentina")).toEqual({ reported: 1, found: 1, ratingAvg: 0, ratingCount: 0 });
     const earned = userBadgeProgress(state, "u_valentina")
       .filter((b) => b.tier > 0)
       .map((b) => `${b.id}:${b.tier}`);

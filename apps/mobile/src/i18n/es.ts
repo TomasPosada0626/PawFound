@@ -867,9 +867,8 @@ export const es = {
       other: "Reporta avistamientos en la primera hora de {count} casos de otras familias.",
     },
     protector: {
-      one: "Desde tu décima calificación, sin contar las 5 estrellas iniciales, ten un promedio de más de 4,5. Se pierde si bajas y se recupera si vuelves a subir.",
-      other:
-        "Desde tu décima calificación, sin contar las 5 estrellas iniciales, ten un promedio de más de 4,5. Se pierde si bajas y se recupera si vuelves a subir.",
+      one: "Desde tu décima calificación, ten un promedio de más de 4,5. Se pierde si bajas y se recupera si vuelves a subir.",
+      other: "Desde tu décima calificación, ten un promedio de más de 4,5. Se pierde si bajas y se recupera si vuelves a subir.",
     },
     popular: { one: "Llega a {count} me gusta.", other: "Llega a {count} me gusta." },
     new_member: { one: "Adopta una mascota en PawFamily.", other: "Adopta {count} mascotas en PawFamily." },
@@ -1217,7 +1216,7 @@ export const es = {
     locationPrivacy: "Tu ubicación exacta no será visible para otros usuarios.",
     reputation: "Calificación y reputación",
     reputationBody:
-      "Todas las cuentas empiezan con 5 estrellas. Cuando una familia te agradece al cerrar su caso te califica, y el promedio cuenta las últimas 20.",
+      "Cuando una familia te agradece al cerrar su caso, te califica de 1 a 5 estrellas. Tu promedio se ve desde la décima calificación y cuenta las últimas 20.",
     save: "Guardar cambios",
     saved: "Cambios guardados",
     charCount: "{count}/{max}",
@@ -1296,6 +1295,18 @@ export const es = {
       "PawFound usa tu ubicación aproximada, también cuando la app está cerrada o no la estás usando, solo para avisarte cuando se pierde una mascota cerca de donde estás. Guardamos únicamente el último punto, aproximado a 250 m, sin historial, y nunca se muestra a otras personas. Puedes desactivarlo cuando quieras.",
     disclosureContinue: "Continuar",
     disclosureCancel: "Ahora no",
+  },
+  rating: {
+    pending: "Promedio desde {goal} calificaciones",
+    pendingOwn: "Tu promedio se verá con {goal} calificaciones",
+    pendingOwnSome: {
+      one: "1 de {goal} calificaciones para ver tu promedio",
+      other: "{count} de {goal} calificaciones para ver tu promedio",
+    },
+    label: {
+      one: "{value} estrellas en promedio, 1 calificación",
+      other: "{value} estrellas en promedio, {count} calificaciones",
+    },
   },
   deleteAccount: {
     word: "ELIMINAR",
