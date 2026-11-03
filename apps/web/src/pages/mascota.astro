@@ -5,19 +5,40 @@ import Base from "../layouts/Base.astro";
 ---
 
 <!--
-  Destino de los enlaces compartidos y de los QR de los afiches (pawfound.pages.dev/mascota/<id>).
-  Con la app instalada, Android/iOS abren el caso directamente; si no, se muestra esta página
-  (public/_redirects envía /mascota/* aquí).
+  Página pública de un caso: destino de los enlaces compartidos y de los QR de los afiches
+  (pawfound.pages.dev/mascota/<id>). Es la plantilla: functions/mascota/[id].js la completa con los
+  datos del caso (foto, nombre, zona, hace cuánto) y arma la vista previa de WhatsApp. Sin datos, o
+  si la API no responde, se ve tal cual: un aviso genérico con el botón para abrir la app.
 -->
 <Base title="Ayuda a encontrar a esta mascota · PawFound" description="Abre el caso en PawFound para ver sus fotos, la zona de búsqueda y avisar a la familia.">
-  <section class="hero">
-    <div class="wrap" style="grid-template-columns:1fr;max-width:46rem;text-align:center;justify-items:center">
-      <span class="icon i-lost" style="width:72px;height:72px;border-radius:24px"><Icon name="paw" /></span>
-      <h1 style="font-size:clamp(2.2rem,6vw,3.6rem)">Una familia necesita tu ayuda</h1>
-      <p class="lead center">Abre el caso en PawFound para ver sus fotos, la zona donde la están buscando y avisar si la viste. Nunca compartimos teléfonos ni direcciones.</p>
-      <a class="btn btn-light" id="open-app" href="pawfound://">Abrir en la app</a>
-      <StoreButtons />
-      <p class="hero-note">¿Todavía no tienes PawFound? Muy pronto en Google Play.</p>
+  <section class="hero case-hero">
+    <div class="wrap case-wrap">
+      <article class="case-card" id="caso" data-estado="generico">
+        <div class="case-photo">
+          <img id="caso-foto" alt="" width="640" height="640" hidden />
+          <span class="case-photo-empty" id="caso-sin-foto" aria-hidden="true"><Icon name="paw" /></span>
+          <span class="case-badge" id="caso-estado" hidden></span>
+        </div>
+        <div class="case-body">
+          <h1 id="caso-titulo">Una familia necesita tu ayuda</h1>
+          <p class="case-lead" id="caso-texto">
+            Abre el caso en PawFound para ver sus fotos, la zona donde la están buscando y avisar si la viste. Nunca compartimos direcciones.
+          </p>
+          <ul class="case-facts" id="caso-datos" hidden></ul>
+          <p class="case-desc" id="caso-descripcion" hidden></p>
+          <div class="case-actions">
+            <a class="btn btn-primary" id="caso-llamar" hidden>Llamar a la familia</a>
+            <a class="btn btn-whatsapp" id="caso-whatsapp" target="_blank" rel="noopener" hidden>Escribir por WhatsApp</a>
+            <a class="btn btn-ghost" id="open-app" href="pawfound://">Abrir en la app</a>
+            <button class="btn btn-ghost" id="caso-compartir" type="button" hidden>Compartir</button>
+          </div>
+          <p class="case-safety"><Icon name="shield" /> Nunca pagues por adelantado para recuperar una mascota, y entrégala o recíbela en un lugar público.</p>
+        </div>
+      </article>
+      <div class="case-download">
+        <p>¿Todavía no tienes PawFound? Muy pronto en Google Play.</p>
+        <StoreButtons />
+      </div>
     </div>
   </section>
   <script is:inline src="/mascota.js"></script>
