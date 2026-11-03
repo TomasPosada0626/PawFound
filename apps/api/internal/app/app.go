@@ -36,10 +36,12 @@ type App struct {
 	Push       providers.Push
 	Translator providers.Translator
 	Mailer     providers.Mailer
-	Media      media.Store
-	Hub        *realtime.Hub
-	Log        *slog.Logger
-	Now        func() time.Time
+	// Registry consulta NIT en el RUES para verificar refugios (nil: quedan en revisión).
+	Registry providers.CompanyRegistry
+	Media    media.Store
+	Hub      *realtime.Hub
+	Log      *slog.Logger
+	Now      func() time.Time
 
 	// APIBaseURL arma las URLs absolutas de las fotos ("https://pawfound-api.onrender.com").
 	APIBaseURL string

@@ -17,8 +17,9 @@ import { STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useCurrentUser } from "@/store/backend";
 
 /**
- * Entrar como refugio: nombre y NIT. Si el dígito de verificación de la DIAN es correcto, la
- * insignia de refugio verificado se otorga al instante y se pasa al panel del refugio.
+ * Entrar como refugio: nombre y NIT. La API revisa el NIT en el RUES: una fundación, asociación o
+ * corporación activa con ese nombre queda verificada al instante y pasa al panel del refugio; si
+ * no se puede confirmar, queda en revisión y se puede corregir.
  */
 export default function ShelterScreen() {
   const { t } = useI18n();
@@ -47,12 +48,17 @@ export default function ShelterScreen() {
     if (next.name || next.nit) return;
     setSending(true);
     try {
-      await backend.verifyShelter(name, nit);
-      toast(t("pawfamily.shelterVerifiedToast", { name: name.trim() }));
-      await enterAsShelter();
+      const result = await backend.verifyShelter(name, nit);
+      if (result.status === "verified") {
+        toast(t("pawfamily.shelterVerifiedToast", { name: name.trim() }));
+        await enterAsShelter();
+      } else {
+        toast(t("pawfamily.shelterPendingToast", { name: name.trim() }), "info");
+      }
     } catch (err) {
       const code = err instanceof BackendError ? err.code : "unknown";
       if (code === "nit_taken") setErrors({ nit: t("pawfamily.shelterNitTaken") });
+      else if (code === "nit_inactive") setErrors({ nit: t("pawfamily.shelterNitInactive") });
       else toast(errorMessage(code, t), "error");
     } finally {
       setSending(false);
@@ -80,6 +86,11 @@ export default function ShelterScreen() {
         </View>
       ) : (
         <View className="mt-4 gap-3">
+          {status === "pending" ? (
+            <View testID="shelter-pending">
+              <Banner icon="time-outline" body={t("pawfamily.shelter_pending", { name: user.shelterName ?? "" })} />
+            </View>
+          ) : null}
           <TextField
             label={t("pawfamily.shelterName")}
             value={name}
@@ -104,6 +115,9 @@ export default function ShelterScreen() {
             onPress={() => void send()}
             testID="shelter-send"
           />
+          <Text variant="caption" tone="muted" className="text-center">
+            {t("pawfamily.shelterSource")}
+          </Text>
         </View>
       )}
     </Screen>

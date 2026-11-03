@@ -1108,7 +1108,10 @@ describe("perfil y preferencias", () => {
 
     route("POST /v1/me/adoption-terms", { status: 204 });
     await backend.acceptAdoptionTerms();
-    route("POST /v1/me/shelter", { status: 204 });
+    route("POST /v1/me/shelter", { status: 200, body: { status: "pending", officialName: "FUNDACION PATITAS SAS" } });
+    await expect(backend.verifyShelter("Fundación Patitas", "900.123.456-8")).resolves.toMatchObject({ status: "pending" });
+    expect(backend.getSnapshot().users.u_ana).toMatchObject({ shelterStatus: "pending" });
+    route("POST /v1/me/shelter", { status: 200, body: { status: "verified", officialName: "FUNDACION PATITAS" } });
     await backend.verifyShelter("Fundación Patitas", "900.123.456-8");
     expect(backend.getSnapshot().users.u_ana).toMatchObject({ shelterName: "Fundación Patitas", shelterStatus: "verified" });
     expect(called("POST /v1/me/shelter")[0]?.body).toEqual({ name: "Fundación Patitas", nit: "900.123.456-8" });

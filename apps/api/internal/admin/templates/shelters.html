@@ -1,15 +1,45 @@
 {{define "content"}}
-<h1>Refugios verificados</h1>
-<p class="muted">La app los verifica al instante cuando el dígito de verificación del NIT es correcto (DIAN). Revisa en el RUES o la DIAN que el NIT corresponda al refugio; si no, quita la verificación: la cuenta no podrá volver a verificarse sola.</p>
-{{if .Data.Requests}}
+<h1>Refugios</h1>
+<p class="muted">PawFound revisa el NIT en el RUES (Confecámaras, datos abiertos de datos.gov.co). Una fundación, asociación o corporación con matrícula activa y el mismo nombre queda verificada sola; los demás casos llegan aquí. Para revisar a mano, busca el NIT en <a href="https://www.rues.org.co" target="_blank" rel="noopener noreferrer">rues.org.co</a>.</p>
+
+<h2>En revisión</h2>
+{{if .Data.Pending}}
 <div class="table-wrap">
 <table>
-  <thead><tr><th>Refugio</th><th>NIT</th><th>Cuenta</th><th>Verificado</th><th></th></tr></thead>
+  <thead><tr><th>Refugio</th><th>NIT</th><th>RUES</th><th>Cuenta</th><th>Solicitud</th><th></th></tr></thead>
   <tbody>
-  {{range .Data.Requests}}
+  {{range .Data.Pending}}
   <tr>
     <td><strong>{{.ShelterName}}</strong></td>
     <td>{{.NIT}}</td>
+    <td>{{if .OfficialName}}<strong>{{.OfficialName}}</strong><br>{{end}}<span class="muted">{{.CheckText}}</span></td>
+    <td><a href="/admin/users/{{.UserID}}">{{.Name}}</a><br><span class="muted">@{{.Username}} · {{.Email}}</span></td>
+    <td>{{date .RequestedAt}}</td>
+    <td>
+      <form method="post" action="/admin/users/{{.UserID}}">
+        <input type="hidden" name="csrf" value="{{$.CSRF}}">
+        <button type="submit" name="action" value="verify_shelter" class="small">Aprobar</button>
+        <button type="submit" name="action" value="reject_shelter" class="small">Rechazar</button>
+      </form>
+    </td>
+  </tr>
+  {{end}}
+  </tbody>
+</table>
+</div>
+{{else}}<p class="empty card">No hay refugios en revisión.</p>{{end}}
+
+<h2>Verificados</h2>
+{{if .Data.Verified}}
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Refugio</th><th>NIT</th><th>RUES</th><th>Cuenta</th><th>Verificado</th><th></th></tr></thead>
+  <tbody>
+  {{range .Data.Verified}}
+  <tr>
+    <td><strong>{{.ShelterName}}</strong></td>
+    <td>{{.NIT}}</td>
+    <td>{{if .OfficialName}}<strong>{{.OfficialName}}</strong><br>{{end}}<span class="muted">{{.CheckText}}</span></td>
     <td><a href="/admin/users/{{.UserID}}">{{.Name}}</a><br><span class="muted">@{{.Username}} · {{.Email}}</span></td>
     <td>{{date .RequestedAt}}</td>
     <td>
@@ -24,4 +54,5 @@
 </table>
 </div>
 {{else}}<p class="empty card">Todavía no hay refugios verificados.</p>{{end}}
+<p class="muted">Fuente de los datos del RUES: Confecámaras, datos.gov.co (CC BY-SA 4.0).</p>
 {{end}}

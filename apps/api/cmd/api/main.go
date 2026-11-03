@@ -172,6 +172,8 @@ func run(args []string, logger *slog.Logger) error {
 	default:
 		a.Push = noPush{}
 	}
+	// Refugios: el NIT se revisa en el RUES (datos abiertos de Confecámaras en datos.gov.co).
+	a.Registry = providers.RUES{URL: cfg.RUESURL, AppToken: cfg.RUESToken}
 	a.Init()
 
 	if cfg.SentryDSN != "" {

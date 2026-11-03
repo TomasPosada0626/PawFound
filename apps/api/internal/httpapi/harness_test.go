@@ -74,6 +74,35 @@ func (p *fakePush) all() []providers.PushMessage {
 	return append([]providers.PushMessage(nil), p.sent...)
 }
 
+// fakeRegistry hace de RUES: NIT (sin dígito) → registro. Con err, como si no respondiera.
+type fakeRegistry struct {
+	mu      sync.Mutex
+	records map[string]*providers.CompanyRecord
+	err     error
+	calls   int
+}
+
+func (r *fakeRegistry) LookupNIT(_ context.Context, nit string) (*providers.CompanyRecord, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls++
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.records[nit], nil
+}
+
+func (r *fakeRegistry) set(nit string, rec *providers.CompanyRecord, err error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if rec != nil {
+		r.records[nit] = rec
+	} else {
+		delete(r.records, nit)
+	}
+	r.err = err
+}
+
 type fakeMailer struct {
 	links   []string
 	codes   map[string]string
@@ -105,12 +134,13 @@ func (upperTranslator) Translate(_ context.Context, text, _, to string) (string,
 }
 
 type harness struct {
-	t      *testing.T
-	app    *app.App
-	srv    *httptest.Server
-	clock  *clock
-	push   *fakePush
-	mailer *fakeMailer
+	t        *testing.T
+	app      *app.App
+	srv      *httptest.Server
+	clock    *clock
+	push     *fakePush
+	mailer   *fakeMailer
+	registry *fakeRegistry
 }
 
 func newHarness(t *testing.T) *harness {
@@ -122,10 +152,10 @@ func newHarness(t *testing.T) *harness {
 		t.Fatal(err)
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
-	h := &harness{t: t, clock: c, push: &fakePush{}, mailer: &fakeMailer{}}
+	h := &harness{t: t, clock: c, push: &fakePush{}, mailer: &fakeMailer{}, registry: &fakeRegistry{records: map[string]*providers.CompanyRecord{}}}
 	h.app = &app.App{
 		DB: pool, Tokens: tokens, Codes: auth.NewCodeHasher("pruebas"),
-		Push: h.push, Mailer: h.mailer, Media: media.LocalStore{Dir: t.TempDir()}, Log: log, Now: c.Now, Inline: true,
+		Push: h.push, Mailer: h.mailer, Registry: h.registry, Media: media.LocalStore{Dir: t.TempDir()}, Log: log, Now: c.Now, Inline: true,
 		APIBaseURL: "http://api.test", WebBaseURL: "https://pawfound.test", FixedCode: "123456", Translator: upperTranslator{},
 	}
 	h.app.Init()

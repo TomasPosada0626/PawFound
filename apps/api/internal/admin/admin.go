@@ -437,14 +437,23 @@ func (p *Panel) users(w http.ResponseWriter, r *http.Request) {
 	p.render(w, r, http.StatusOK, "users", view{Title: "Cuentas", Section: "users", Data: map[string]any{"Q": q, "Users": found}})
 }
 
-// shelters lista los refugios verificados con NIT, para revisarlos y quitar la verificación si hace falta.
+// shelters lista los refugios en revisión (para aprobarlos o rechazarlos) y los verificados (para
+// quitarles la verificación si hace falta), con lo que dijo el RUES.
 func (p *Panel) shelters(w http.ResponseWriter, r *http.Request) {
-	requests, err := p.App.Shelters(r.Context())
+	list, err := p.App.Shelters(r.Context())
 	if err != nil {
 		p.fail(w, err)
 		return
 	}
-	p.render(w, r, http.StatusOK, "shelters", view{Title: "Refugios", Section: "shelters", Data: map[string]any{"Requests": requests}})
+	var pending, verified []app.Shelter
+	for _, s := range list {
+		if s.Status == "pending" {
+			pending = append(pending, s)
+		} else {
+			verified = append(verified, s)
+		}
+	}
+	p.render(w, r, http.StatusOK, "shelters", view{Title: "Refugios", Section: "shelters", Data: map[string]any{"Pending": pending, "Verified": verified}})
 }
 
 func (p *Panel) user(w http.ResponseWriter, r *http.Request) {

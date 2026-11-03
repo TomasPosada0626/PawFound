@@ -49,6 +49,7 @@ export type ErrorCode =
   | "adoption_terms"
   | "already_applied"
   | "nit_taken"
+  | "nit_inactive"
   | "network"
   | "unknown";
 

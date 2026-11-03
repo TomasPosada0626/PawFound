@@ -708,9 +708,14 @@ export const en: Translations = {
     shelterTag: "Verified shelter",
     shelterTitle: "Shelter verification",
     shelterIntro:
-      "Write the shelter's name and NIT with its check digit. If the digit matches the DIAN's, you're verified right away.",
+      "Write the shelter's name and its NIT with the check digit. We check the NIT in the RUES: if it is an active foundation, association or corporation with that name, you are verified instantly.",
     shelterVerifiedToast: "Done! {name} is a verified shelter.",
     shelterEnter: "Enter as a shelter",
+    shelterSource: "Source: RUES – Confecámaras (open data, datos.gov.co).",
+    shelterPendingToast: "We got {name}'s details. It is under review: we will let you know when it is approved.",
+    shelter_pending:
+      "{name} is under review. We could not confirm it in the RUES (it may be new, a company or a different name). We will let you know; you can correct the details if you like.",
+    shelterNitInactive: "In the RUES this NIT shows as cancelled or in liquidation.",
     shelterNitTaken: "This NIT is already verified on another account.",
     shelterName: "Shelter name",
     shelterNit: "NIT with check digit",

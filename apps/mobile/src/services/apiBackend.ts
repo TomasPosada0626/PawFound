@@ -12,6 +12,7 @@ import type {
   ShelterSummary,
 } from "@/domain/adoption";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
+import type { ShelterResult } from "@/domain/shelter";
 import type { ImpactStats, PublishAllowance } from "@/domain/rules";
 import type {
   AlertZone,
@@ -729,16 +730,20 @@ export class ApiBackend {
     this.mergeAdoptions([await this.request<ApiAdoption>("GET", `/v1/adoptions/${id}`)]);
   }
 
-  /** Verifica la cuenta como refugio con su NIT: con un dígito de verificación válido queda verificada. */
-  async verifyShelter(name: string, nit: string): Promise<void> {
-    await this.request("POST", "/v1/me/shelter", { name, nit });
+  /**
+   * Verifica la cuenta como refugio: la API revisa el NIT en el RUES. Queda verificada al instante o
+   * en revisión, según lo que encuentre.
+   */
+  async verifyShelter(name: string, nit: string): Promise<ShelterResult> {
+    const result = await this.request<ShelterResult>("POST", "/v1/me/shelter", { name, nit });
     const me = this.state.sessionUserId;
     const user = me ? this.state.users[me] : undefined;
     if (user) {
       this.commit({
-        users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "verified" } },
+        users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: result.status } },
       });
     }
+    return result;
   }
 
   async acceptAdoptionTerms(): Promise<void> {

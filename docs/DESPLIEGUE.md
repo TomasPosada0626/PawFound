@@ -65,6 +65,10 @@ CLOUDFLARE_R2_SECRET_ACCESS_KEY=...
 PUSH_PROVIDER=expo
 ```
 
+Los refugios de PawFamily se verifican con el RUES de Confecámaras (datos abiertos de
+datos.gov.co, licencia CC BY-SA 4.0): no hace falta configurar nada. Si algún día datos.gov.co limita
+las consultas, se puede crear un token gratis en datos.gov.co y ponerlo en `RUES_APP_TOKEN`.
+
 Después del primer arranque no hace falta correr nada: si la tabla de veterinarias está vacía,
 la API las importa sola de OpenStreetMap, y las cuentas de `ADMIN_EMAILS` reciben el rol de
 administrador en cuanto verifican su correo (agrega `ADMIN_EMAILS=tu-correo@ejemplo.com`).

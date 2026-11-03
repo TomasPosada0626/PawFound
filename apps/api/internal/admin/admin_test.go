@@ -326,7 +326,23 @@ func TestShelterRequestsPage(t *testing.T) {
 	if err := e.app.DB.QueryRow(ctx, `SELECT shelter_status FROM users WHERE id = 'u_ref'`).Scan(&shelterStatus); err != nil || shelterStatus != "rejected" {
 		t.Fatalf("estado = %q %v", shelterStatus, err)
 	}
-	if _, body := e.get("/admin/shelters"); !strings.Contains(body, "Todavía no hay refugios verificados") {
-		t.Fatalf("lista vacía = %s", body)
+	if _, body := e.get("/admin/shelters"); !strings.Contains(body, "Todavía no hay refugios verificados") || !strings.Contains(body, "No hay refugios en revisión") {
+		t.Fatalf("listas vacías = %s", body)
+	}
+	// Uno en revisión muestra lo que dijo el RUES y se aprueba a mano.
+	e.account("u_sas", "Tienda Animal", "user")
+	if _, err := e.app.DB.Exec(ctx, `UPDATE users SET shelter_name = 'Refugio Animal', shelter_nit = '800058136-5', shelter_status = 'pending',
+		shelter_official_name = 'NUTRICION ANIMAL SAS', shelter_check = 'not_nonprofit', shelter_requested_at = now() WHERE id = 'u_sas'`); err != nil {
+		t.Fatal(err)
+	}
+	status, body = e.get("/admin/shelters")
+	if status != http.StatusOK || !strings.Contains(body, "NUTRICION ANIMAL SAS") || !strings.Contains(body, "es una empresa") || !strings.Contains(body, "Aprobar") {
+		t.Fatalf("en revisión = %d %s", status, body)
+	}
+	e.post("/admin/users/u_sas", url.Values{"csrf": {csrf(t, body)}, "action": {"verify_shelter"}})
+	var check string
+	if err := e.app.DB.QueryRow(ctx, `SELECT shelter_status, shelter_check FROM users WHERE id = 'u_sas'`).Scan(&shelterStatus, &check); err != nil ||
+		shelterStatus != "verified" || check != "manual" {
+		t.Fatalf("aprobado = %q %q %v", shelterStatus, check, err)
 	}
 }
