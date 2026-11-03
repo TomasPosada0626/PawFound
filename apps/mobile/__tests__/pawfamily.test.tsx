@@ -262,6 +262,53 @@ describe("refugios", () => {
     expect(await screen.findByTestId("pawfamily")).toBeOnTheScreen();
   });
 
+  it("el perfil de un refugio muestra lo que tiene en adopción y sus adopciones logradas", async () => {
+    await acceptedTerms();
+    await open("/user/u_daniel");
+    expect(await screen.findByTestId("shelter-showcase")).toBeOnTheScreen();
+    expect(screen.getByText("3 en adopción")).toBeOnTheScreen();
+    expect(screen.getByText("0 adopciones logradas")).toBeOnTheScreen();
+    expect(await screen.findByTestId("adoption-ad_canela")).toBeOnTheScreen();
+  });
+
+  it("una persona natural no muestra vitrina de refugio", async () => {
+    await open("/user/u_valentina");
+    expect(await screen.findByTestId("public-rating")).toBeOnTheScreen();
+    expect(screen.queryByTestId("shelter-showcase")).not.toBeOnTheScreen();
+  });
+
+  it("después de adoptar, quien la dio ve dónde llegarán las novedades", async () => {
+    await loginAs("u_daniel");
+    await acceptedTerms();
+    await open("/pawfamily/ad_canela");
+    expect(screen.queryByTestId("adoption-updates")).not.toBeOnTheScreen();
+    await fireEvent.press(await screen.findByTestId("adoption-adopted"));
+    await fireEvent.press(await screen.findByTestId("confirm-accept"));
+    expect(await screen.findByTestId("adoption-updates")).toBeOnTheScreen();
+    expect(screen.getByText("Aquí verás las fotos y novedades que comparta su nueva familia.")).toBeOnTheScreen();
+    expect(await screen.findByText("Todavía no hay novedades.")).toBeOnTheScreen();
+    expect(screen.queryByTestId("update-send")).not.toBeOnTheScreen();
+    // Una adopción ya hecha no se comparte para buscar familia.
+    expect(screen.queryByTestId("adoption-share-story")).not.toBeOnTheScreen();
+  });
+
+  it("se comparte como historia, con la adopción gratuita a la vista", async () => {
+    await acceptedTerms();
+    const app = await open("/pawfamily/ad_canela");
+    await fireEvent.press(await screen.findByTestId("adoption-share-story"));
+    await waitFor(() => expect(app.getPathname()).toBe("/pawfamily/historia/ad_canela"));
+    expect(await screen.findByTestId("adoption-story-canvas")).toBeOnTheScreen();
+    expect(screen.getByText("Busca familia")).toBeOnTheScreen();
+    expect(screen.getByText("Adopción 100 % gratuita")).toBeOnTheScreen();
+    expect(screen.getByText(/Fundación Huellitas/)).toBeOnTheScreen();
+  });
+
+  it("la historia de una adopción que no existe lo dice", async () => {
+    await acceptedTerms();
+    await open("/pawfamily/historia/ad_nada");
+    expect(await screen.findByText("Esta mascota ya no está disponible.")).toBeOnTheScreen();
+  });
+
   it("un refugio verificado se ve en sus publicaciones", async () => {
     await acceptedTerms();
     await open("/pawfamily/ad_simon");

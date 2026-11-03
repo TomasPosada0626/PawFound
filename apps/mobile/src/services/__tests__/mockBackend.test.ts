@@ -16,6 +16,7 @@ import {
   followInfoOf,
   networkOf,
   ratingOf,
+  shelterSummaryOf,
 } from "../selectors";
 
 let clock = new Date("2026-10-27T12:00:00Z");
@@ -526,6 +527,48 @@ describe("perfil, privacidad y derechos sobre los datos", () => {
     expect(ratingOf(state, "u_daniel")).toEqual({ average: 4.9, count: 1 });
     expect(userStats(state, "u_daniel")).toMatchObject({ ratingAvg: 4.9, ratingCount: 1 });
     expect(userBadgeProgress(state, "u_daniel").find((b) => b.id === "protector")?.tier).toBe(0);
+  });
+
+  it("PawFamily: novedades después de adoptar, solo entre quien la dio y quien adoptó", async () => {
+    const backend = makeBackend();
+    await signInAs(backend, "u_maria");
+    await expectCode(backend.addAdoptionUpdate("ad_canela", { body: "Hola" }), "not_allowed");
+    await signInAs(backend, "u_daniel");
+    await backend.acceptApplication("ap_maria_canela");
+    await backend.markAdopted("ad_canela");
+    await expectCode(backend.addAdoptionUpdate("ad_canela", { body: "Hola" }), "not_allowed");
+
+    await signInAs(backend, "u_maria");
+    await expectCode(backend.addAdoptionUpdate("ad_canela", { body: "   " }), "invalid_input");
+    await expectCode(backend.addAdoptionUpdate("ad_nada", { body: "Hola" }), "not_found");
+    const update = await backend.addAdoptionUpdate("ad_canela", { body: " Ya duerme en su cama ", photo: "file:///c.jpg" });
+    expect(update).toMatchObject({ body: "Ya duerme en su cama", photo: "file:///c.jpg", authorId: "u_maria" });
+    await expect(backend.loadAdoptionUpdates("ad_canela")).resolves.toHaveLength(1);
+
+    await signInAs(backend, "u_daniel");
+    await expect(backend.loadAdoptionUpdates("ad_canela")).resolves.toEqual([update]);
+    await signInAs(backend, "u_valentina");
+    await expectCode(backend.loadAdoptionUpdates("ad_canela"), "not_allowed");
+    await expectCode(backend.loadAdoptionUpdates("ad_nada"), "not_found");
+  });
+
+  it("PawFamily: el perfil de un refugio cuenta lo que tiene en adopción y lo adoptado", async () => {
+    const backend = makeBackend();
+    expect(shelterSummaryOf(backend.getSnapshot(), "u_daniel")).toEqual({
+      name: "Fundación Huellitas",
+      available: 3,
+      adopted: 0,
+    });
+    expect(shelterSummaryOf(backend.getSnapshot(), "u_valentina")).toBeUndefined();
+    await expect(backend.loadUserAdoptions("u_daniel")).resolves.toHaveLength(3);
+    await signInAs(backend, "u_daniel");
+    await backend.markAdopted("ad_canela");
+    expect(shelterSummaryOf(backend.getSnapshot(), "u_daniel")).toEqual({
+      name: "Fundación Huellitas",
+      available: 2,
+      adopted: 1,
+    });
+    await expect(backend.loadUserAdoptions("u_daniel")).resolves.not.toContain("ad_canela");
   });
 
   it("adoptar en PawFamily da la insignia «Nuevo integrante»", async () => {

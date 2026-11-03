@@ -1,17 +1,25 @@
+import { Image } from "expo-image";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
+import { useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import Svg, { Defs, Ellipse, LinearGradient, Path, Stop } from "react-native-svg";
 
-import type { Adoption } from "@/domain/adoption";
+import { ADOPTION_UPDATE_MAX, type Adoption, type AdoptionUpdate } from "@/domain/adoption";
 import { formatDistance } from "@/domain/geo";
+import { shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
-import { useBackendState } from "@/store/backend";
+import { adoptionView, shelterSummaryOf } from "@/services/selectors";
+import { useBackend, useBackendState } from "@/store/backend";
 import { useTheme } from "@/theme/ThemeProvider";
 
 import { LogoMark } from "./brand";
 import { PetPhoto } from "./pets";
+import { Button } from "./ui/Button";
 import { Icon } from "./ui/Icon";
 import { Text } from "./ui/Text";
+import { TextField } from "./ui/TextField";
+import { useToast } from "./ui/Toast";
 
 /** Teal de la marca: PawFamily es una sección de PawFound, no otra marca. */
 const BRAND_TEAL = "#12B3A6";
@@ -207,5 +215,189 @@ export function AdoptionCard({ adoption, distanceMeters }: { adoption: Adoption;
         </View>
       ) : null}
     </Pressable>
+  );
+}
+
+/**
+ * Novedades después de adoptar. Quien adoptó comparte una foto y unas palabras; quien dio en
+ * adopción las ve. Nadie más.
+ */
+export function AdoptionUpdates({ adoptionId, canPost }: { adoptionId: string; canPost: boolean }) {
+  const { t, locale } = useI18n();
+  const { colors } = useTheme();
+  const backend = useBackend();
+  const state = useBackendState();
+  const toast = useToast();
+  const [updates, setUpdates] = useState<AdoptionUpdate[] | null>(null);
+  const [body, setBody] = useState("");
+  const [photo, setPhoto] = useState<string | undefined>();
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    backend
+      .loadAdoptionUpdates(adoptionId)
+      .then((list) => {
+        if (live) setUpdates(list);
+      })
+      .catch(() => {
+        if (live) setUpdates([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [backend, adoptionId, state.adoptionVersion]);
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.7, exif: false });
+    if (!result.canceled && result.assets[0]) setPhoto(result.assets[0].uri);
+  };
+
+  const send = async () => {
+    setSending(true);
+    try {
+      const created = await backend.addAdoptionUpdate(adoptionId, { photo, body });
+      setUpdates((list) => [created, ...(list ?? [])]);
+      setBody("");
+      setPhoto(undefined);
+      toast(t("pawfamily.updateSent"));
+    } catch {
+      toast(t("errors.unknown"), "error");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <View className="mt-4 rounded-3xl border border-border/60 bg-surface p-4" testID="adoption-updates">
+      <Text variant="subheading" accessibilityRole="header">
+        {t("pawfamily.updatesTitle")}
+      </Text>
+      <Text variant="caption" className="mt-1">
+        {canPost ? t("pawfamily.updatesAdopterHint") : t("pawfamily.updatesOwnerHint")}
+      </Text>
+      {canPost ? (
+        <View className="mt-3 gap-3">
+          {photo ? (
+            <Image source={{ uri: photo }} style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: 18 }} contentFit="cover" />
+          ) : null}
+          <TextField
+            label={t("pawfamily.updatePlaceholder")}
+            value={body}
+            onChangeText={setBody}
+            multiline
+            maxLength={ADOPTION_UPDATE_MAX}
+            testID="update-body"
+          />
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Button
+                compact
+                variant="outline"
+                icon="image-outline"
+                label={photo ? t("pawfamily.updateChangePhoto") : t("pawfamily.updateAddPhoto")}
+                onPress={() => void pickPhoto()}
+              />
+            </View>
+            <View className="flex-1">
+              <Button
+                compact
+                label={t("pawfamily.updateSend")}
+                disabled={!body.trim() && !photo}
+                loading={sending}
+                onPress={() => void send()}
+                testID="update-send"
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
+      <View className="mt-3 gap-3">
+        {updates === null ? null : updates.length === 0 ? (
+          <Text variant="caption" tone="muted">
+            {t("pawfamily.updatesEmpty")}
+          </Text>
+        ) : (
+          updates.map((u) => (
+            <View key={u.id} className="gap-2 rounded-2xl bg-surface-alt p-3" testID={"update-" + u.id}>
+              {u.photo ? (
+                <Image
+                  source={{ uri: u.photo }}
+                  style={{ width: "100%", aspectRatio: 4 / 3, borderRadius: 14 }}
+                  contentFit="cover"
+                />
+              ) : null}
+              {u.body ? <Text variant="body">{u.body}</Text> : null}
+              <View className="flex-row items-center gap-1">
+                <Icon name="time-outline" size={13} color={colors.muted} />
+                <Text variant="caption">{shortDate(new Date(u.at), locale)}</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+    </View>
+  );
+}
+
+/** Perfil público de un refugio verificado: cuántas tiene en adopción, sus adopciones logradas y la lista. */
+export function ShelterShowcase({ userId }: { userId: string }) {
+  const { t } = useI18n();
+  const { colors } = useTheme();
+  const backend = useBackend();
+  const state = useBackendState();
+  const summary = shelterSummaryOf(state, userId);
+  const [ids, setIds] = useState<string[] | null>(null);
+  const isShelter = Boolean(summary);
+
+  useEffect(() => {
+    if (!isShelter) return;
+    let live = true;
+    backend
+      .loadUserAdoptions(userId)
+      .then((list) => {
+        if (live) setIds(list);
+      })
+      .catch(() => {
+        if (live) setIds([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [backend, userId, isShelter, state.adoptionVersion]);
+
+  if (!summary) return null;
+  const list = (ids ?? []).map((id) => adoptionView(state, id)).filter((a) => a !== undefined);
+  return (
+    <View className="mt-4 rounded-3xl border border-border/60 bg-surface p-4" testID="shelter-showcase">
+      <View className="flex-row items-center gap-2">
+        <Icon name="business-outline" size={20} color={colors.primaryStrong} />
+        <Text variant="subheading" accessibilityRole="header" className="flex-1">
+          {t("pawfamily.shelterProfileTitle")}
+        </Text>
+        <ShelterTag />
+      </View>
+      <View className="mt-3 flex-row gap-3">
+        <View className="flex-1 items-center rounded-2xl bg-primary-soft p-3" testID="shelter-available">
+          <Text variant="captionStrong" tone="primary" className="text-center">
+            {t("pawfamily.shelterAvailable", { count: summary.available })}
+          </Text>
+        </View>
+        <View className="flex-1 items-center rounded-2xl bg-surface-alt p-3" testID="shelter-adopted">
+          <Text variant="captionStrong" className="text-center">
+            {t("pawfamily.shelterAdopted", { count: summary.adopted })}
+          </Text>
+        </View>
+      </View>
+      <View className="mt-3">
+        {ids === null ? null : list.length === 0 ? (
+          <Text variant="caption" tone="muted">
+            {t("pawfamily.shelterNone")}
+          </Text>
+        ) : (
+          list.map((adoption) => <AdoptionCard key={adoption.id} adoption={adoption} />)
+        )}
+      </View>
+    </View>
   );
 }

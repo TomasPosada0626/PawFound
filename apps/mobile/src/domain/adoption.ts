@@ -5,7 +5,24 @@ import type { AgeRange, LatLng, PetSize, Sex, Species } from "./types";
  * apps/api/internal/app/adoptions.go).
  */
 export type AdoptionStatus = "available" | "in_process" | "adopted" | "withdrawn";
-export type ApplicationStatus = "pending" | "accepted" | "declined";
+/** "expired": pasaron 14 días sin respuesta de quien publicó. */
+export type ApplicationStatus = "pending" | "accepted" | "declined" | "expired";
+
+/** Novedad de la nueva familia después de adoptar: una foto y unas palabras. */
+export type AdoptionUpdate = {
+  id: string;
+  adoptionId: string;
+  authorId: string;
+  photo?: string;
+  body: string;
+  at: string;
+};
+
+/** Perfil público de un refugio verificado: lo que tiene en adopción y sus adopciones logradas. */
+export type ShelterSummary = { name: string; available: number; adopted: number };
+
+/** Texto de una novedad (como la API). */
+export const ADOPTION_UPDATE_MAX = 300;
 
 export type Adoption = {
   id: string;

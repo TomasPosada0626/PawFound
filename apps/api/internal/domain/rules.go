@@ -106,6 +106,26 @@ func ReminderDue(age time.Duration) int {
 	return due
 }
 
+// PawFamily: una solicitud sin respuesta vence a los ApplicationExpiry, y a los FollowupDays días de
+// adoptar se le pide a la nueva familia una foto de cómo está la mascota.
+const (
+	ApplicationExpiry = 14 * 24 * time.Hour
+	AdoptionUpdateMax = 300
+)
+
+var FollowupDays = []int{7, 30}
+
+// FollowupDue es el recordatorio de seguimiento más reciente que toca (0 si ninguno).
+func FollowupDue(age time.Duration) int {
+	due := 0
+	for _, d := range FollowupDays {
+		if age >= time.Duration(d)*24*time.Hour {
+			due = d
+		}
+	}
+	return due
+}
+
 // Límites de la comunidad (mockBackend.ts).
 const (
 	MessageMax        = 1000

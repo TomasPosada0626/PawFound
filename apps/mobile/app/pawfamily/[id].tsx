@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { Screen } from "@/components/layout";
-import { PawFamilyHeader, ShelterTag } from "@/components/pawfamily";
+import { AdoptionUpdates, PawFamilyHeader, ShelterTag } from "@/components/pawfamily";
 import { PetPhoto, UserAvatar } from "@/components/pets";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Chip, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
@@ -58,6 +58,9 @@ export default function AdoptionScreen() {
   const applications = state.adoptionApplications.filter((a) => a.adoptionId === adoption.id);
   const mine = applications.find((a) => a.applicantId === state.sessionUserId);
   const [cover, ...more] = adoption.photos;
+  // Después de adoptar: quien adoptó cuenta cómo está y quien la dio lo ve.
+  const adopted = adoption.status === "adopted";
+  const iAdopted = adopted && (mine?.status ?? adoption.myApplication) === "accepted";
 
   const run = async (action: () => Promise<unknown>, done?: string) => {
     setBusy(true);
@@ -138,6 +141,20 @@ export default function AdoptionScreen() {
           </View>
         ) : null}
       </Card>
+
+      {listed ? (
+        <View className="mt-3">
+          <Button
+            variant="outline"
+            icon="logo-instagram"
+            label={t("pawfamily.shareStory")}
+            onPress={() => router.push(`/pawfamily/historia/${adoption.id}`)}
+            testID="adoption-share-story"
+          />
+        </View>
+      ) : null}
+
+      {adopted && (isOwner || iAdopted) ? <AdoptionUpdates adoptionId={adoption.id} canPost={iAdopted} /> : null}
 
       {owner ? (
         <Pressable accessibilityRole="button" onPress={() => router.push(`/user/${owner.id}`)} className="mt-3 active:opacity-80">

@@ -666,6 +666,7 @@ export function createSeed(now: Date = new Date()): SeedResult {
       places: osmPlaces as Place[],
       remoteBadges: {},
       network: { requests: [], followers: [], following: [], sent: [] },
+      shelterSummaries: {},
       followInfo: {},
       remoteRatings: {},
       follows: [

@@ -67,6 +67,9 @@ func Tick(ctx context.Context, a *app.App) error {
 	if _, _, err := a.RunCaseReminders(ctx); err != nil {
 		return err
 	}
+	if _, _, err := a.RunAdoptionTasks(ctx); err != nil {
+		return err
+	}
 	// Cuentas de ADMIN_EMAILS ya verificadas (por si ADMIN_EMAILS se agregó después).
 	if _, err := a.PromoteAdmins(ctx, ""); err != nil {
 		return err
@@ -110,6 +113,7 @@ func Cleanup(ctx context.Context, a *app.App) error {
 		      AND NOT EXISTS (SELECT 1 FROM owned_pets o WHERE m.id = ANY (o.photos))
 		      AND NOT EXISTS (SELECT 1 FROM adoptions d WHERE m.id = ANY (d.photos))
 		      AND NOT EXISTS (SELECT 1 FROM stories s WHERE s.photo_id = m.id)
+		      AND NOT EXISTS (SELECT 1 FROM adoption_updates au WHERE au.photo_id = m.id)
 		      AND NOT EXISTS (SELECT 1 FROM messages x WHERE x.photo_id = m.id)))
 		RETURNING storage_key`, now)
 	if err != nil {
