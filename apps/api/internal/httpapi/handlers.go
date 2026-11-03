@@ -670,5 +670,6 @@ func (s *Server) requestShelter(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &in) {
 		return
 	}
-	respond(w, 0, nil, s.App.VerifyShelter(r.Context(), actor(r), in))
+	result, err := s.App.VerifyShelter(r.Context(), actor(r), in)
+	respond(w, http.StatusOK, result, err)
 }

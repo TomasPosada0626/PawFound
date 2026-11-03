@@ -11,7 +11,7 @@ import {
   type AdoptionUpdate,
   ADOPTION_UPDATE_MAX,
 } from "@/domain/adoption";
-import { normalizeNit } from "@/domain/shelter";
+import { normalizeNit, type ShelterResult } from "@/domain/shelter";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
 import { matchOwned } from "@/domain/matching";
 import { cityFromZone, cityKey, findPossibleMatches, impactStats, publishAllowance, type ImpactStats } from "@/domain/rules";
@@ -1224,11 +1224,13 @@ export class MockBackend {
     if (!this.state.adoptions.some((a) => a.id === id)) throw new BackendError("not_found");
   }
 
-  async verifyShelter(name: string, nit: string): Promise<void> {
+  /** En la demostración no hay RUES: con el dígito de verificación correcto queda verificado. */
+  async verifyShelter(name: string, nit: string): Promise<ShelterResult> {
     const user = this.requireVerified();
     if (!name.trim() || !normalizeNit(nit)) throw new BackendError("invalid_input");
     if (user.shelterStatus === "rejected") throw new BackendError("not_allowed");
     this.commit({ users: { ...this.state.users, [user.id]: { ...user, shelterName: name.trim(), shelterStatus: "verified" } } });
+    return { status: "verified" };
   }
 
   async acceptAdoptionTerms(): Promise<void> {

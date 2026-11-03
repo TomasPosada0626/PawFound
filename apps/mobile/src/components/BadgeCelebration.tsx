@@ -95,7 +95,7 @@ export function BadgeCelebration() {
               : t("badgesHow.celebrateTitle")}
           </Text>
           <Animated.View style={{ transform: [{ scale }], marginVertical: 18 }}>
-            <BadgeHex id={current.id} tier={current.tier} size={132} />
+            <BadgeHex id={current.id} tier={current.tier} size={132} animated />
           </Animated.View>
           <Text variant="title" className="text-center" accessibilityRole="header">
             {t(`badges.${current.id}`)}

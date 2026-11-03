@@ -11,14 +11,26 @@ import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
 import { normalizeNit } from "@/domain/shelter";
 import { errorMessage } from "@/features/errorMessages";
+import type { TKey } from "@/i18n/core";
 import { useI18n } from "@/i18n/I18nProvider";
-import { BackendError } from "@/services/backendTypes";
+import { BackendError, type ErrorCode } from "@/services/backendTypes";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useCurrentUser } from "@/store/backend";
 
+/** Por qué el RUES no confirmó el refugio, en el campo que hay que corregir. */
+const REFUSALS: Partial<Record<ErrorCode, { field: "name" | "nit"; key: TKey }>> = {
+  nit_taken: { field: "nit", key: "pawfamily.shelterNitTaken" },
+  nit_inactive: { field: "nit", key: "pawfamily.shelterNitInactive" },
+  nit_not_found: { field: "nit", key: "pawfamily.shelterNitNotFound" },
+  nit_not_nonprofit: { field: "nit", key: "pawfamily.shelterNotNonprofit" },
+  nit_dv_mismatch: { field: "nit", key: "pawfamily.shelterDvMismatch" },
+  shelter_name_mismatch: { field: "name", key: "pawfamily.shelterNameMismatch" },
+};
+
 /**
- * Entrar como refugio: nombre y NIT. Si el dígito de verificación de la DIAN es correcto, la
- * insignia de refugio verificado se otorga al instante y se pasa al panel del refugio.
+ * Entrar como refugio: nombre y NIT. La API revisa el NIT en el RUES y decide sola: una fundación,
+ * asociación o corporación activa con ese nombre queda verificada al instante y pasa al panel del
+ * refugio; si no, dice qué corregir. Solo si el RUES no responde queda esperando y se avisa después.
  */
 export default function ShelterScreen() {
   const { t } = useI18n();
@@ -47,12 +59,17 @@ export default function ShelterScreen() {
     if (next.name || next.nit) return;
     setSending(true);
     try {
-      await backend.verifyShelter(name, nit);
-      toast(t("pawfamily.shelterVerifiedToast", { name: name.trim() }));
-      await enterAsShelter();
+      const result = await backend.verifyShelter(name, nit);
+      if (result.status === "verified") {
+        toast(t("pawfamily.shelterVerifiedToast", { name: name.trim() }));
+        await enterAsShelter();
+      } else {
+        toast(t("pawfamily.shelterPendingToast", { name: name.trim() }), "info");
+      }
     } catch (err) {
       const code = err instanceof BackendError ? err.code : "unknown";
-      if (code === "nit_taken") setErrors({ nit: t("pawfamily.shelterNitTaken") });
+      const refusal = REFUSALS[code];
+      if (refusal) setErrors({ [refusal.field]: t(refusal.key) });
       else toast(errorMessage(code, t), "error");
     } finally {
       setSending(false);
@@ -80,6 +97,11 @@ export default function ShelterScreen() {
         </View>
       ) : (
         <View className="mt-4 gap-3">
+          {status === "pending" ? (
+            <View testID="shelter-pending">
+              <Banner icon="time-outline" body={t("pawfamily.shelter_pending", { name: user.shelterName ?? "" })} />
+            </View>
+          ) : null}
           <TextField
             label={t("pawfamily.shelterName")}
             value={name}
@@ -104,6 +126,9 @@ export default function ShelterScreen() {
             onPress={() => void send()}
             testID="shelter-send"
           />
+          <Text variant="caption" tone="muted" className="text-center">
+            {t("pawfamily.shelterSource")}
+          </Text>
         </View>
       )}
     </Screen>

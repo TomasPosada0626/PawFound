@@ -710,7 +710,17 @@ export const es = {
     shelterTag: "Refugio verificado",
     shelterTitle: "Verificación de refugio",
     shelterIntro:
-      "Escribe el nombre del refugio y su NIT con el dígito de verificación. Si el dígito coincide con el de la DIAN, quedas verificado al instante.",
+      "Escribe el nombre del refugio y su NIT con el dígito de verificación. Revisamos el NIT en el RUES: si es una fundación, asociación o corporación activa con ese nombre, quedas verificado al instante. Si no, te decimos qué revisar.",
+    shelterSource: "Fuente: RUES – Confecámaras (datos abiertos, datos.gov.co).",
+    shelterPendingToast: "El RUES no respondió. Lo intentamos de nuevo solos y te avisamos cuando {name} quede verificado.",
+    shelter_pending:
+      "Estamos esperando al RUES para verificar a {name}: lo intentamos de nuevo cada hora y te avisamos. Si quieres, intenta otra vez ahora.",
+    shelterNitInactive: "En el RUES este NIT aparece cancelado o en liquidación.",
+    shelterNitNotFound: "Este NIT no aparece en el RUES. Si la entidad es nueva, intenta de nuevo en unas semanas.",
+    shelterNotNonprofit:
+      "En el RUES este NIT es de una empresa. Solo se verifican fundaciones, asociaciones o corporaciones sin ánimo de lucro.",
+    shelterDvMismatch: "El dígito de verificación no coincide con el del RUES.",
+    shelterNameMismatch: "El nombre no coincide con el registrado en el RUES. Escríbelo como aparece en la Cámara de Comercio.",
     shelterVerifiedToast: "¡Listo! {name} es un refugio verificado.",
     shelterEnter: "Entrar como refugio",
     shelterNitTaken: "Este NIT ya está verificado en otra cuenta.",

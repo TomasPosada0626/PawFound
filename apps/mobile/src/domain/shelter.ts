@@ -3,6 +3,9 @@ const NIT_WEIGHTS = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
 
 export type ShelterStatus = "pending" | "verified" | "rejected";
 
+/** Cómo quedó una solicitud: verificado al instante o en revisión (el RUES no fue concluyente). */
+export type ShelterResult = { status: "verified" | "pending"; officialName?: string };
+
 /** Dígito de verificación de un NIT colombiano (solo dígitos, sin el dígito final). */
 export function nitCheckDigit(base: string): number {
   let sum = 0;

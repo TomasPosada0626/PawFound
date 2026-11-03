@@ -2,13 +2,17 @@ package httpapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/TomasPosada0626/PawFound/apps/api/internal/app"
+	"github.com/TomasPosada0626/PawFound/apps/api/internal/providers"
 )
 
-func TestShelterIsVerifiedWithAValidNIT(t *testing.T) {
+func TestShelterIsVerifiedInTheRUES(t *testing.T) {
 	h := newHarness(t)
 	shelter := h.user("Fundación Huellitas", true)
 	newbie := h.user("Sin Verificar", false)
@@ -16,13 +20,18 @@ func TestShelterIsVerifiedWithAValidNIT(t *testing.T) {
 	moderator := h.user("Moderadora", true)
 	h.exec(`UPDATE users SET role = 'moderator' WHERE id = $1`, moderator.ID)
 	h.device(shelter)
+	h.registry.set("900123456", &providers.CompanyRecord{Name: "FUNDACION HUELLITAS MEDELLIN", CheckDigit: "", Status: "ACTIVA", LegalForm: "FUNDACIONES", Chamber: "MEDELLIN PARA ANTIOQUIA"}, nil)
 
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/me/shelter", newbie.Token, map[string]string{"name": "X", "nit": "900123456-8"})
 	for _, bad := range []map[string]string{{"name": "", "nit": "900123456-8"}, {"name": "Huellitas", "nit": "900123456-1"}, {"name": "Huellitas", "nit": "abc"}} {
 		h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPost, "/v1/me/shelter", shelter.Token, bad)
 	}
-	// Con el dígito de verificación correcto queda verificado al instante.
-	h.must(http.StatusNoContent, http.MethodPost, "/v1/me/shelter", shelter.Token, map[string]string{"name": "Fundación Huellitas", "nit": "900.123.456-8"}, nil)
+	// Fundación activa en el RUES y el nombre coincide: verificado al instante, con el nombre oficial.
+	var result app.ShelterResult
+	h.must(http.StatusOK, http.MethodPost, "/v1/me/shelter", shelter.Token, map[string]string{"name": "Fundación Huellitas", "nit": "900.123.456-8"}, &result)
+	if result.Status != "verified" || result.OfficialName == nil || *result.OfficialName != "FUNDACION HUELLITAS MEDELLIN" {
+		t.Fatalf("resultado = %+v", result)
+	}
 	var me app.Me
 	h.must(http.StatusOK, http.MethodGet, "/v1/me", shelter.Token, nil, &me)
 	if me.User.ShelterStatus == nil || *me.User.ShelterStatus != "verified" || me.User.ShelterName == nil {
@@ -37,12 +46,12 @@ func TestShelterIsVerifiedWithAValidNIT(t *testing.T) {
 		t.Fatalf("publicación = %+v", ad.Owner)
 	}
 	// Un NIT verifica una sola cuenta; corregir el nombre con el mismo NIT sí se puede.
-	h.expectError(http.StatusConflict, "nit_taken", http.MethodPost, "/v1/me/shelter", copycat.Token, map[string]string{"name": "Copia", "nit": "9001234568"})
-	h.must(http.StatusNoContent, http.MethodPost, "/v1/me/shelter", shelter.Token, map[string]string{"name": "Fundación Huellitas Medellín", "nit": "900123456-8"}, nil)
+	h.expectError(http.StatusConflict, "nit_taken", http.MethodPost, "/v1/me/shelter", copycat.Token, map[string]string{"name": "Huellitas", "nit": "9001234568"})
+	h.must(http.StatusOK, http.MethodPost, "/v1/me/shelter", shelter.Token, map[string]string{"name": "Fundación Huellitas Medellín", "nit": "900123456-8"}, &result)
 
 	ctx := context.Background()
 	list, err := h.app.Shelters(ctx)
-	if err != nil || len(list) != 1 || list[0].NIT != "900123456-8" || list[0].ShelterName != "Fundación Huellitas Medellín" {
+	if err != nil || len(list) != 1 || list[0].NIT != "900123456-8" || list[0].ShelterName != "Fundación Huellitas Medellín" || list[0].Status != "verified" {
 		t.Fatalf("refugios = %+v %v", list, err)
 	}
 	// Moderación puede quitar la verificación; entonces no vuelve a verificarse sola.
@@ -68,6 +77,108 @@ func TestShelterIsVerifiedWithAValidNIT(t *testing.T) {
 	}
 	if p := h.profile(shelter, ""); p.User.Shelter == nil {
 		t.Fatalf("verificación devuelta = %+v", p.User)
+	}
+}
+
+func TestSheltersAreDecidedAutomatically(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+	shop := h.user("Tienda", true)
+	unknown := h.user("Nuevo Refugio", true)
+	closed := h.user("Cerrado", true)
+	other := h.user("Otro Nombre", true)
+	offline := h.user("Sin RUES", true)
+	gone := h.user("Sin Registro", true)
+	// 900123456-8, 800058136-5, 900078738-7, 901015729-4, 830054539-0 y 860007386-1 tienen el dígito correcto.
+	h.registry.set("800058136", &providers.CompanyRecord{Name: "NUTRICION ANIMAL SAS", Status: "ACTIVA", LegalForm: "SOCIEDADES POR ACCIONES SIMPLIFICADAS SAS"}, nil)
+	h.registry.set("900078738", &providers.CompanyRecord{Name: "FUNDACION BIENESTAR ANIMAL", Status: "CANCELADA", LegalForm: "FUNDACIONES"}, nil)
+	h.registry.set("901015729", &providers.CompanyRecord{Name: "FUNDACION AMIGOS DE LOS GATOS", Status: "ACTIVA", LegalForm: "FUNDACIONES"}, nil)
+	h.registry.set("900123456", &providers.CompanyRecord{Name: "FUNDACION PATITAS", CheckDigit: "3", Status: "ACTIVA", LegalForm: "FUNDACIONES"}, nil)
+	shelter := func(name, nit string) map[string]string { return map[string]string{"name": name, "nit": nit} }
+
+	// Lo que el RUES no confirma se rechaza al instante, diciendo por qué, y no se guarda.
+	h.expectError(http.StatusUnprocessableEntity, "nit_not_nonprofit", http.MethodPost, "/v1/me/shelter", shop.Token, shelter("Nutrición Animal", "800058136-5"))
+	h.expectError(http.StatusUnprocessableEntity, "nit_not_found", http.MethodPost, "/v1/me/shelter", unknown.Token, shelter("Patitas Felices", "830054539-0"))
+	h.expectError(http.StatusUnprocessableEntity, "nit_inactive", http.MethodPost, "/v1/me/shelter", closed.Token, shelter("Bienestar Animal", "900078738-7"))
+	h.expectError(http.StatusUnprocessableEntity, "nit_dv_mismatch", http.MethodPost, "/v1/me/shelter", unknown.Token, shelter("Patitas", "900123456-8"))
+	h.expectError(http.StatusUnprocessableEntity, "shelter_name_mismatch", http.MethodPost, "/v1/me/shelter", other.Token, shelter("Refugio Las Patas", "901015729-4"))
+	if list, err := h.app.Shelters(ctx); err != nil || len(list) != 0 {
+		t.Fatalf("nada guardado = %+v %v", list, err)
+	}
+	// Con el nombre correcto, verificado al instante.
+	var result app.ShelterResult
+	h.must(http.StatusOK, http.MethodPost, "/v1/me/shelter", other.Token, shelter("Amigos de los Gatos", "901015729-4"), &result)
+	if result.Status != "verified" {
+		t.Fatalf("corregido = %+v", result)
+	}
+
+	// El RUES no responde: espera y se reintenta sola cada hora. Un verificado no pierde la verificación.
+	h.registry.set("830054539", nil, errors.New("sin conexión"))
+	for u, nit := range map[user]string{offline: "830054539-0", gone: "860007386-1"} {
+		h.must(http.StatusOK, http.MethodPost, "/v1/me/shelter", u.Token, shelter("Refugio Esperanza", nit), &result)
+		if result.Status != "pending" {
+			t.Fatalf("sin RUES = %+v", result)
+		}
+		h.device(u)
+	}
+	h.expectError(http.StatusServiceUnavailable, "provider_unavailable", http.MethodPost, "/v1/me/shelter", other.Token, shelter("Amigos de los Gatos", "901015729-4"))
+	if list, err := h.app.Shelters(ctx); err != nil || len(list) != 3 {
+		t.Fatalf("refugios = %+v %v", list, err)
+	}
+	// Pasada la hora, si el RUES sigue sin responder, vuelve a esperar otra hora.
+	h.clock.Advance(61 * time.Minute)
+	if v, _, err := h.app.RunShelterChecks(ctx); err != nil || v != 0 {
+		t.Fatalf("RUES caído = %d %v", v, err)
+	}
+	h.registry.set("830054539", &providers.CompanyRecord{Name: "FUNDACION REFUGIO ESPERANZA", Status: "ACTIVA", LegalForm: "FUNDACIONES"}, nil)
+	if v, _, err := h.app.RunShelterChecks(ctx); err != nil || v != 0 {
+		t.Fatalf("antes de la hora = %d %v", v, err)
+	}
+	h.clock.Advance(61 * time.Minute)
+	if v, _, err := h.app.RunShelterChecks(ctx); err != nil || v != 1 {
+		t.Fatalf("reintento = %d %v", v, err)
+	}
+	if got := h.pushesTo(offline); len(got) != 1 || !strings.Contains(got[0].Title, "Refugio verificado") {
+		t.Fatalf("aviso de verificado = %+v", got)
+	}
+	// El otro no aparece en el RUES: se descarta solo y se avisa.
+	var status *string
+	if err := h.app.DB.QueryRow(ctx, `SELECT shelter_status FROM users WHERE id = $1`, gone.ID).Scan(&status); err != nil || status != nil {
+		t.Fatalf("descartado = %v %v", status, err)
+	}
+	if got := h.pushesTo(gone); len(got) != 1 || !strings.Contains(got[0].Body, "No pudimos confirmar") {
+		t.Fatalf("aviso de rechazo = %+v", got)
+	}
+
+	// Cada mes se revisan los verificados: si la matrícula se cancela, pierden la verificación solos.
+	h.registry.set("830054539", &providers.CompanyRecord{Name: "FUNDACION REFUGIO ESPERANZA", Status: "CANCELADA", LegalForm: "FUNDACIONES"}, nil)
+	h.clock.Advance(31 * 24 * time.Hour)
+	if _, lost, err := h.app.RunShelterChecks(ctx); err != nil || lost != 1 {
+		t.Fatalf("revisión mensual = %d %v", lost, err)
+	}
+	if p := h.profile(offline, ""); p.User.Shelter != nil {
+		t.Fatalf("tras cancelarse = %+v", p.User)
+	}
+	if got := h.pushesTo(offline); !strings.Contains(got[len(got)-1].Body, "dejó de aparecer") {
+		t.Fatalf("aviso de pérdida = %+v", got)
+	}
+	// Una verificación devuelta en el panel no se deshace por el nombre: solo si la matrícula se cancela.
+	moderator := h.user("Moderadora", true)
+	h.exec(`UPDATE users SET role = 'moderator' WHERE id = $1`, moderator.ID)
+	mod, _ := h.app.LoadActor(ctx, moderator.ID)
+	for _, action := range []string{"reject_shelter", "verify_shelter"} {
+		if err := h.app.Moderate(ctx, mod, app.ModerationInput{Action: action, UserID: other.ID}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.registry.set("901015729", &providers.CompanyRecord{Name: "FUNDACION FELINOS DEL VALLE", Status: "ACTIVA", LegalForm: "FUNDACIONES"}, nil)
+	h.clock.Advance(31 * 24 * time.Hour)
+	if _, lost, err := h.app.RunShelterChecks(ctx); err != nil || lost != 0 {
+		t.Fatalf("devuelta = %d %v", lost, err)
+	}
+	list, err := h.app.Shelters(ctx)
+	if err != nil || len(list) != 1 || list[0].Status != "verified" || list[0].Check == nil || *list[0].Check != "manual" || list[0].CheckText() == "" {
+		t.Fatalf("verificación devuelta = %+v %v", list, err)
 	}
 }
 
