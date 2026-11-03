@@ -313,8 +313,40 @@ func (a *App) RunAlertJob(ctx context.Context) (int, error) {
 			return total, err
 		}
 		total += n
+		if err := a.notifyNewMatches(ctx, p); err != nil {
+			return total, err
+		}
 	}
 	return total, nil
+}
+
+// notifyNewMatches vuelve a comparar una perdida con las encontradas a medida que su círculo crece:
+// al publicar solo se comparaba con lo que estaba dentro del círculo de ese momento, y una
+// encontrada a 1,5 km quedaba fuera aunque el círculo llegara a 2 km. Avisa a la familia una sola
+// vez por coincidencia (la misma notificación que se crea al publicar).
+func (a *App) notifyNewMatches(ctx context.Context, row petRow) error {
+	owner := deref(row.OwnerID)
+	if owner == "" {
+		return nil
+	}
+	matches, err := a.matchesFor(ctx, row)
+	if err != nil {
+		return err
+	}
+	for _, m := range matches {
+		if deref(m.OwnerID) == owner {
+			continue
+		}
+		var notified bool
+		if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM notifications WHERE user_id = $1 AND pet_id = $2 AND kind = 'possible_match')`,
+			owner, m.ID).Scan(&notified); err != nil {
+			return err
+		}
+		if !notified {
+			a.notify(ctx, []string{owner}, "possible_match", m.ID, nil)
+		}
+	}
+	return nil
 }
 
 // notifyOwnedMatches: un reporte de mascota encontrada que se parece a una de "Mis mascotas"
