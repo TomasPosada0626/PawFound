@@ -1201,6 +1201,8 @@ export const en: Translations = {
     panda: "Panda avatar",
     bunny: "Bunny avatar",
     bear: "Bear avatar",
+    pug: "Pug avatar",
+    hamster: "Hamster avatar",
   },
   settings: {
     personal: "Personal information",

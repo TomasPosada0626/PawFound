@@ -118,7 +118,7 @@ export type AlertZone = {
   updatedAt?: string;
 };
 
-export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear";
+export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear" | "pug" | "hamster";
 
 export type ProfileTitle =
   | "animal_lover"

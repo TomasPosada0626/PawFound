@@ -249,6 +249,13 @@ func TestProfileAndPreferences(t *testing.T) {
 	}
 	h.expectError(http.StatusConflict, "username_taken", http.MethodPatch, "/v1/me", other.Token, map[string]string{"username": "ana_g"})
 	h.expectError(http.StatusUnprocessableEntity, "invalid_username", http.MethodPatch, "/v1/me", other.Token, map[string]string{"username": "a b"})
+	// Los avatares ilustrados nuevos también se aceptan.
+	for _, avatar := range []string{"pug", "hamster"} {
+		h.must(http.StatusOK, http.MethodPatch, "/v1/me", other.Token, map[string]string{"avatar": avatar}, &me)
+		if me.User.Avatar != avatar {
+			t.Fatalf("avatar %s = %s", avatar, me.User.Avatar)
+		}
+	}
 	for _, bad := range []map[string]string{{"avatar": "dragon"}, {"title": "rey"}, {"name": "A"}, {"city": " "}} {
 		h.expectError(http.StatusUnprocessableEntity, "invalid_input", http.MethodPatch, "/v1/me", other.Token, bad)
 	}
