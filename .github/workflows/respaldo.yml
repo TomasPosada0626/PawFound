@@ -27,12 +27,13 @@ jobs:
       - name: Comprobar la configuración
         id: config
         run: |
+          # Sin secretos falla (en rojo, y GitHub avisa por correo): antes solo dejaba una
+          # advertencia en verde y nadie se enteraba de que no había respaldos.
           if [ -z "$DATABASE_URL" ] || [ -z "$RESPALDO_CLAVE" ] || [ -z "$R2_BUCKET" ]; then
-            echo "::warning::Los respaldos no están configurados: faltan secretos (docs/DESPLIEGUE.md)."
-            echo "listo=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "listo=true" >> "$GITHUB_OUTPUT"
+            echo "::error::Los respaldos no están configurados: faltan secretos (docs/DESPLIEGUE.md §10)."
+            exit 1
           fi
+          echo "listo=true" >> "$GITHUB_OUTPUT"
       - name: Instalar pg_dump
         if: steps.config.outputs.listo == 'true'
         run: |

@@ -1,0 +1,19 @@
+# Revisa cada hora que la API responda y que llegue a la base de datos (/ready). Si falla, el
+# trabajo queda en rojo y GitHub avisa por correo a quien programó el horario. No reemplaza al
+# monitor externo de docs/DESPLIEGUE.md §7, que revisa cada 5 minutos.
+name: Vigilar la API
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Revisar /ready
+        run: curl -fsS --max-time 90 --retry 3 --retry-delay 20 --retry-all-errors https://pawfound-api.onrender.com/ready
