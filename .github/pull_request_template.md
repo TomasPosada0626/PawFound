@@ -9,17 +9,17 @@ Closes #
 ## Validación
 
 - [ ] Probé los cambios o documenté la validación aplicable.
-- [ ] Actualicé la documentación necesaria.
+- [ ] Actualicé la documentación necesaria (incluido `packages/contracts/openapi.yaml` si cambió una ruta).
 - [ ] Consideré accesibilidad, privacidad y seguridad.
-- [ ] No incluí datos sensibles ni secretos.
+- [ ] No incluí datos sensibles ni secretos (el repositorio es público).
 
 ### Solo para cambios de código (no aplica a PRs de documentación)
 
-- [ ] Agregué/actualicé pruebas unitarias de la lógica nueva o modificada.
-- [ ] Pasa el análisis estático (linter + escáner de seguridad del lenguaje) sin hallazgos nuevos.
-- [ ] Agregué/actualicé pruebas end-to-end del flujo completo afectado (no solo la unidad aislada).
+- [ ] Agregué o actualicé pruebas unitarias de la lógica nueva o modificada.
+- [ ] Pasa el análisis estático (linter y escáner de seguridad del lenguaje) sin hallazgos nuevos.
+- [ ] Agregué o actualicé pruebas del flujo completo afectado, no solo de la unidad aislada.
 - [ ] Corrí el escaneo de vulnerabilidades de dependencias (`govulncheck` / `npm audit`) sin hallazgos sin resolver.
-- [ ] La cobertura del código nuevo o modificado es ≥ 80 %.
+- [ ] La cobertura sigue dentro del mínimo del CI (API ≥ 90 % total, app ≥ 80 % de líneas y sentencias).
 
 ## Evidencia
 

@@ -1,116 +1,123 @@
 # PawFound — App móvil
 
-Expo SDK 57 + React Native + TypeScript + NativeWind + expo-router. Ver
-[docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) para el diseño completo y
-[`Diseño ideal/`](../../Diseño%20ideal/) para la referencia visual: el mockup manda sobre
-cualquier otra descripción si hay conflicto.
+Expo SDK 57 + React Native + TypeScript + NativeWind + expo-router, Android primero (iOS después,
+con el mismo código). Diseño completo en [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md),
+reglas de producto en [PRODUCT.md](../../PRODUCT.md) y referencia visual en
+[`Diseño ideal/`](../../Diseño%20ideal/).
 
 ## Requisitos
 
-- Node.js 20+
-- App Expo Go en un Android, o un emulador Android
+- Node.js 20 o más nuevo (el CI usa 20).
+- Un Android con el APK de PawFound, un emulador o Expo Go para SDK 57. El Expo Go de la Play
+  Store puede ser de otro SDK: descarga el 57 en [expo.dev/go](https://expo.dev/go). En Expo Go el
+  mapa de Google sale en blanco sin clave propia.
 
 ## Comandos
 
 ```bash
 npm install
-npm run start          # bundler de Expo (escanea el QR con Expo Go)
-npm run android        # emulador/dispositivo Android conectado
-npm run web            # vista previa en navegador (solo desarrollo de UI; el mapa es esquemático)
+npm run start          # bundler de Expo
+npm run android        # emulador o dispositivo Android conectado
+npm run web            # vista previa en el navegador (solo para la interfaz; el mapa es esquemático)
 npm run typecheck      # TypeScript estricto
-npm run lint           # ESLint (config de Expo)
-npm test               # unitarias + flujos completos
-npm run test:coverage  # con cobertura (umbral ≥ 80 % en package.json)
+npm run lint           # ESLint
+npx prettier --check "app/**/*.{ts,tsx}" "src/**/*.{ts,tsx}" "__tests__/**/*.tsx"
+npm test               # unitarias y flujos completos
+npm run test:coverage  # con cobertura: el CI exige ≥ 80 % de líneas y sentencias (package.json)
 ```
 
-## Modo demostración
+## Modo demostración o API real
 
-Mientras la API no exponga los endpoints de dominio, la app corre contra un backend
-simulado en memoria (`src/services/mockBackend.ts`) que aplica las mismas reglas que la
-API: límite de 2 reportes por día, verificación SMS con bloqueo tras 5 intentos,
-ubicación aproximada a celdas de 250 m, grupos de caso automáticos y permisos. Los datos
-de ejemplo (`src/services/seed.ts`) no son casos reales y se reinician al cerrar la app.
+La app elige el backend con `EXPO_PUBLIC_API_URL`:
 
-- Cuenta de demostración: `demo@pawfound.app` / `PawFound2026` (botón en el login).
-- Código SMS de demostración: `123456`.
+- **Sin la variable**: modo demostración en memoria (`src/services/mockBackend.ts`). Aplica las
+  mismas reglas que la API: 2 reportes por día, verificación de correo con bloqueo tras 5
+  intentos, ubicación aproximada a 250 m, grupos de caso y permisos. Los datos de ejemplo
+  (`src/services/seed.ts`) no son casos reales y se reinician al cerrar la app.
+  - Cuenta de demostración: `demo@pawfound.app` / `PawFound2026` (botón en el login).
+  - Código de verificación de demostración: `123456`.
+- **Con la variable**: `src/services/apiBackend.ts` habla con la API. Implementa la misma interfaz
+  (`Backend`), así que las pantallas no cambian. Para la API local:
 
-Para conectar la API real, reemplazar `MockBackend` por un cliente generado desde
-[`packages/contracts/openapi.yaml`](../../packages/contracts) que implemente los mismos
-métodos; las pantallas solo dependen de `useBackend()` / `useBackendState()`.
+  ```bash
+  EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start   # la IP de tu computador en la red local
+  ```
+
+El cliente de la API está escrito a mano. Cuando cambia una ruta, sus tipos
+(`src/domain/types.ts`, `src/services/backendTypes.ts`) y el contrato
+[`packages/contracts/openapi.yaml`](../../packages/contracts/openapi.yaml) se actualizan en el mismo
+PR. Un código de error nuevo de la API debe agregarse a `ErrorCode` y a `KNOWN_CODES`; si no, la app
+lo muestra como error genérico.
+
+## Variables
+
+| Variable | Dónde | Para qué |
+| --- | --- | --- |
+| `EXPO_PUBLIC_API_URL` | EAS (y `.env` local) | URL de la API. Sin ella, modo demostración. Los builds de EAS fallan si falta |
+| `EXPO_PUBLIC_WEB_URL` | EAS | Sitio de los enlaces compartidos (`https://pawfound.pages.dev`) |
+| `GOOGLE_MAPS_API_KEY` | EAS (y `.env` local, ignorado por git) | Clave de Google Maps para Android, restringida al paquete `app.pawfound`. `app.config.js` la inyecta; nunca va en `app.json` porque el repositorio es público |
+| `EXPO_PUBLIC_SENTRY_DSN` | EAS | Opcional: activa el reporte de errores. Hoy no está configurada |
+
+## Builds y actualizaciones
+
+```bash
+npx eas-cli build -p android --profile preview      # APK para instalar en celulares
+npx eas-cli update --channel preview --environment preview --platform android --message "qué cambió"
+```
+
+Los cambios de JavaScript (pantallas, textos, reglas) llegan por EAS Update sin reinstalar. Los
+nativos (librerías nuevas, permisos, ícono) cambian la huella (`runtimeVersion` por *fingerprint*) y
+piden un APK nuevo. Antes de publicar una actualización, confirma que la huella coincide con la del
+APK instalado ([docs/DESPLIEGUE.md § 6](../../docs/DESPLIEGUE.md#6-app-eas)).
 
 ## Estructura
 
 ```text
-app/                    # rutas (expo-router): (tabs), pet/[id], report, chat/[id], auth, settings
-src/domain/             # reglas puras: círculo de vida, geo/privacidad, validación, coincidencias
-src/services/           # backend simulado, seed, selectores, almacenamiento local
-src/store/              # providers: backend, preferencias del dispositivo, ubicación
-src/i18n/               # es (fuente) + en; TypeScript exige las mismas claves en ambos
-src/theme/              # tokens de color (claro/oscuro, contraste verificado) y tema
-src/components/         # UI: kit base, mapa, pines, círculo de vida, insignias, layouts
-__tests__/              # flujos completos sobre el router real
+app/                    rutas (expo-router): (tabs), pet/[id], report, chat/[id], auth, settings,
+                        pawfamily, user/[id], my-pets, alerta, historias, veterinarias, seguidores
+src/domain/             reglas puras: círculo de vida, alertas, coincidencias, insignias,
+                        calificaciones, validación, NIT, geo y privacidad
+src/services/           ApiBackend, MockBackend, seed, selectores, almacenamiento local
+src/store/              providers: backend, preferencias del dispositivo, ubicación
+src/features/           lógica compartida entre pantallas (mensajes de error, etc.)
+src/hooks/              hooks (useAuthGate y otros)
+src/i18n/               es (fuente) + en; TypeScript exige las mismas claves en ambos
+src/theme/              tokens de color (claro y oscuro, contraste verificado) y tema
+src/components/         UI: kit base, mapa, pines, círculo de vida, insignias, avatares, PawFamily
+__tests__/              flujos completos sobre el router real
 ```
 
-## Decisiones de producto implementadas
+## Decisiones implementadas
 
-- **Modo exploración**: mapa, inicio y detalle sin cuenta; reportar, escribir o unirse a
-  un grupo pide cuenta con celular verificado (`useAuthGate`).
-- **Círculo de vida** por perfil (issue #10), con vista previa de crecimiento (+6/+24/+72 h)
-  y capa opcional en el mapa. La fórmula se valida contra
-  `packages/contracts/fixtures/life-circle.json`, el mismo archivo que usa la API en Go.
-- **Privacidad**: nunca se muestra la dirección exacta (issue #46); nombre corto del
-  autor; consentimiento propio antes del permiso de ubicación del sistema.
-- **Traducción de chats**: cada mensaje guarda su idioma; quien lee en otro idioma ve la
-  traducción generada por el servidor, con "Ver original". En demo no hay proveedor y no
-  se inventan traducciones de mensajes nuevos.
-- **Alerta Ángel por push** (no SMS): llega a los celulares dentro del círculo de vida y a
-  más celulares a medida que crece (`src/domain/alerts.ts`, `BackgroundServices`). En demo
-  son notificaciones locales (funcionan en Expo Go); en producción las envía la API.
-- **Insignias por niveles** (`src/domain/badges.ts`), celebración al ganarlas y "Ángel de
-  patas" que la familia otorga al cerrar el caso.
-- **Perfiles públicos con "me gusta"** (`app/user/[id].tsx`), días en PawFound, y
-  convivencia sin bloqueos: reportar persona, aviso amable y límite de mensajes.
-- **Mis mascotas** (perfil preventivo → reporte con un toque), **afiche con QR** e
-  **historia para Instagram** (`app/pet/[id]/story.tsx`, con guía para Destacadas).
-- **Fotos en el chat** (grupos y DM) y **"¿Es tu mascota?"** (`src/domain/matching.ts`,
-  vectores compartidos con la API en `packages/contracts/fixtures/owned-matches.json`).
-- **Accesibilidad** (docs/accesibilidad.md): touch targets ≥ 48 dp, labels reales,
-  regiones vivas para errores, estado nunca solo por color, contraste AA probado en tests.
+- **Modo exploración**: inicio, mapa y detalle sin cuenta. Reportar, escribir, unirse a un grupo o
+  actuar en PawFamily pide una cuenta con correo verificado (`useAuthGate`).
+- **Círculo de vida** (issue #10): se valida contra `packages/contracts/fixtures/life-circle.json`,
+  el mismo archivo que usa la API.
+- **Privacidad**: nunca se muestra la dirección exacta (issue #46), el autor aparece con nombre
+  corto y la app explica el uso de la ubicación antes del permiso del sistema.
+- **Alerta Ángel por push**: con la ubicación en segundo plano (`BackgroundServices`, tarea de
+  `expo-location`) el servidor sabe el último punto aproximado. En modo demostración son
+  notificaciones locales. La ubicación en segundo plano necesita un build propio: en Expo Go solo
+  se actualiza con la app abierta.
+- **Insignias** (`src/domain/badges.ts`, `src/components/badges.tsx`): medallas por niveles con
+  celebración al ganarlas.
+- **Calificaciones** (`src/components/RatingSummary.tsx`): el promedio solo se ve desde la décima.
+- **Avatares ilustrados** (`src/components/avatars.tsx`) o foto de perfil propia.
+- **PawFamily** (`app/pawfamily/`): búsqueda con filtros, publicación, solicitudes, seguimiento y
+  verificación de refugios con mensajes claros para cada rechazo del RUES.
+- **Eliminar la cuenta** (`src/components/DeleteAccountSheet.tsx`): pide escribir ELIMINAR y borra
+  también lo guardado en el celular.
+- **Accesibilidad** ([docs/accesibilidad.md](../../docs/accesibilidad.md)): touch targets ≥ 48 dp,
+  etiquetas reales, regiones vivas para errores, estado nunca solo por color y contraste AA
+  probado en tests.
 
-## Mapa en builds propios
+## Pruebas en dispositivo
 
-`react-native-maps` usa Google Maps en Android. En Expo Go funciona sin configuración;
-para un build de EAS hay que agregar la API key en `app.json` →
-`android.config.googleMaps.apiKey` (restringida al paquete `app.pawfound`).
+Las pruebas de `__tests__/` recorren los flujos sobre el router real con módulos nativos simulados.
+Falta la capa en dispositivo (Maestro o Detox), que necesita un emulador en el CI.
 
-## Pruebas en dispositivo (e2e)
+## Vulnerabilidades conocidas
 
-Las pruebas de `__tests__/` recorren los flujos sobre el router real con módulos nativos
-simulados. Falta la capa en dispositivo (Maestro o Detox, docs/ARCHITECTURE.md), que
-requiere un emulador en CI.
-
-## Vulnerabilidades conocidas (aceptadas, no de runtime)
-
-`npm audit --omit=dev` reporta avisos "high" en `@expo/cli`, `zod` e `image-size`. Son de la
-cadena de build de Expo (no corren en el dispositivo) y su única corrección es un cambio
-mayor de SDK. CI bloquea cualquier aviso crítico; los demás los resuelve Renovate al salir
-la versión corregida de Expo.
-
-## Pendiente antes de la primera build real
-
-- Reemplazar los íconos de `assets/` por el isotipo real de PawFound.
-- Avatares ilustrados definitivos (hoy son avatares de animales con emoji, issue #61).
-- Proveedor de traducción, SMS y almacenamiento de fotos, cada uno tras su evaluación en
-  `docs/legal/incidentes-y-proveedores.md`.
-
-## Conectar con la API real
-
-Sin configuración la app corre en **modo demostración** (todo en memoria). Para usar la API:
-
-```bash
-EXPO_PUBLIC_API_URL=http://192.168.1.10:8080 npx expo start   # la IP de tu computador en la red local
-```
-
-`src/services/apiBackend.ts` implementa la misma interfaz que el backend de demostración, así
-que las pantallas no cambian. La ubicación en segundo plano para las Alertas Ángel necesita
-un build propio (EAS o `expo run:android`): en Expo Go solo se actualiza con la app abierta.
+`npm audit --omit=dev` puede reportar avisos «high» en la cadena de build de Expo (`@expo/cli` y sus
+dependencias). No corren en el celular y su corrección suele llegar con un SDK nuevo. El CI bloquea
+cualquier aviso crítico; Renovate actualiza el resto cuando sale la versión corregida.
