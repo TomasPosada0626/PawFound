@@ -86,6 +86,46 @@ const AlertMinRadius = 250
 // llegar igual con el último conocido. Al cerrar sesión se borra de inmediato.
 const AlertLocationTTL = 30 * 24 * time.Hour
 
+// Recordatorios a la familia: a los ReminderDays días de publicado se le pregunta si su mascota ya
+// apareció. Un caso sin novedades en ArchiveAfter se archiva, avisando ArchiveWarning antes.
+var ReminderDays = []int{3, 7, 14}
+
+const (
+	ArchiveAfter   = 60 * 24 * time.Hour
+	ArchiveWarning = 7 * 24 * time.Hour
+)
+
+// ReminderDue es el recordatorio más reciente que toca según la edad del caso (0 si ninguno).
+func ReminderDue(age time.Duration) int {
+	due := 0
+	for _, d := range ReminderDays {
+		if age >= time.Duration(d)*24*time.Hour {
+			due = d
+		}
+	}
+	return due
+}
+
+// PawFamily: una solicitud sin respuesta vence a los ApplicationExpiry, y a los FollowupDays días de
+// adoptar se le pide a la nueva familia una foto de cómo está la mascota.
+const (
+	ApplicationExpiry = 14 * 24 * time.Hour
+	AdoptionUpdateMax = 300
+)
+
+var FollowupDays = []int{7, 30}
+
+// FollowupDue es el recordatorio de seguimiento más reciente que toca (0 si ninguno).
+func FollowupDue(age time.Duration) int {
+	due := 0
+	for _, d := range FollowupDays {
+		if age >= time.Duration(d)*24*time.Hour {
+			due = d
+		}
+	}
+	return due
+}
+
 // Límites de la comunidad (mockBackend.ts).
 const (
 	MessageMax        = 1000
@@ -124,13 +164,14 @@ var BadgeRules = []BadgeRule{
 	{"new_member", "reunions", []int{1}},
 }
 
-// Calificación por ayudar en un caso. Toda cuenta empieza con RatingWindow calificaciones de 5
-// estrellas y cada una real va reemplazando a una de ellas: una mala nota no hunde a quien recién
-// empieza, y solo cuentan las RatingWindow más recientes.
+// Calificación por ayudar en un caso: de 1 a RatingMaxStars estrellas. El promedio solo se muestra
+// desde RatingVisibleFrom calificaciones reales (antes, una sola nota lo movería demasiado) y cuenta
+// las RatingWindow más recientes. No hay calificaciones de relleno: el número es real.
 const (
-	RatingWindow = 20
-	// RatingStart es lo que vale cada calificación que aún no se ha dado.
-	RatingStart = 5
+	RatingWindow   = 20
+	RatingMaxStars = 5
+	// RatingVisibleFrom: calificaciones reales que hacen falta para mostrar el promedio.
+	RatingVisibleFrom = 10
 	// ProtectorMinRatings: calificaciones reales que hacen falta para "Protector animal".
 	ProtectorMinRatings = 10
 	// MaxFollowDeclines rechazos suspenden el envío de solicitudes a esa persona por FollowRetryWait.
@@ -138,22 +179,22 @@ const (
 	FollowRetryWait   = 30 * 24 * time.Hour
 )
 
-func ratingSum(stars []int) int {
+// Rating es el promedio de las RatingWindow calificaciones más recientes (stars va de la más reciente
+// a la más antigua), o 0 si todavía no hay RatingVisibleFrom.
+func Rating(stars []int) float64 {
 	n := min(len(stars), RatingWindow)
-	sum := (RatingWindow - n) * RatingStart
+	if n < RatingVisibleFrom {
+		return 0
+	}
+	sum := 0
 	for _, s := range stars[:n] {
 		sum += s
 	}
-	return sum
+	return float64(sum) / float64(n)
 }
 
-// Rating es el promedio vigente; stars van de la más reciente a la más antigua.
-func Rating(stars []int) float64 {
-	return float64(ratingSum(stars)) / RatingWindow
-}
-
-// IsAnimalProtector dice si hoy se tiene "Protector animal": desde la décima calificación real,
-// sin contar las 5 estrellas iniciales, un promedio de más de 4,5. Se gana y se pierde según suba
+// IsAnimalProtector dice si hoy se tiene "Protector animal": desde la décima calificación real, un
+// promedio de más de 4,5. Se gana y se pierde según suba
 // o baje.
 func IsAnimalProtector(stars []int) bool {
 	n := min(len(stars), RatingWindow)

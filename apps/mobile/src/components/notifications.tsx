@@ -21,6 +21,8 @@ const LOST_TONE = new Set<AppNotification["kind"]>([
   "case_closed",
   "angel_alert",
   "life_circle",
+  "case_reminder",
+  "archive_warning",
 ]);
 
 /** Fila de notificación (pestaña Notificaciones y "Actividad reciente" de Inicio). */

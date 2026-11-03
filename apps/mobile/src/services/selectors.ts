@@ -3,7 +3,7 @@ import { distanceMeters } from "@/domain/geo";
 import { isAnimalProtector, ratingAverage } from "@/domain/rating";
 import type { AppNotification, LatLng, Message, OwnedPet, PetCase, Species, StoryItem, Thread, User } from "@/domain/types";
 
-import type { Adoption } from "@/domain/adoption";
+import type { Adoption, ShelterSummary } from "@/domain/adoption";
 import type { BackendState, FollowInfo, Network, RatingInfo } from "./backendTypes";
 
 /** Quita tildes sin depender de String.normalize (soporte parcial en Hermes). */
@@ -263,6 +263,20 @@ export function storySlideIds(pet: PetCase, items: StoryItem[]): string[] {
  * Una publicación de PawFamily vista por la cuenta actual: la dirección solo para quien publicó o
  * para quien fue aceptado, y las solicitudes por responder solo para quien publicó.
  */
+/** Refugio verificado: lo que trae la API o, en la demostración, lo que hay en el estado. */
+export function shelterSummaryOf(state: BackendState, userId: string): ShelterSummary | undefined {
+  const remote = state.shelterSummaries?.[userId];
+  if (remote) return remote;
+  const user = state.users[userId];
+  if (user?.shelterStatus !== "verified" || !user.shelterName) return undefined;
+  const own = (state.adoptions ?? []).filter((a) => a.ownerId === userId);
+  return {
+    name: user.shelterName,
+    available: own.filter((a) => a.status === "available" || a.status === "in_process").length,
+    adopted: own.filter((a) => a.status === "adopted").length,
+  };
+}
+
 export function adoptionView(state: BackendState, id: string): Adoption | undefined {
   const adoption = state.adoptions?.find((a) => a.id === id);
   if (!adoption) return undefined;

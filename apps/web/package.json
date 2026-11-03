@@ -6,7 +6,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check"
+    "check": "astro check",
+    "test": "node --test lib/*.test.js"
   },
   "devDependencies": {
     "@fontsource-variable/nunito": "^5.3.0",

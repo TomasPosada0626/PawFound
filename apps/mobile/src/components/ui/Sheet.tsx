@@ -17,6 +17,7 @@ export function Sheet({
   title,
   subtitle,
   children,
+  footer,
   testID,
 }: {
   visible: boolean;
@@ -24,6 +25,8 @@ export function Sheet({
   title?: string;
   subtitle?: string;
   children: ReactNode;
+  /** Acciones fijas abajo (no se desplazan con el contenido). */
+  footer?: ReactNode;
   testID?: string;
 }) {
   const insets = useSafeAreaInsets();
@@ -58,6 +61,7 @@ export function Sheet({
           <ScrollView bounces={false} keyboardShouldPersistTaps="handled">
             {children}
           </ScrollView>
+          {footer ? <View className="-mx-5 border-t border-border/60 px-5 pt-3">{footer}</View> : null}
         </View>
       </View>
     </Modal>

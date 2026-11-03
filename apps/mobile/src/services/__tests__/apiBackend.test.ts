@@ -486,6 +486,23 @@ describe("conexión en vivo", () => {
     expect(state.stories).toHaveLength(0);
   });
 
+  it("un caso archivado por falta de novedades queda archivado, no reencontrado, y conserva sus avisos", async () => {
+    route("GET /v1/threads", { status: 200, body: [thread("grp_max")] });
+    route("GET /v1/me/notifications", {
+      status: 200,
+      body: [{ id: "n1", userId: "u_ana", kind: "case_archived", petId: "max", read: false }],
+    });
+    route("GET /v1/pets/max", { status: 200, body: pet("max") });
+    const backend = await loggedIn();
+    emit("pet", pet("max"));
+    emit("pet_closed", { id: "max", removed: false, archived: true, at: "2026-11-01T10:00:00Z" });
+    const state = backend.getSnapshot();
+    expect(state.pets.find((p) => p.id === "max")).toMatchObject({ state: "archived" });
+    expect(state.pets.find((p) => p.id === "max")?.reunitedAt).toBeUndefined();
+    expect(state.threads.find((t) => t.id === "grp_max")?.archived).toBe(true);
+    expect(state.notifications.map((n) => n.kind)).toEqual(["case_archived"]);
+  });
+
   it("una publicación eliminada desaparece junto con sus notificaciones", async () => {
     route("GET /v1/pets/max", { status: 200, body: pet("max") });
     route("GET /v1/me/notifications", {
@@ -958,6 +975,94 @@ describe("perfil y preferencias", () => {
     await backend.toggleProfileLike("u_carlos");
     expect(backend.getSnapshot().profileLikes.u_carlos).toHaveLength(2);
     expect(backend.getSnapshot().profileLikes.u_carlos).not.toContain("u_ana");
+  });
+
+  it("PawFamily: refugio en el perfil, mascotas de una cuenta y novedades después de adoptar", async () => {
+    const backend = await loggedIn();
+    const owner = {
+      id: "u_o",
+      shortName: "Refugio",
+      avatar: "dog",
+      verified: true,
+      createdAt: "2026-01-01T00:00:00Z",
+      lang: "es",
+    };
+    route("GET /v1/users/u_o", {
+      status: 200,
+      body: {
+        user: { ...owner, name: "Refugio Patitas", username: "patitas", title: "animal_lover", bio: "", city: "Medellín" },
+        likes: 0,
+        likedByMe: false,
+        rating: 0,
+        ratingCount: 0,
+        followers: 0,
+        following: 0,
+        followStatus: "none",
+        badges: [],
+        pets: [],
+        shelter: { name: "Refugio Patitas", available: 1, adopted: 4 },
+      },
+    });
+    await backend.loadProfile("u_o");
+    expect(backend.getSnapshot().shelterSummaries.u_o).toEqual({ name: "Refugio Patitas", available: 1, adopted: 4 });
+
+    route("GET /v1/users/u_o/adoptions", {
+      status: 200,
+      body: [
+        {
+          id: "ad_9",
+          owner,
+          name: "Toby",
+          species: "dog",
+          sex: "male",
+          age: "young",
+          size: "small",
+          description: "Juguetón",
+          vaccinated: true,
+          sterilized: false,
+          photos: ["https://x/t.jpg"],
+          location: { latitude: 6.24, longitude: -75.59 },
+          zone: "Laureles",
+          status: "available",
+          createdAt: "2026-11-01T00:00:00Z",
+        },
+      ],
+    });
+    await expect(backend.loadUserAdoptions("u_o")).resolves.toEqual(["ad_9"]);
+    expect(backend.getSnapshot().adoptions.some((a) => a.id === "ad_9")).toBe(true);
+
+    const update = {
+      id: "upd_1",
+      adoptionId: "ad_9",
+      authorId: "u_ana",
+      photo: "https://x/u.jpg",
+      body: "Feliz",
+      at: "2026-11-10T00:00:00Z",
+    };
+    route("GET /v1/adoptions/ad_9/updates", { status: 200, body: [update] });
+    await expect(backend.loadAdoptionUpdates("ad_9")).resolves.toEqual([update]);
+    route("POST /v1/adoptions/ad_9/updates", { status: 201, body: update });
+    await expect(backend.addAdoptionUpdate("ad_9", { photo: "https://x/u.jpg", body: "Feliz" })).resolves.toEqual(update);
+    expect(called("POST /v1/adoptions/ad_9/updates")[0]?.body).toEqual({ photo: "https://x/u.jpg", body: "Feliz" });
+
+    // Un perfil sin refugio quita el resumen guardado.
+    route("GET /v1/users/u_o", {
+      status: 200,
+      body: {
+        user: { ...owner, name: "Refugio Patitas", username: "patitas", title: "animal_lover", bio: "", city: "Medellín" },
+        likes: 0,
+        likedByMe: false,
+        rating: 0,
+        ratingCount: 0,
+        followers: 0,
+        following: 0,
+        followStatus: "none",
+        badges: [],
+        pets: [],
+      },
+    });
+    await backend.loadProfile("u_o");
+    expect(backend.getSnapshot().shelterSummaries.u_o).toBeUndefined();
   });
 
   it("PawFamily: busca, publica, se postula y responde solicitudes", async () => {

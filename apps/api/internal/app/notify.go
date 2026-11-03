@@ -154,28 +154,34 @@ func notificationURL(n Notification) string {
 
 var pushTexts = map[string]map[string][2]string{
 	"es": {
-		"angel_alert":    {"🚨 Alerta Ángel", "Una mascota se perdió cerca de ti: {name}. Ayuda a encontrarla."},
-		"life_circle":    {"🚨 Alerta Ángel: la búsqueda llegó a tu zona", "La zona de búsqueda de {name} creció y ya cubre tu barrio. Ayuda a encontrarla."},
-		"sighting":       {"Nuevo avistamiento", "Alguien vio a {name}"},
-		"case_closed":    {"Reporte cerrado: ¡final feliz!", "{name} ya está en casa"},
-		"possible_match": {"Posible coincidencia", "Un reporte nuevo podría ser {name}"},
-		"owned_match":    {"¿Es {name}?", "Alguien encontró una mascota parecida a {name} cerca de tu zona. Revisa las fotos."},
-		"thanked":        {"¡Una familia te agradeció!", "La familia de {name} dice que fuiste clave en el reencuentro. Ganaste «Ángel de patas»."},
-		"found_nearby":   {"🐾 Encontraron una mascota cerca de ti", "{name} está cerca de ti. ¿Sabes de quién es?"},
-		"friend_lost":    {"🚨 Se perdió la mascota de {owner}", "Ayuda a {owner} a buscar a {name}."},
-		"friend_found":   {"🎉 ¡Buenas noticias de {owner}!", "{name} ya está en casa."},
+		"angel_alert":     {"🚨 Alerta Ángel", "Una mascota se perdió cerca de ti: {name}. Ayuda a encontrarla."},
+		"life_circle":     {"🚨 Alerta Ángel: la búsqueda llegó a tu zona", "La zona de búsqueda de {name} creció y ya cubre tu barrio. Ayuda a encontrarla."},
+		"sighting":        {"Nuevo avistamiento", "Alguien vio a {name}"},
+		"case_closed":     {"Reporte cerrado: ¡final feliz!", "{name} ya está en casa"},
+		"possible_match":  {"Posible coincidencia", "Un reporte nuevo podría ser {name}"},
+		"owned_match":     {"¿Es {name}?", "Alguien encontró una mascota parecida a {name} cerca de tu zona. Revisa las fotos."},
+		"thanked":         {"¡Una familia te agradeció!", "La familia de {name} dice que fuiste clave en el reencuentro. Ganaste «Ángel de patas»."},
+		"found_nearby":    {"🐾 Encontraron una mascota cerca de ti", "{name} está cerca de ti. ¿Sabes de quién es?"},
+		"friend_lost":     {"🚨 Se perdió la mascota de {owner}", "Ayuda a {owner} a buscar a {name}."},
+		"friend_found":    {"🎉 ¡Buenas noticias de {owner}!", "{name} ya está en casa."},
+		"case_reminder":   {"¿Ya apareció {name}?", "Si ya está en casa, cierra el caso y agradece a quienes ayudaron. Si no, compártelo otra vez."},
+		"archive_warning": {"¿Hay novedades de {name}?", "En 7 días archivaremos el caso si no hay novedades. Agrega una historia o compártelo para mantenerlo activo."},
+		"case_archived":   {"Archivamos el caso de {name}", "Pasaron 60 días sin novedades. Si sigue sin aparecer, publícalo otra vez desde Mis mascotas."},
 	},
 	"en": {
-		"angel_alert":    {"🚨 Angel Alert", "A pet went missing near you: {name}. Help find them."},
-		"life_circle":    {"🚨 Angel Alert: the search reached your area", "{name}'s search area grew and now covers your neighborhood. Help find them."},
-		"sighting":       {"New sighting", "Someone saw {name}"},
-		"case_closed":    {"Case closed: happy ending!", "{name} is back home"},
-		"possible_match": {"Possible match", "A new report could be {name}"},
-		"owned_match":    {"Is it {name}?", "Someone found a pet that looks like {name} near your area. Check the photos."},
-		"thanked":        {"A family thanked you!", "{name}'s family says you were key to the reunion. You earned “Paw angel”."},
-		"found_nearby":   {"🐾 A pet was found near you", "{name} is near you. Do you know whose it is?"},
-		"friend_lost":    {"🚨 {owner}'s pet is missing", "Help {owner} look for {name}."},
-		"friend_found":   {"🎉 Good news from {owner}!", "{name} is back home."},
+		"angel_alert":     {"🚨 Angel Alert", "A pet went missing near you: {name}. Help find them."},
+		"life_circle":     {"🚨 Angel Alert: the search reached your area", "{name}'s search area grew and now covers your neighborhood. Help find them."},
+		"sighting":        {"New sighting", "Someone saw {name}"},
+		"case_closed":     {"Case closed: happy ending!", "{name} is back home"},
+		"possible_match":  {"Possible match", "A new report could be {name}"},
+		"owned_match":     {"Is it {name}?", "Someone found a pet that looks like {name} near your area. Check the photos."},
+		"thanked":         {"A family thanked you!", "{name}'s family says you were key to the reunion. You earned “Paw angel”."},
+		"found_nearby":    {"🐾 A pet was found near you", "{name} is near you. Do you know whose it is?"},
+		"friend_lost":     {"🚨 {owner}'s pet is missing", "Help {owner} look for {name}."},
+		"friend_found":    {"🎉 Good news from {owner}!", "{name} is back home."},
+		"case_reminder":   {"Is {name} back home?", "If so, close the case and thank the people who helped. If not, share it again."},
+		"archive_warning": {"Any news about {name}?", "We will archive the case in 7 days if there is no news. Add a story or share it to keep it active."},
+		"case_archived":   {"We archived {name}'s case", "60 days went by with no news. If they are still missing, post again from My pets."},
 	},
 }
 
@@ -307,8 +313,40 @@ func (a *App) RunAlertJob(ctx context.Context) (int, error) {
 			return total, err
 		}
 		total += n
+		if err := a.notifyNewMatches(ctx, p); err != nil {
+			return total, err
+		}
 	}
 	return total, nil
+}
+
+// notifyNewMatches vuelve a comparar una perdida con las encontradas a medida que su círculo crece:
+// al publicar solo se comparaba con lo que estaba dentro del círculo de ese momento, y una
+// encontrada a 1,5 km quedaba fuera aunque el círculo llegara a 2 km. Avisa a la familia una sola
+// vez por coincidencia (la misma notificación que se crea al publicar).
+func (a *App) notifyNewMatches(ctx context.Context, row petRow) error {
+	owner := deref(row.OwnerID)
+	if owner == "" {
+		return nil
+	}
+	matches, err := a.matchesFor(ctx, row)
+	if err != nil {
+		return err
+	}
+	for _, m := range matches {
+		if deref(m.OwnerID) == owner {
+			continue
+		}
+		var notified bool
+		if err := a.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM notifications WHERE user_id = $1 AND pet_id = $2 AND kind = 'possible_match')`,
+			owner, m.ID).Scan(&notified); err != nil {
+			return err
+		}
+		if !notified {
+			a.notify(ctx, []string{owner}, "possible_match", m.ID, nil)
+		}
+	}
+	return nil
 }
 
 // notifyOwnedMatches: un reporte de mascota encontrada que se parece a una de "Mis mascotas"

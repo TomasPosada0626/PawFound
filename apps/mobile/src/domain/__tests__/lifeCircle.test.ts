@@ -1,6 +1,7 @@
 import fixture from "../../../../../packages/contracts/fixtures/life-circle.json";
 import {
   currentRadius,
+  frameRadius,
   growthSnapshot,
   hoursToCap,
   LIFE_CIRCLE_PROFILES,
@@ -77,6 +78,25 @@ describe("tabla del círculo de vida (PRODUCT.md, issue #10)", () => {
       expect(r).toBeGreaterThanOrEqual(last);
       last = r;
     }
+  });
+});
+
+describe("encuadre del mapa del detalle", () => {
+  it("sube por escalones: el mapa no vuelve a hacer zoom en cada tic mientras el círculo crece", () => {
+    expect(frameRadius(250)).toBe(400);
+    expect(frameRadius(400)).toBe(400);
+    expect(frameRadius(569)).toBe(700);
+    expect(frameRadius(960)).toBe(1000);
+    expect(frameRadius(1487)).toBe(2000);
+    expect(frameRadius(2000)).toBe(2000);
+    // Fuera de la tabla (una encontrada con radio grande) se usa el radio tal cual.
+    expect(frameRadius(5000)).toBe(5000);
+  });
+
+  it("en la primera media hora cambia solo unas pocas veces", () => {
+    const frames = new Set<number>();
+    for (let s = 0; s <= 30 * 60; s += 30) frames.add(frameRadius(radiusMeters("dog_calm", s / 3600)));
+    expect(frames.size).toBeLessThanOrEqual(5);
   });
 });
 

@@ -105,11 +105,19 @@ describe("seguirse", () => {
     expect(await screen.findByTestId("public-pets")).toBeOnTheScreen();
   });
 
-  it("muestra la calificación: toda cuenta empieza en 5 estrellas, sin texto extra", async () => {
+  it("antes de 10 calificaciones la estrella va en gris y sin promedio", async () => {
     await open("/user/u_daniel");
     const rating = await screen.findByTestId("public-rating");
-    expect(rating).toHaveTextContent(/5,0/);
-    expect(rating).not.toHaveTextContent(/calificaci/i);
+    expect(rating).toHaveTextContent(/Promedio desde 10 calificaciones/);
+    expect(rating).not.toHaveTextContent(/[0-9],[0-9]/);
+  });
+
+  it("en el perfil propio dice cuántas calificaciones faltan", async () => {
+    await loginAs("u_daniel");
+    await open("/profile");
+    expect(await screen.findByTestId("my-rating")).toHaveTextContent(
+      /de 10 calificaciones para ver tu promedio|Tu promedio se verá con 10 calificaciones/,
+    );
   });
 });
 

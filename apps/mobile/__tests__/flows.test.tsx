@@ -164,6 +164,17 @@ describe("mensajes, mapa, ajustes e idioma", () => {
     expect(await screen.findByText("Hi there!")).toBeOnTheScreen();
   });
 
+  it("ofrece los 8 avatares ilustrados y se puede elegir uno nuevo", async () => {
+    await loginAs("u_valentina");
+    await open("/settings/edit-profile");
+    for (const id of ["dog", "cat", "fox", "panda", "bunny", "bear", "pug", "hamster"]) {
+      expect(await screen.findByTestId(`avatar-${id}`)).toBeOnTheScreen();
+    }
+    await fireEvent.press(screen.getByTestId("avatar-hamster"));
+    expect(screen.getByTestId("avatar-hamster")).toBeChecked();
+    expect(screen.getByLabelText("Avatar de hámster")).toBeOnTheScreen();
+  });
+
   it("valida el nombre de usuario al editar el perfil", async () => {
     await loginAs("u_valentina");
     await open("/settings/edit-profile");

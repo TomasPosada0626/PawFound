@@ -118,7 +118,7 @@ export type AlertZone = {
   updatedAt?: string;
 };
 
-export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear";
+export type AvatarId = "dog" | "cat" | "fox" | "panda" | "bunny" | "bear" | "pug" | "hamster";
 
 export type ProfileTitle =
   | "animal_lover"
@@ -267,7 +267,13 @@ export type NotificationKind =
   /** Se perdió la mascota de alguien que sigues (si no te llegó ya la Alerta Ángel). */
   | "friend_lost"
   /** Apareció la mascota de alguien que sigues. */
-  | "friend_found";
+  | "friend_found"
+  /** A los 3, 7 y 14 días: "¿Ya apareció?" para quien abrió el caso. */
+  | "case_reminder"
+  /** El caso lleva 53 días sin novedades: en 7 se archivará. */
+  | "archive_warning"
+  /** El caso se archivó tras 60 días sin novedades. */
+  | "case_archived";
 
 export type AppNotification = {
   id: string;

@@ -132,21 +132,29 @@ nunca llegan a una app con una huella distinta.
 ## 7. Mantener la API despierta
 
 El plan gratuito de Render duerme la API tras 15 minutos sin tráfico: la primera petición tarda de
-10 a 60 segundos y las tareas periódicas se detienen. El cron de GitHub Actions no alcanza, porque
-en la práctica corre cada varias horas. Por eso un servicio externo visita la API:
+10 a 60 segundos y las tareas periódicas se detienen (entre ellas, las alertas del círculo de vida).
+El cron de GitHub Actions no alcanza: en noviembre de 2026, programado cada 10 minutos, corría cada
+4 a 8 horas. Por eso un servicio externo visita la API (así está hoy, con cron-job.org):
 
-1. En [cron-job.org](https://cron-job.org), crear un trabajo con la URL
-   `https://pawfound-api.onrender.com/health`.
-2. Programarlo cada 5 minutos, todo el día.
+1. En [cron-job.org](https://cron-job.org), un trabajo con la URL
+   `https://pawfound-api.onrender.com/health`, cada 5 minutos, todas las horas del día.
+2. En el trabajo, activar el aviso por correo cuando falle: así también sirve para enterarse si la
+   API se cae. [UptimeRobot](https://uptimerobot.com) es una alternativa que hace lo mismo.
+
+El plan gratis de Render da 750 horas al mes: alcanza para **un** servicio despierto todo el mes
+(744 horas). `mantener-api-despierta.yml` sigue como respaldo, y `vigilar-api.yml` revisa cada hora
+`/ready`, que sí consulta la base: si falla, GitHub avisa por correo.
 
 `/health` no consulta la base de datos. Las tareas periódicas corren cada 10 minutos solo si hubo
 un reporte o un movimiento reciente, y cada hora si no, para no gastar la cuota de Neon. Con
 presupuesto, el plan pago de Render evita todo esto y da más CPU.
 
-## 8. Monitoreo de errores (opcional)
+## 8. Monitoreo de errores
 
-Con una cuenta en [Sentry](https://sentry.io), definir `SENTRY_DSN` en Render y
-`EXPO_PUBLIC_SENTRY_DSN` en EAS. Sin esas variables no se envía nada. Nunca salen datos personales:
+Con una cuenta en [Sentry](https://sentry.io) (plan gratis), crear un proyecto *React Native* y otro
+*Go*, y definir `EXPO_PUBLIC_SENTRY_DSN` en EAS (entorno `preview`, visibilidad *plain text*) y
+`SENTRY_DSN` en Render. La variable de EAS entra en el paquete de JavaScript: basta un OTA, sin APK
+nuevo. Sin esas variables no se envía nada y los errores de producción no se ven. Nunca salen datos personales:
 ni IP, ni cuerpos de peticiones, ni direcciones.
 
 ## 9. Enlaces directos a la app
@@ -158,8 +166,8 @@ muestra Play Console; si no, los enlaces no abren la app instalada desde la tien
 ## 10. Respaldos
 
 Cada día, `.github/workflows/respaldo.yml` guarda una copia **cifrada** de la base en un bucket
-privado de Cloudflare R2 y borra las de más de 30 días. Sin los secretos configurados, avisa y no
-hace nada. Las copias nunca van en artefactos de GitHub Actions: el repositorio es público.
+privado de Cloudflare R2 y borra las de más de 30 días. Sin los secretos configurados falla en
+rojo, y GitHub avisa por correo. Las copias nunca van en artefactos de GitHub Actions: el repositorio es público.
 
 Para activarlo:
 
@@ -181,6 +189,10 @@ Para restaurar, en una base **vacía** con PostGIS activado (el script se niega 
 ```sh
 DATABASE_URL=postgres://... RESPALDO_CLAVE=... scripts/restaurar.sh pawfound-AAAA-MM-DD.dump.gpg
 ```
+
+Ensayo del 3 de noviembre de 2026: el respaldo manual del 1 de noviembre se restauró en una base
+vacía (PostGIS 16 con `pg_restore` 18) en 25 segundos, y las migraciones posteriores se aplicaron
+sin errores. Repetir el ensayo cada mes.
 
 Las fotos no van en el respaldo: viven en R2. Neon también permite restaurar la base a un momento
 anterior dentro del plazo de su plan; confirmar ese plazo en su panel.

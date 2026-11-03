@@ -129,6 +129,18 @@ export function growthSnapshot(
   };
 }
 
+/** Medidas con las que se encuadra el mapa del detalle mientras el círculo crece. */
+export const FRAME_STEPS = [400, 700, 1000, 1400, LIFE_CIRCLE_MAX] as const;
+
+/**
+ * Radio con el que se encuadra el mapa: la siguiente medida de FRAME_STEPS. Así el mapa solo
+ * vuelve a hacer zoom cuando el círculo pasa de una medida a otra (unas 4 veces en la primera
+ * media hora) y no en cada tic del reloj, que deshacía lo que la persona había movido.
+ */
+export function frameRadius(radius: number): number {
+  return FRAME_STEPS.find((step) => step >= radius) ?? radius;
+}
+
 /** Radio que tendrá dentro de `offsetHours` (vista previa en el mapa del detalle). */
 export function radiusInFuture(pet: PetCase, now: Date, offsetHours: number): number {
   if (pet.kind === "found") return currentRadius(pet, now);

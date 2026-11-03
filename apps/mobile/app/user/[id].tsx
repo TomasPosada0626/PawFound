@@ -4,11 +4,12 @@ import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { FounderTag } from "@/components/FounderTag";
-import { ShelterTag } from "@/components/pawfamily";
+import { ShelterShowcase, ShelterTag } from "@/components/pawfamily";
 import { BadgeTile } from "@/components/badges";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { PetPhoto, UserAvatar } from "@/components/pets";
 import { ReportUserSheet } from "@/components/ReportUserSheet";
+import { RatingSummary } from "@/components/RatingSummary";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
 import { ConfirmSheet } from "@/components/ui/Sheet";
@@ -16,7 +17,6 @@ import { Icon } from "@/components/ui/Icon";
 import { cn, Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { memberDays } from "@/domain/moderation";
-import { formatRating } from "@/domain/rating";
 import { shortName } from "@/domain/privacy";
 import { useAuthGate } from "@/hooks/useAuthGate";
 import { errorMessage } from "@/features/errorMessages";
@@ -128,11 +128,8 @@ export default function PublicProfileScreen() {
           </Text>
           <Text variant="caption">{`· ${t("profile.memberSince", { date: shortDate(new Date(person.createdAt), locale) })}`}</Text>
         </View>
-        <View className="mt-1 flex-row items-center gap-1" accessible testID="public-rating">
-          <Icon name="star" size={16} color="#F5A524" />
-          <Text variant="captionStrong">{formatRating(stats.ratingAvg, locale)}</Text>
-          {/* Sin calificaciones reales solo se ven las estrellas y el número. */}
-          {stats.ratingCount > 0 ? <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text> : null}
+        <View className="mt-1">
+          <RatingSummary average={stats.ratingAvg} count={stats.ratingCount} testID="public-rating" />
         </View>
         {person.bio ? (
           <Text variant="body" className="mt-2 text-center">
@@ -211,6 +208,9 @@ export default function PublicProfileScreen() {
           </View>
         </Card>
       </Pressable>
+
+      {/* Refugio verificado: lo que tiene en adopción y sus adopciones logradas. */}
+      <ShelterShowcase userId={person.id} />
 
       {/* Actividad real */}
       <Card className="mt-4">

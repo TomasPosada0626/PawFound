@@ -503,15 +503,15 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 	h := newHarness(t)
 	helper := h.user("Quien Ayuda", true)
 	other := h.user("Otra Ayuda", true)
-	if p := h.profile(helper, ""); p.Rating != 5 || p.RatingCount != 0 {
-		t.Fatalf("toda cuenta empieza en 5: %+v", p)
+	if p := h.profile(helper, ""); p.Rating != 0 || p.RatingCount != 0 {
+		t.Fatalf("sin calificaciones no hay promedio: %+v", p)
 	}
 	protector := func() int {
 		_, tier := badgeOf(h.profile(helper, ""), "protector")
 		return tier
 	}
 	if protector() != 0 {
-		t.Fatal("las 5 estrellas iniciales no dan Protector animal")
+		t.Fatal("sin calificaciones no hay Protector animal")
 	}
 
 	closeCase := func(stars int) app.Pet {
@@ -526,9 +526,9 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 		return pet
 	}
 
-	// Una mala nota entra sobre las 20 de 5 estrellas: se ve 4,8.
+	// Antes de la décima calificación no hay promedio: una sola nota no define a nadie.
 	closeCase(1)
-	if p := h.profile(helper, ""); p.Rating != 4.8 || p.RatingCount != 1 {
+	if p := h.profile(helper, ""); p.Rating != 0 || p.RatingCount != 1 {
 		t.Fatalf("una de 1 estrella = %+v", p)
 	}
 	if count, _ := badgeOf(h.profile(helper, ""), "paw_angel"); count != 1 {
@@ -538,12 +538,12 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 	for i := 0; i < 8; i++ {
 		closeCase(5)
 	}
-	if p := h.profile(helper, ""); p.RatingCount != 9 || protector() != 0 {
-		t.Fatalf("con nueve no la tiene aún: %+v", p)
+	if p := h.profile(helper, ""); p.RatingCount != 9 || p.Rating != 0 || protector() != 0 {
+		t.Fatalf("con nueve no hay promedio ni insignia aún: %+v", p)
 	}
 	closeCase(5)
-	if protector() != 1 {
-		t.Fatal("con diez y un promedio de 4,6 debe tenerla")
+	if p := h.profile(helper, ""); p.Rating != 4.6 || protector() != 1 {
+		t.Fatalf("con diez se ve el promedio real (4,6) y llega la insignia: %+v", p)
 	}
 	// Se pierde si baja y se recupera si sube: nada queda fijo.
 	worst := closeCase(1)
@@ -573,7 +573,7 @@ func TestRatingsAreGivenWhenClosingACase(t *testing.T) {
 	h.expectError(http.StatusForbidden, "not_allowed", http.MethodPost, "/v1/pets/"+pet.ID+"/reunite", owner.Token, map[string]any{
 		"helperIds": []string{other.ID}, "ratings": map[string]int{other.ID: 5},
 	})
-	if p := h.profile(other, ""); p.Rating != 4.9 || p.RatingCount != 1 {
+	if p := h.profile(other, ""); p.Rating != 0 || p.RatingCount != 1 {
 		t.Fatalf("calificada una vez = %+v", p)
 	}
 	if p := h.profile(helper, ""); p.Rating != 5 || p.RatingCount != 31 {

@@ -8,6 +8,8 @@ import type {
   AdoptionInput,
   AdoptionReportReason,
   ApplicationInput,
+  AdoptionUpdate,
+  ShelterSummary,
 } from "@/domain/adoption";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
 import type { ImpactStats, PublishAllowance } from "@/domain/rules";
@@ -139,6 +141,7 @@ type ApiProfile = {
   following: number;
   followStatus: FollowStatus;
   badges: BadgeProgress[];
+  shelter?: ShelterSummary;
   pets: (Pick<
     OwnedPet,
     "id" | "name" | "species" | "breed" | "sex" | "age" | "size" | "color" | "collar" | "description" | "shyOrIndoor"
@@ -169,6 +172,7 @@ function emptyState(): BackendState {
     places: [],
     remoteBadges: {},
     network: { requests: [], followers: [], following: [], sent: [] },
+    shelterSummaries: {},
     followInfo: {},
     remoteRatings: {},
     follows: [],
@@ -556,8 +560,8 @@ export class ApiBackend {
           if (!this.getPet(pet.id)) this.mergePets([pet]);
         }
         if (data.type === "pet_closed") {
-          const closed = data.data as { id: string; removed: boolean; at: string };
-          this.closePetLocally(closed.id, closed.removed, closed.at);
+          const closed = data.data as { id: string; removed: boolean; archived?: boolean; at: string };
+          this.closePetLocally(closed.id, closed.removed, closed.at, closed.archived);
         }
       } catch {
         // Evento desconocido: se ignora.
@@ -749,6 +753,24 @@ export class ApiBackend {
     return created.id;
   }
 
+  /** Lo que una cuenta tiene hoy en adopción (perfil público de un refugio). */
+  async loadUserAdoptions(userId: string): Promise<string[]> {
+    const list = await this.request<ApiAdoption[]>("GET", `/v1/users/${userId}/adoptions`);
+    this.mergeAdoptions(list);
+    return list.map((a) => a.id);
+  }
+
+  /** Novedades de la nueva familia: las ven quien dio en adopción y quien adoptó. */
+  async loadAdoptionUpdates(adoptionId: string): Promise<AdoptionUpdate[]> {
+    return this.request<AdoptionUpdate[]>("GET", `/v1/adoptions/${adoptionId}/updates`);
+  }
+
+  /** Quien adoptó cuenta cómo está la mascota: una foto, unas palabras o las dos. */
+  async addAdoptionUpdate(adoptionId: string, input: { photo?: string; body: string }): Promise<AdoptionUpdate> {
+    const photo = input.photo ? await this.upload(input.photo, "adoption") : undefined;
+    return this.request<AdoptionUpdate>("POST", `/v1/adoptions/${adoptionId}/updates`, { photo, body: input.body });
+  }
+
   async loadMyAdoptions(): Promise<string[]> {
     const list = await this.request<ApiAdoption[]>("GET", "/v1/me/adoptions");
     this.mergeAdoptions(list);
@@ -834,13 +856,20 @@ export class ApiBackend {
   }
 
   /** Aplica el cierre de un caso en este celular, sin esperar a la próxima sincronización. */
-  private closePetLocally(petId: string, removed: boolean, at: string) {
+  /** Un caso que se cerró en otro lado: reencuentro, retirado (removed) o archivado por falta de novedades. */
+  private closePetLocally(petId: string, removed: boolean, at: string, archived = false) {
     const pet = this.getPet(petId);
     if (!pet) return;
     this.commit({
       pets: removed
         ? this.state.pets.filter((p) => p.id !== petId)
-        : this.state.pets.map((p) => (p.id === petId ? { ...p, state: "reunited" as const, reunitedAt: p.reunitedAt ?? at } : p)),
+        : this.state.pets.map((p) =>
+            p.id !== petId
+              ? p
+              : archived
+                ? { ...p, state: "archived" as const }
+                : { ...p, state: "reunited" as const, reunitedAt: p.reunitedAt ?? at },
+          ),
       threads: this.state.threads.map((t) =>
         t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
       ),
@@ -1179,6 +1208,9 @@ export class ApiBackend {
       users: { ...this.state.users, [userId]: user },
       remoteBadges: { ...this.state.remoteBadges, [userId]: p.badges },
       remoteRatings: { ...this.state.remoteRatings, [userId]: { average: p.rating, count: p.ratingCount } },
+      shelterSummaries: p.shelter
+        ? { ...this.state.shelterSummaries, [userId]: p.shelter }
+        : Object.fromEntries(Object.entries(this.state.shelterSummaries).filter(([id]) => id !== userId)),
       followInfo: {
         ...this.state.followInfo,
         [userId]: { followers: p.followers, following: p.following, status: p.followStatus },
