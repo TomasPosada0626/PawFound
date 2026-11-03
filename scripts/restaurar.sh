@@ -15,10 +15,12 @@ if [ "$tablas" != "0" ]; then
   exit 1
 fi
 
-# transaction_timeout lo escribe pg_dump 17 y no existe en PostgreSQL 16.
+# transaction_timeout lo escribe pg_dump 17 y no existe en PostgreSQL 16. \restrict y \unrestrict los
+# escribe pg_dump desde 17.6 y un psql anterior no los entiende. Van como [\\] para que también
+# funcione con el sed de Git Bash.
 gpg --batch --quiet --decrypt --passphrase-fd 3 "$origen" 3<<<"$RESPALDO_CLAVE" |
   pg_restore --no-owner --no-privileges --file=- |
-  sed '/^SET transaction_timeout/d' |
+  sed -e '/^SET transaction_timeout/d' -e '/^[\\]restrict /d' -e '/^[\\]unrestrict /d' |
   psql "$DATABASE_URL" --quiet --single-transaction -v ON_ERROR_STOP=1 >/dev/null
 
 echo "Restaurado. Tablas: $(psql "$DATABASE_URL" -Atc "SELECT count(*) FROM pg_tables WHERE schemaname = 'public'")"
