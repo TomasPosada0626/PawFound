@@ -1,25 +1,30 @@
 import { tierLook } from "@/components/badges";
 
 describe("apariencia de los niveles", () => {
-  it("cada nivel se ve distinto y mejor que el anterior", () => {
-    const looks = ([1, 2, 3] as const).map((tier) => tierLook("reporter", tier));
-    expect(new Set(looks.map((l) => l?.ring.join())).size).toBe(3);
-    for (let i = 1; i < looks.length; i++) {
-      expect(looks[i]?.ringWidth).toBeGreaterThan(looks[i - 1]?.ringWidth ?? 0);
-      expect(looks[i]?.shine).toBeGreaterThan(looks[i - 1]?.shine ?? 0);
-    }
-    expect(looks[2]?.top).toBe("star");
+  it("cada nivel se ve distinto y suma algo al anterior: estrellas, cintas y laureles", () => {
+    const [bronze, silver, gold] = ([1, 2, 3] as const).map((tier) => tierLook("reporter", tier));
+    expect(new Set([bronze, silver, gold].map((l) => l?.frame.join())).size).toBe(3);
+    expect([bronze?.stars, silver?.stars, gold?.stars]).toEqual([1, 2, 3]);
+    expect(bronze?.ribbon).toBe(false);
+    expect(silver?.ribbon).toBe(true);
+    expect(silver?.laurel).toBeUndefined();
+    expect(gold?.laurel).toBeTruthy();
   });
 
-  it("la leyenda es la más vistosa: corona, resplandor y destellos", () => {
+  it("Popular tiene platino antes de la leyenda, con gema", () => {
+    expect(tierLook("popular", 4)).toMatchObject({ gem: true, ribbon: true, stars: 3 });
+    expect(tierLook("popular", 3)?.gem).toBeUndefined();
+  });
+
+  it("la leyenda es la más vistosa: rayos, corona, laureles y destellos", () => {
     for (const legend of [tierLook("popular", 5), tierLook("protector", 1)]) {
-      expect(legend).toMatchObject({ top: "crown", sparkles: true });
-      expect(legend?.ring).toHaveLength(3);
-      expect(legend?.ringWidth).toBeGreaterThan(tierLook("popular", 4)?.ringWidth ?? 0);
+      expect(legend).toMatchObject({ crown: true, rays: true, sparkles: true, ribbon: true });
+      expect(legend?.laurel).toBeTruthy();
+      expect(legend?.frame).toHaveLength(3);
     }
   });
 
-  it("sin obtener o con un solo nivel no tiene adornos", () => {
+  it("sin obtener o con un solo nivel no tiene adornos de nivel", () => {
     expect(tierLook("reporter", 0)).toBeNull();
     expect(tierLook("verified", 1)).toBeNull();
     expect(tierLook("protector", 0)).toBeNull();
