@@ -576,7 +576,7 @@ func (a *App) Reunite(ctx context.Context, ac Actor, petID string, helperIDs []s
 		return Pet{}, ErrNotAllowed
 	}
 	for _, stars := range ratings {
-		if stars < 1 || stars > domain.RatingStart {
+		if stars < 1 || stars > domain.RatingMaxStars {
 			return Pet{}, invalid("ratings")
 		}
 	}

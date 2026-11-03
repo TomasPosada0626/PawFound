@@ -2,9 +2,10 @@ import { badgeProgress, BADGE_ORDER, type BadgeFacts } from "../badges";
 import { formatRating, isAnimalProtector, ratingAverage } from "../rating";
 
 describe("calificación", () => {
-  it("empieza en 5 y una mala nota no hunde a quien recién empieza", () => {
-    expect(ratingAverage([])).toBe(5);
-    expect(ratingAverage([1])).toBe(4.8);
+  it("no hay promedio hasta la décima calificación real, y luego es el real", () => {
+    expect(ratingAverage([])).toBe(0);
+    expect(ratingAverage([5, 5, 5, 5, 5, 5, 5, 5, 1])).toBe(0);
+    expect(ratingAverage([5, 5, 5, 5, 5, 5, 5, 5, 1, 1])).toBe(4.2);
   });
 
   it("solo cuentan las últimas 20", () => {

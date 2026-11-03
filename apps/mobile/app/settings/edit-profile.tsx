@@ -7,13 +7,13 @@ import { Pressable, View } from "react-native";
 import { BadgeTile } from "@/components/badges";
 import { AVATAR_IDS, AvatarGlyph } from "@/components/pets";
 import { SettingsCard, SettingsLayout } from "@/components/SettingsLayout";
+import { RatingSummary } from "@/components/RatingSummary";
 import { Button } from "@/components/ui/Button";
 import { Icon } from "@/components/ui/Icon";
 import { SelectField } from "@/components/ui/SelectField";
 import { cn, Text } from "@/components/ui/Text";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
-import { formatRating } from "@/domain/rating";
 import type { AvatarId, ProfileTitle } from "@/domain/types";
 import { BIO_MAX } from "@/domain/validation";
 import { errorMessage } from "@/features/errorMessages";
@@ -37,7 +37,7 @@ const TITLES: ProfileTitle[] = [
 ];
 
 export default function EditProfileScreen() {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const { colors } = useTheme();
   const backend = useBackend();
   const state = useBackendState();
@@ -225,11 +225,8 @@ export default function EditProfileScreen() {
       </SettingsCard>
 
       <SettingsCard title={t("editProfile.reputation")} subtitle={t("editProfile.reputationBody")}>
-        <View className="flex-row items-center gap-2 rounded-2xl border border-border p-3">
-          <Icon name="star" size={22} color="#F5A524" />
-          <Text variant="heading">{formatRating(stats.ratingAvg, locale)}</Text>
-          {/* Sin calificaciones reales solo se ven las estrellas y el número. */}
-          {stats.ratingCount > 0 ? <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text> : null}
+        <View className="rounded-2xl border border-border p-3">
+          <RatingSummary average={stats.ratingAvg} count={stats.ratingCount} own large />
         </View>
       </SettingsCard>
 

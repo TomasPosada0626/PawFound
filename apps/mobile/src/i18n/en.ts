@@ -1282,6 +1282,15 @@ export const en: Translations = {
     disclosureContinue: "Continue",
     disclosureCancel: "Not now",
   },
+  rating: {
+    pending: "Average shown from {goal} ratings",
+    pendingOwn: "Your average will show at {goal} ratings",
+    pendingOwnSome: {
+      one: "1 of {goal} ratings to see your average",
+      other: "{count} of {goal} ratings to see your average",
+    },
+    label: { one: "{value} stars on average, 1 rating", other: "{value} stars on average, {count} ratings" },
+  },
   deleteAccount: {
     word: "DELETE",
     intro: "Everything in your account will be erased, for everyone else too:",

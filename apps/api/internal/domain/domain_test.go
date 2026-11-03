@@ -154,12 +154,16 @@ func TestBadges(t *testing.T) {
 	}
 }
 
-func TestRatingStartsAtFiveAndCountsTheLastTwenty(t *testing.T) {
-	if got := Rating(nil); got != 5 {
+func TestRatingShowsFromTenAndCountsTheLastTwenty(t *testing.T) {
+	if got := Rating(nil); got != 0 {
 		t.Fatalf("sin calificaciones = %v", got)
 	}
-	if got := Rating([]int{1}); got != 4.8 {
-		t.Fatalf("una de 1 estrella = %v", got)
+	nine := []int{5, 5, 5, 5, 5, 5, 5, 5, 1}
+	if got := Rating(nine); got != 0 {
+		t.Fatalf("con nueve todavía no hay promedio = %v", got)
+	}
+	if got := Rating(append(nine, 1)); got != 4.2 {
+		t.Fatalf("desde la décima, el promedio real = %v", got)
 	}
 	twenty := make([]int, 25)
 	for i := range twenty {
@@ -172,7 +176,7 @@ func TestRatingStartsAtFiveAndCountsTheLastTwenty(t *testing.T) {
 		t.Fatalf("últimas 20 = %v", got)
 	}
 	if IsAnimalProtector(nil) {
-		t.Fatal("las 5 estrellas iniciales no cuentan")
+		t.Fatal("sin calificaciones no la tiene")
 	}
 	five := []int{5, 5, 5, 5, 5, 5, 5, 5, 5}
 	if IsAnimalProtector(five) {

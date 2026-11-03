@@ -8,6 +8,7 @@ import { DeletePetButton } from "@/components/DeletePetButton";
 import { FounderTag } from "@/components/FounderTag";
 import { AppHeader, Screen } from "@/components/layout";
 import { PetAvatar, PetPhoto, petDisplayName, UserAvatar } from "@/components/pets";
+import { RatingSummary } from "@/components/RatingSummary";
 import { Button } from "@/components/ui/Button";
 import { Banner, Card, Divider, EmptyState, ListRow, SectionHeader } from "@/components/ui/Controls";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -15,7 +16,6 @@ import { ConfirmSheet, Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useNow } from "@/hooks/useNow";
 import { memberDays } from "@/domain/moderation";
-import { formatRating } from "@/domain/rating";
 import { relativeTime, shortDate } from "@/i18n/format";
 import { useI18n } from "@/i18n/I18nProvider";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
@@ -120,16 +120,7 @@ export default function ProfileScreen() {
             </Text>
             <Text variant="caption">{`· ${t("profile.memberSince", { date: shortDate(new Date(user.createdAt), locale) })}`}</Text>
           </View>
-          {stats ? (
-            <View className="flex-row items-center gap-1" accessible testID="my-rating">
-              <Icon name="star" size={15} color="#F5A524" />
-              <Text variant="captionStrong">{formatRating(stats.ratingAvg, locale)}</Text>
-              {/* Sin calificaciones reales solo se ven las estrellas y el número. */}
-              {stats.ratingCount > 0 ? (
-                <Text variant="caption">{t("profile.ratingCount", { count: stats.ratingCount })}</Text>
-              ) : null}
-            </View>
-          ) : null}
+          {stats ? <RatingSummary average={stats.ratingAvg} count={stats.ratingCount} own testID="my-rating" /> : null}
           <View className="self-start rounded-full border border-border px-3 py-1">
             <Text variant="captionStrong">{t(`titles.${user.title}`)}</Text>
           </View>

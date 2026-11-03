@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { View } from "react-native";
 
 import { shortName } from "@/domain/privacy";
-import { RATING_START } from "@/domain/rating";
+import { RATING_MAX_STARS } from "@/domain/rating";
 import type { PetCase } from "@/domain/types";
 import { petSentence } from "@/features/petNames";
 import { useI18n } from "@/i18n/I18nProvider";
@@ -57,7 +57,7 @@ export function ReunionSheet({
   const candidates = remote ?? local;
   const [selected, setSelected] = useState<string[]>([]);
   const [ratings, setRatings] = useState<Record<string, number>>({});
-  const starsOf = (userId: string) => ratings[userId] ?? RATING_START;
+  const starsOf = (userId: string) => ratings[userId] ?? RATING_MAX_STARS;
 
   const toggle = (userId: string, next: boolean) =>
     setSelected((prev) => (next ? [...prev, userId].slice(0, MAX_HELPERS) : prev.filter((id) => id !== userId)));
