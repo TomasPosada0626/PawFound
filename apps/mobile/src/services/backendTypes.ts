@@ -49,6 +49,11 @@ export type ErrorCode =
   | "adoption_terms"
   | "already_applied"
   | "nit_taken"
+  | "nit_inactive"
+  | "nit_not_found"
+  | "nit_not_nonprofit"
+  | "nit_dv_mismatch"
+  | "shelter_name_mismatch"
   | "network"
   | "unknown";
 

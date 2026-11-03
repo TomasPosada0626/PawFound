@@ -326,7 +326,25 @@ func TestShelterRequestsPage(t *testing.T) {
 	if err := e.app.DB.QueryRow(ctx, `SELECT shelter_status FROM users WHERE id = 'u_ref'`).Scan(&shelterStatus); err != nil || shelterStatus != "rejected" {
 		t.Fatalf("estado = %q %v", shelterStatus, err)
 	}
-	if _, body := e.get("/admin/shelters"); !strings.Contains(body, "Todavía no hay refugios verificados") {
-		t.Fatalf("lista vacía = %s", body)
+	// La verificación quitada aparece aparte y se puede devolver si fue un error.
+	status, body = e.get("/admin/shelters")
+	if status != http.StatusOK || !strings.Contains(body, "Todavía no hay refugios verificados") || !strings.Contains(body, "Verificación quitada") ||
+		!strings.Contains(body, "Devolver verificación") || strings.Contains(body, "esperan respuesta del RUES") {
+		t.Fatalf("quitada = %d %s", status, body)
+	}
+	e.post("/admin/users/u_ref", url.Values{"csrf": {csrf(t, body)}, "action": {"verify_shelter"}})
+	var check string
+	if err := e.app.DB.QueryRow(ctx, `SELECT shelter_status, shelter_check FROM users WHERE id = 'u_ref'`).Scan(&shelterStatus, &check); err != nil ||
+		shelterStatus != "verified" || check != "manual" {
+		t.Fatalf("devuelta = %q %q %v", shelterStatus, check, err)
+	}
+	// Las que esperan al RUES solo se cuentan: se reintentan solas.
+	e.account("u_esp", "Refugio Esperanza", "user")
+	if _, err := e.app.DB.Exec(ctx, `UPDATE users SET shelter_name = 'Refugio Esperanza', shelter_nit = '830054539-0', shelter_status = 'pending',
+		shelter_check = 'unavailable', shelter_requested_at = now() WHERE id = 'u_esp'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, body := e.get("/admin/shelters"); !strings.Contains(body, "1 solicitud espera respuesta del RUES") || !strings.Contains(body, "Verificación devuelta en el panel") {
+		t.Fatalf("esperando = %s", body)
 	}
 }

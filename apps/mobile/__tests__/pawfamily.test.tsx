@@ -5,6 +5,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fireEvent, renderRouter, screen, waitFor } from "expo-router/testing-library";
 
+import { BackendError } from "@/services/backendTypes";
+import { MockBackend } from "@/services/mockBackend";
 import { STORAGE_KEYS } from "@/services/storage";
 
 const loginAs = async (userId: string) => AsyncStorage.setItem(STORAGE_KEYS.session, JSON.stringify(userId));
@@ -262,6 +264,33 @@ describe("refugios", () => {
     expect(screen.getByText(/revisa la carpeta de spam/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId("shelter-publish"));
     await waitFor(() => expect(app.getPathname()).toBe("/pawfamily/publicar"));
+  });
+
+  it("si el RUES no lo confirma dice qué corregir, y si no responde queda esperando", async () => {
+    const verify = jest
+      .spyOn(MockBackend.prototype, "verifyShelter")
+      .mockRejectedValueOnce(new BackendError("nit_inactive"))
+      .mockRejectedValueOnce(new BackendError("nit_not_nonprofit"))
+      .mockRejectedValueOnce(new BackendError("shelter_name_mismatch"))
+      .mockResolvedValueOnce({ status: "pending" });
+    await loginAs("u_valentina");
+    await acceptedTerms("none");
+    const app = await open("/pawfamily/refugio");
+    expect(await screen.findByText("Fuente: RUES – Confecámaras (datos abiertos, datos.gov.co).")).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId("shelter-name"), "Bienestar Animal");
+    await fireEvent.changeText(screen.getByTestId("shelter-nit"), "900.078.738-7");
+    await fireEvent.press(screen.getByTestId("shelter-send"));
+    expect(await screen.findByText("En el RUES este NIT aparece cancelado o en liquidación.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("shelter-send"));
+    expect(await screen.findByText(/es de una empresa/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("shelter-send"));
+    expect(await screen.findByText(/El nombre no coincide con el registrado en el RUES/)).toBeOnTheScreen();
+    expect(screen.queryByText(/es de una empresa/)).toBeNull();
+    await fireEvent.press(screen.getByTestId("shelter-send"));
+    expect(await screen.findByText(/El RUES no respondió/)).toBeOnTheScreen();
+    // Mientras espera al RUES no entra al panel del refugio.
+    expect(app.getPathname()).toBe("/pawfamily/refugio");
+    verify.mockRestore();
   });
 
   it("un refugio verificado ve sus publicaciones y solicitudes", async () => {

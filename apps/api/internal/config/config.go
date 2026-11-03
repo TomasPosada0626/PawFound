@@ -29,7 +29,10 @@ type Config struct {
 	AdminEmails []string
 	// BrevoAPIKey envía los correos por la API web de Brevo (HTTPS). Tiene prioridad sobre SMTP:
 	// el plan gratis de Render bloquea los puertos SMTP. El remitente es SMTP_FROM.
-	BrevoAPIKey    string
+	BrevoAPIKey string
+	// RUESURL y RUESToken: registro de empresas de datos.gov.co para verificar refugios.
+	RUESURL        string
+	RUESToken      string
 	PushProvider   string
 	ExpoToken      string
 	GoogleClients  []string
@@ -96,6 +99,8 @@ func Load(getenv func(string) string) (Config, error) {
 			Password: get("SMTP_PASSWORD", ""), From: get("SMTP_FROM", ""),
 		},
 		BrevoAPIKey:    get("BREVO_API_KEY", ""),
+		RUESURL:        get("RUES_URL", "https://www.datos.gov.co/resource/c82u-588k.json"),
+		RUESToken:      get("RUES_APP_TOKEN", ""),
 		AdminEmails:    emailList(get("ADMIN_EMAILS", "")),
 		PushProvider:   get("PUSH_PROVIDER", ""),
 		ExpoToken:      get("EXPO_ACCESS_TOKEN", ""),
