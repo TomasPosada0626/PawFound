@@ -1,4 +1,4 @@
-# Respaldo del despertador externo (docs/DESPLIEGUE.md §7): GitHub no garantiza la hora de los
+# Respaldo del despertador externo (cron-job.org, docs/DESPLIEGUE.md §7): GitHub no garantiza la hora de los
 # trabajos programados y en la práctica este corre cada varias horas, así que no basta solo.
 # Render duerme el servicio tras 15 minutos sin tráfico; dormido no corren las alertas del círculo
 # de vida, y de noche es cuando más mascotas se pierden (pólvora). Por eso se visita todo el día.

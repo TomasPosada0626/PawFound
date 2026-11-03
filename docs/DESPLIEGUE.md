@@ -134,12 +134,12 @@ nunca llegan a una app con una huella distinta.
 El plan gratuito de Render duerme la API tras 15 minutos sin tráfico: la primera petición tarda de
 10 a 60 segundos y las tareas periódicas se detienen (entre ellas, las alertas del círculo de vida).
 El cron de GitHub Actions no alcanza: en noviembre de 2026, programado cada 10 minutos, corría cada
-4 a 8 horas. Por eso un servicio externo visita la API, que además avisa si se cae:
+4 a 8 horas. Por eso un servicio externo visita la API (así está hoy, con cron-job.org):
 
-1. En [UptimeRobot](https://uptimerobot.com) (gratis), crear un monitor HTTP(s) con la URL
-   `https://pawfound-api.onrender.com/health`, cada 5 minutos.
-2. En *Alert contacts*, dejar el correo (y la app de UptimeRobot si se quiere el aviso en el
-   celular): llega un aviso cuando la API deja de responder y otro cuando vuelve.
+1. En [cron-job.org](https://cron-job.org), un trabajo con la URL
+   `https://pawfound-api.onrender.com/health`, cada 5 minutos, todas las horas del día.
+2. En el trabajo, activar el aviso por correo cuando falle: así también sirve para enterarse si la
+   API se cae. [UptimeRobot](https://uptimerobot.com) es una alternativa que hace lo mismo.
 
 El plan gratis de Render da 750 horas al mes: alcanza para **un** servicio despierto todo el mes
 (744 horas). `mantener-api-despierta.yml` sigue como respaldo, y `vigilar-api.yml` revisa cada hora
