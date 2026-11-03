@@ -52,5 +52,14 @@ describe("mascotas sin nombre", () => {
   it("en una coincidencia con mascota propia usa el nombre de esa mascota", () => {
     expect(notificationTexts({ kind: "owned_match" }, pet({}), "Rocky", es).title).toBe("¿Es Rocky?");
     expect(notificationTexts({ kind: "sighting" }, pet({}), undefined, es).body).toBe("Alguien vio al perrito encontrado");
+    // Recordatorios a la familia de una perdida sin nombre.
+    const lost = pet({ kind: "lost", sex: "female" });
+    expect(notificationTexts({ kind: "case_reminder" }, lost, undefined, es).title).toBe("¿Ya apareció la perrita perdida?");
+    expect(notificationTexts({ kind: "case_archived" }, lost, undefined, es).title).toBe(
+      "Archivamos el caso de la perrita perdida",
+    );
+    expect(notificationTexts({ kind: "archive_warning" }, pet({ name: "Max" }), undefined, es).title).toBe(
+      "¿Hay novedades de Max?",
+    );
   });
 });

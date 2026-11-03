@@ -86,6 +86,26 @@ const AlertMinRadius = 250
 // llegar igual con el último conocido. Al cerrar sesión se borra de inmediato.
 const AlertLocationTTL = 30 * 24 * time.Hour
 
+// Recordatorios a la familia: a los ReminderDays días de publicado se le pregunta si su mascota ya
+// apareció. Un caso sin novedades en ArchiveAfter se archiva, avisando ArchiveWarning antes.
+var ReminderDays = []int{3, 7, 14}
+
+const (
+	ArchiveAfter   = 60 * 24 * time.Hour
+	ArchiveWarning = 7 * 24 * time.Hour
+)
+
+// ReminderDue es el recordatorio más reciente que toca según la edad del caso (0 si ninguno).
+func ReminderDue(age time.Duration) int {
+	due := 0
+	for _, d := range ReminderDays {
+		if age >= time.Duration(d)*24*time.Hour {
+			due = d
+		}
+	}
+	return due
+}
+
 // Límites de la comunidad (mockBackend.ts).
 const (
 	MessageMax        = 1000

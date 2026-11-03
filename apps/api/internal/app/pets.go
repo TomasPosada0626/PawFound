@@ -173,9 +173,11 @@ func (a *App) announcePet(ctx context.Context, row petRow) {
 
 // petClosedEvent avisa que un caso dejó de estar activo. Removed: además ya no existe para nadie.
 type petClosedEvent struct {
-	ID      string    `json:"id"`
-	Removed bool      `json:"removed"`
-	At      time.Time `json:"at"`
+	ID      string `json:"id"`
+	Removed bool   `json:"removed"`
+	// Archived: se cerró por falta de novedades, no por un reencuentro.
+	Archived bool      `json:"archived,omitempty"`
+	At       time.Time `json:"at"`
 }
 
 // afterReport hace los avisos que no deben tumbar la publicación si fallan.
