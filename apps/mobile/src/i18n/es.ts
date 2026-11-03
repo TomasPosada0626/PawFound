@@ -731,6 +731,13 @@ export const es = {
     body_friend_lost: "Ayuda a {owner} a buscar a {name}.",
     friend_found: "🎉 ¡Buenas noticias de {owner}!",
     body_friend_found: "{name} ya está en casa.",
+    case_reminder: "¿Ya apareció {name}?",
+    body_case_reminder: "Si ya está en casa, cierra el caso y agradece a quienes ayudaron. Si no, compártelo otra vez.",
+    archive_warning: "¿Hay novedades de {name}?",
+    body_archive_warning:
+      "En 7 días archivaremos el caso si no hay novedades. Agrega una historia o compártelo para mantenerlo activo.",
+    case_archived: "Archivamos el caso de {name}",
+    body_case_archived: "Pasaron 60 días sin novedades. Si sigue sin aparecer, publícalo otra vez desde Mis mascotas.",
     owned_match: "¿Es {name}?",
     body_owned_match: "Alguien encontró una mascota parecida a {name} cerca de tu zona. Revisa las fotos.",
   },

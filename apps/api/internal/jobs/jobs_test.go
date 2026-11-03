@@ -41,6 +41,11 @@ func TestTickRunsAlertsAndCleanup(t *testing.T) {
 	_ = store.Put(ctx, "med_old.jpg", []byte("x"))
 	exec(`INSERT INTO media (id, owner_id, purpose, content_type, width, height, bytes, phash, storage_key, created_at)
 		VALUES ('med_old', 'u1', 'chat', 'image/jpeg', 1, 1, 1, 0, 'med_old.jpg', $1)`, now.Add(-48*time.Hour))
+	// Una foto de reporte que el caso usa se queda; una que ya nada usa se borra.
+	exec(`INSERT INTO media (id, owner_id, purpose, content_type, width, height, bytes, phash, storage_key, created_at)
+		VALUES ('med_used', 'u1', 'pet', 'image/jpeg', 1, 1, 1, 0, 'med_used.jpg', $1),
+		       ('med_unused', 'u1', 'pet', 'image/jpeg', 1, 1, 1, 0, 'med_unused.jpg', $1)`, now.Add(-48*time.Hour))
+	exec(`UPDATE pets SET photos = ARRAY['med_used'] WHERE id = 'p1'`)
 
 	if err := Tick(ctx, a); err != nil {
 		t.Fatal(err)
@@ -53,7 +58,8 @@ func TestTickRunsAlertsAndCleanup(t *testing.T) {
 	if count(`SELECT count(*) FROM notifications`) != 0 {
 		t.Fatal("el círculo aún no llega a la vecina")
 	}
-	if count(`SELECT count(*) FROM refresh_tokens`) != 0 || count(`SELECT count(*) FROM email_verifications`) != 0 || count(`SELECT count(*) FROM media`) != 0 {
+	if count(`SELECT count(*) FROM refresh_tokens`) != 0 || count(`SELECT count(*) FROM email_verifications`) != 0 ||
+		count(`SELECT count(*) FROM media WHERE id <> 'med_used'`) != 0 || count(`SELECT count(*) FROM media WHERE id = 'med_used'`) != 1 {
 		t.Fatal("la limpieza no borró lo vencido")
 	}
 	if _, err := store.Open(ctx, "med_old.jpg"); err == nil {

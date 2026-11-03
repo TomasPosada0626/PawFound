@@ -556,8 +556,8 @@ export class ApiBackend {
           if (!this.getPet(pet.id)) this.mergePets([pet]);
         }
         if (data.type === "pet_closed") {
-          const closed = data.data as { id: string; removed: boolean; at: string };
-          this.closePetLocally(closed.id, closed.removed, closed.at);
+          const closed = data.data as { id: string; removed: boolean; archived?: boolean; at: string };
+          this.closePetLocally(closed.id, closed.removed, closed.at, closed.archived);
         }
       } catch {
         // Evento desconocido: se ignora.
@@ -834,13 +834,20 @@ export class ApiBackend {
   }
 
   /** Aplica el cierre de un caso en este celular, sin esperar a la próxima sincronización. */
-  private closePetLocally(petId: string, removed: boolean, at: string) {
+  /** Un caso que se cerró en otro lado: reencuentro, retirado (removed) o archivado por falta de novedades. */
+  private closePetLocally(petId: string, removed: boolean, at: string, archived = false) {
     const pet = this.getPet(petId);
     if (!pet) return;
     this.commit({
       pets: removed
         ? this.state.pets.filter((p) => p.id !== petId)
-        : this.state.pets.map((p) => (p.id === petId ? { ...p, state: "reunited" as const, reunitedAt: p.reunitedAt ?? at } : p)),
+        : this.state.pets.map((p) =>
+            p.id !== petId
+              ? p
+              : archived
+                ? { ...p, state: "archived" as const }
+                : { ...p, state: "reunited" as const, reunitedAt: p.reunitedAt ?? at },
+          ),
       threads: this.state.threads.map((t) =>
         t.id === pet.groupId || (t.kind === "dm" && t.petId === petId) ? { ...t, archived: true } : t,
       ),

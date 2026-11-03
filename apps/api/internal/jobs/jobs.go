@@ -64,6 +64,9 @@ func Tick(ctx context.Context, a *app.App) error {
 	if _, err := a.RunAlertJob(ctx); err != nil {
 		return err
 	}
+	if _, _, err := a.RunCaseReminders(ctx); err != nil {
+		return err
+	}
 	// Cuentas de ADMIN_EMAILS ya verificadas (por si ADMIN_EMAILS se agregó después).
 	if _, err := a.PromoteAdmins(ctx, ""); err != nil {
 		return err
@@ -97,10 +100,17 @@ func Cleanup(ctx context.Context, a *app.App) error {
 			return err
 		}
 	}
-	// Fotos subidas que nunca se usaron: de chat sin enviar y de perfil que no se guardaron.
+	// Fotos subidas que nunca se usaron (o que ya nada usa): de chat sin enviar, y de perfil,
+	// reportes, Mis mascotas, historias o PawFamily que no aparecen en ningún lado.
 	rows, err := a.DB.Query(ctx, `DELETE FROM media m WHERE m.created_at < $1::timestamptz - interval '1 day'
 		AND ((m.purpose = 'chat' AND m.thread_id IS NULL)
-		  OR (m.purpose = 'avatar' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.photo_id = m.id)))
+		  OR (m.purpose IN ('avatar', 'pet', 'owned', 'story', 'adoption')
+		      AND NOT EXISTS (SELECT 1 FROM users u WHERE u.photo_id = m.id)
+		      AND NOT EXISTS (SELECT 1 FROM pets p WHERE m.id = ANY (p.photos))
+		      AND NOT EXISTS (SELECT 1 FROM owned_pets o WHERE m.id = ANY (o.photos))
+		      AND NOT EXISTS (SELECT 1 FROM adoptions d WHERE m.id = ANY (d.photos))
+		      AND NOT EXISTS (SELECT 1 FROM stories s WHERE s.photo_id = m.id)
+		      AND NOT EXISTS (SELECT 1 FROM messages x WHERE x.photo_id = m.id)))
 		RETURNING storage_key`, now)
 	if err != nil {
 		return err

@@ -486,6 +486,23 @@ describe("conexión en vivo", () => {
     expect(state.stories).toHaveLength(0);
   });
 
+  it("un caso archivado por falta de novedades queda archivado, no reencontrado, y conserva sus avisos", async () => {
+    route("GET /v1/threads", { status: 200, body: [thread("grp_max")] });
+    route("GET /v1/me/notifications", {
+      status: 200,
+      body: [{ id: "n1", userId: "u_ana", kind: "case_archived", petId: "max", read: false }],
+    });
+    route("GET /v1/pets/max", { status: 200, body: pet("max") });
+    const backend = await loggedIn();
+    emit("pet", pet("max"));
+    emit("pet_closed", { id: "max", removed: false, archived: true, at: "2026-11-01T10:00:00Z" });
+    const state = backend.getSnapshot();
+    expect(state.pets.find((p) => p.id === "max")).toMatchObject({ state: "archived" });
+    expect(state.pets.find((p) => p.id === "max")?.reunitedAt).toBeUndefined();
+    expect(state.threads.find((t) => t.id === "grp_max")?.archived).toBe(true);
+    expect(state.notifications.map((n) => n.kind)).toEqual(["case_archived"]);
+  });
+
   it("una publicación eliminada desaparece junto con sus notificaciones", async () => {
     route("GET /v1/pets/max", { status: 200, body: pet("max") });
     route("GET /v1/me/notifications", {
