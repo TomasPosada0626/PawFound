@@ -18,7 +18,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { Text } from "@/components/ui/Text";
 import { useToast } from "@/components/ui/Toast";
 import { formatDistance, regionForRadius } from "@/domain/geo";
-import { currentRadius, offsetMinutes, profileFor, radiusInFuture } from "@/domain/lifeCircle";
+import { currentRadius, frameRadius, offsetMinutes, profileFor, radiusInFuture } from "@/domain/lifeCircle";
 import { memberDays } from "@/domain/moderation";
 import { findPossibleMatches } from "@/domain/rules";
 import { useAuthGate } from "@/hooks/useAuthGate";
@@ -147,7 +147,7 @@ export default function PetDetailScreen() {
         <View style={{ height: 360 + insets.top }}>
           {/* Solo esta mascota. Se puede mover y acercar; "Centrar" la devuelve al caso. */}
           <PetMap
-            region={detailRegion(pet.location, pet.kind === "lost" ? Math.max(radius, futureRadius) : 350)}
+            region={detailRegion(pet.location, pet.kind === "lost" ? frameRadius(Math.max(radius, futureRadius)) : 350)}
             recenterKey={recenterKey}
             circles={
               pet.kind === "lost"

@@ -67,52 +67,65 @@ describe("entrar a PawFamily", () => {
 });
 
 describe("buscar", () => {
-  it("los filtros de cada categoría se combinan y se pueden limpiar", async () => {
+  it("los filtros se abren en una hoja, se combinan, se quitan desde la barra y se limpian", async () => {
     await acceptedTerms();
     await open("/pawfamily");
     expect(await screen.findByTestId("adoption-ad_bruno")).toBeOnTheScreen();
-    // Todas las categorías están a la vista y se combinan: perro, macho, grande y mayor.
-    await fireEvent.press(screen.getByTestId("filter-dog"));
+    expect(await screen.findByText("3 mascotas en adopción a 10 km de ti")).toBeOnTheScreen();
+    // Todas las categorías se combinan: perro, macho, grande y mayor.
+    await fireEvent.press(screen.getByTestId("open-filters"));
+    await fireEvent.press(await screen.findByTestId("filter-dog"));
     await fireEvent.press(screen.getByTestId("filter-male"));
     await fireEvent.press(screen.getByTestId("filter-large"));
     await fireEvent.press(screen.getByTestId("filter-senior"));
     await waitFor(() => expect(screen.queryByTestId("adoption-ad_canela")).not.toBeOnTheScreen());
     expect(screen.queryByTestId("adoption-ad_simon")).not.toBeOnTheScreen();
     expect(screen.getByTestId("adoption-ad_bruno")).toBeOnTheScreen();
+    expect(screen.getByText("Ver 1 mascota")).toBeOnTheScreen();
+    expect(screen.getByLabelText("Filtros, 4 activos")).toBeOnTheScreen();
     // «Todos» quita solo esa categoría.
-    await fireEvent.press(screen.getByTestId("filter-size-all"));
     await fireEvent.press(screen.getByTestId("filter-age-all"));
-    expect(screen.getByTestId("adoption-ad_bruno")).toBeOnTheScreen();
+    expect(screen.queryByTestId("pill-age")).not.toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId("filters-apply"));
+    // Desde la barra, la x quita un filtro sin abrir la hoja.
+    await fireEvent.press(screen.getByTestId("pill-size-remove"));
+    expect(screen.queryByTestId("pill-size")).not.toBeOnTheScreen();
+    expect(screen.getByTestId("pill-species")).toBeOnTheScreen();
     // Limpiar deja todo como al principio.
-    await fireEvent.press(screen.getByTestId("filters-clear"));
+    await fireEvent.press(screen.getByTestId("open-filters"));
+    await fireEvent.press(await screen.findByTestId("filters-clear"));
     expect(await screen.findByTestId("adoption-ad_canela")).toBeOnTheScreen();
     expect(screen.getByTestId("adoption-ad_simon")).toBeOnTheScreen();
-    expect(screen.queryByTestId("filters-clear")).not.toBeOnTheScreen();
+    expect(screen.queryByTestId("pill-species")).not.toBeOnTheScreen();
+    expect(screen.getByLabelText("Filtros")).toBeOnTheScreen();
   });
 
   it("filtra por especie, sexo, tamaño, edad y toda la ciudad", async () => {
     await acceptedTerms();
     await open("/pawfamily");
     expect(await screen.findByTestId("adoption-ad_simon")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("filter-cat"));
+    await fireEvent.press(screen.getByTestId("open-filters"));
+    await fireEvent.press(await screen.findByTestId("filter-cat"));
     await waitFor(() => expect(screen.queryByTestId("adoption-ad_canela")).not.toBeOnTheScreen());
     expect(screen.getByTestId("adoption-ad_simon")).toBeOnTheScreen();
-    // Tocar el filtro otra vez lo quita.
-    await fireEvent.press(screen.getByTestId("filter-cat"));
+    // Cada categoría tiene una sola opción: «Todos» la quita.
+    await fireEvent.press(screen.getByTestId("filter-species-all"));
     await fireEvent.press(screen.getByTestId("filter-female"));
     await waitFor(() => expect(screen.queryByTestId("adoption-ad_simon")).not.toBeOnTheScreen());
     expect(screen.getByTestId("adoption-ad_canela")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("filter-female"));
+    await fireEvent.press(screen.getByTestId("filter-sex-all"));
     await fireEvent.press(screen.getByTestId("filter-large"));
     expect(await screen.findByTestId("adoption-ad_bruno")).toBeOnTheScreen();
-    await fireEvent.press(screen.getByTestId("filter-large"));
+    await fireEvent.press(screen.getByTestId("filter-size-all"));
     await fireEvent.press(screen.getByTestId("filter-senior"));
     await waitFor(() => expect(screen.queryByTestId("adoption-ad_canela")).not.toBeOnTheScreen());
-    await fireEvent.press(screen.getByTestId("filter-senior"));
+    await fireEvent.press(screen.getByTestId("filter-age-all"));
     // "Toda Medellín" deja fuera a Bruno, que está en Envigado.
-    await fireEvent.press(await screen.findByTestId("whole-city"));
+    await fireEvent(await screen.findByTestId("whole-city"), "valueChange", true);
     await waitFor(() => expect(screen.queryByTestId("adoption-ad_bruno")).not.toBeOnTheScreen());
     expect(screen.getByTestId("adoption-ad_canela")).toBeOnTheScreen();
+    expect(await screen.findByText("2 mascotas en adopción en toda Medellín")).toBeOnTheScreen();
+    // Elegir una distancia vuelve a buscar por cercanía.
     await fireEvent.press(screen.getByTestId("radius-2"));
     await fireEvent.press(screen.getByTestId("filter-dog"));
     await fireEvent.press(screen.getByTestId("filter-large"));
