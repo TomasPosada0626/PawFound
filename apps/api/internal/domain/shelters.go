@@ -5,12 +5,12 @@ import (
 	"unicode"
 )
 
-// Estados de un refugio y motivos de la última revisión en el RUES.
+// Estados de un refugio y motivos de la última revisión en el RUES. Todo se decide solo: un refugio
+// queda verificado o la solicitud se rechaza diciendo por qué; solo espera (pending) si el RUES no
+// respondió, y entonces se reintenta cada hora.
 const (
 	ShelterVerified = "verified"
 	ShelterPending  = "pending"
-	// ShelterInactive no se guarda: la matrícula está cancelada o en liquidación y la solicitud se rechaza.
-	ShelterInactive = "inactive"
 
 	CheckOK           = "rues_ok"
 	CheckNotFound     = "not_found"
@@ -19,7 +19,9 @@ const (
 	CheckDigitDiffers = "dv_mismatch"
 	CheckUnavailable  = "unavailable"
 	CheckInactive     = "inactive"
-	CheckManual       = "manual"
+	CheckNITTaken     = "nit_taken"
+	// CheckManual: moderación devolvió una verificación que había quitado.
+	CheckManual = "manual"
 )
 
 // RegistryEntry es lo que el RUES dice de un NIT (independiente del proveedor).
@@ -27,26 +29,27 @@ type RegistryEntry struct {
 	Name, CheckDigit, Status, LegalForm string
 }
 
-// ShelterDecision decide con lo que dice el RUES: verificado si la matrícula está activa, es una
-// fundación, asociación o corporación y el nombre coincide; en revisión si no aparece, es una
-// empresa o el nombre no coincide; inactivo si está cancelada o en liquidación.
-func ShelterDecision(enteredName, checkDigit string, e *RegistryEntry) (status, reason string) {
+// CheckShelter decide con lo que dice el RUES. Solo CheckOK verifica: la matrícula está activa, es
+// una fundación, asociación o corporación, y el dígito y el nombre coinciden. Cualquier otro motivo
+// rechaza la solicitud y dice por qué: no aparece, es una empresa, otro nombre u otro dígito, o la
+// matrícula está cancelada o en liquidación.
+func CheckShelter(enteredName, checkDigit string, e *RegistryEntry) string {
 	if e == nil {
-		return ShelterPending, CheckNotFound
+		return CheckNotFound
 	}
 	if fold(e.Status) != "ACTIVA" || strings.Contains(fold(e.Name), "LIQUIDACION") {
-		return ShelterInactive, CheckInactive
+		return CheckInactive
 	}
 	if e.CheckDigit != "" && e.CheckDigit != checkDigit {
-		return ShelterPending, CheckDigitDiffers
+		return CheckDigitDiffers
 	}
 	if !isNonprofit(e.LegalForm) {
-		return ShelterPending, CheckNotNonprofit
+		return CheckNotNonprofit
 	}
 	if !SimilarNames(enteredName, e.Name) {
-		return ShelterPending, CheckNameMismatch
+		return CheckNameMismatch
 	}
-	return ShelterVerified, CheckOK
+	return CheckOK
 }
 
 // isNonprofit: fundaciones, asociaciones, corporaciones y demás entidades sin ánimo de lucro.

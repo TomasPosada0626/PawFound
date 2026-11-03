@@ -708,14 +708,20 @@ export const en: Translations = {
     shelterTag: "Verified shelter",
     shelterTitle: "Shelter verification",
     shelterIntro:
-      "Write the shelter's name and its NIT with the check digit. We check the NIT in the RUES: if it is an active foundation, association or corporation with that name, you are verified instantly.",
+      "Write the shelter's name and its NIT with the check digit. We check the NIT in the RUES: if it is an active foundation, association or corporation with that name, you are verified instantly. If not, we tell you what to check.",
     shelterVerifiedToast: "Done! {name} is a verified shelter.",
     shelterEnter: "Enter as a shelter",
     shelterSource: "Source: RUES – Confecámaras (open data, datos.gov.co).",
-    shelterPendingToast: "We got {name}'s details. It is under review: we will let you know when it is approved.",
+    shelterPendingToast: "The RUES didn't answer. We will try again ourselves and let you know when {name} is verified.",
     shelter_pending:
-      "{name} is under review. We could not confirm it in the RUES (it may be new, a company or a different name). We will let you know; you can correct the details if you like.",
+      "We are waiting for the RUES to verify {name}: we try again every hour and will let you know. You can also try again now.",
     shelterNitInactive: "In the RUES this NIT shows as cancelled or in liquidation.",
+    shelterNitNotFound: "This NIT does not appear in the RUES. If the organization is new, try again in a few weeks.",
+    shelterNotNonprofit:
+      "In the RUES this NIT belongs to a company. Only non-profit foundations, associations or corporations are verified.",
+    shelterDvMismatch: "The check digit doesn't match the one in the RUES.",
+    shelterNameMismatch:
+      "The name doesn't match the one registered in the RUES. Write it as it appears in the Chamber of Commerce.",
     shelterNitTaken: "This NIT is already verified on another account.",
     shelterName: "Shelter name",
     shelterNit: "NIT with check digit",

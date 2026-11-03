@@ -2,29 +2,28 @@ package domain
 
 import "testing"
 
-func TestShelterDecision(t *testing.T) {
+func TestCheckShelter(t *testing.T) {
 	active := func(name, form string) *RegistryEntry {
 		return &RegistryEntry{Name: name, CheckDigit: "7", Status: "ACTIVA", LegalForm: form}
 	}
 	cases := []struct {
 		name, entered, dv string
 		entry             *RegistryEntry
-		status, reason    string
+		reason            string
 	}{
-		{"fundación activa con el mismo nombre", "Fundación Bienestar Animal", "7", active("FUNDACION BIENESTAR ANIMAL", "FUNDACIONES"), ShelterVerified, CheckOK},
-		{"nombre corto contenido en la razón social", "Bienestar Animal", "7", active("FUNDACION BIENESTAR ANIMAL DE ANTIOQUIA", "FUNDACIONES"), ShelterVerified, CheckOK},
-		{"asociación con tildes", "Asociación Huellitas", "7", active("ASOCIACION HUELLITAS", "ASOCIACIONES, CORPORACIONES, FUNDACIONES E INSTITUCIONES DE UTILIDAD COMÚN"), ShelterVerified, CheckOK},
-		{"no aparece", "Patitas", "7", nil, ShelterPending, CheckNotFound},
-		{"cancelada", "Bienestar Animal", "7", &RegistryEntry{Name: "FUNDACION BIENESTAR ANIMAL", Status: "CANCELADA", LegalForm: "FUNDACIONES"}, ShelterInactive, CheckInactive},
-		{"en liquidación", "Atención Animal", "7", active("FUNDACION ATENCION ANIMAL EN LIQUIDACIÓN", "FUNDACIONES"), ShelterInactive, CheckInactive},
-		{"empresa", "Animal Venture", "7", active("ANIMAL VENTURE SAS", "SOCIEDADES POR ACCIONES SIMPLIFICADAS SAS"), ShelterPending, CheckNotNonprofit},
-		{"otro nombre", "Refugio Las Patas", "7", active("FUNDACION BIENESTAR ANIMAL", "FUNDACIONES"), ShelterPending, CheckNameMismatch},
-		{"otro dígito", "Bienestar Animal", "3", active("FUNDACION BIENESTAR ANIMAL", "FUNDACIONES"), ShelterPending, CheckDigitDiffers},
+		{"fundación activa con el mismo nombre", "Fundación Bienestar Animal", "7", active("FUNDACION BIENESTAR ANIMAL", "FUNDACIONES"), CheckOK},
+		{"nombre corto contenido en la razón social", "Bienestar Animal", "7", active("FUNDACION BIENESTAR ANIMAL DE ANTIOQUIA", "FUNDACIONES"), CheckOK},
+		{"asociación con tildes", "Asociación Huellitas", "7", active("ASOCIACION HUELLITAS", "ASOCIACIONES, CORPORACIONES, FUNDACIONES E INSTITUCIONES DE UTILIDAD COMÚN"), CheckOK},
+		{"no aparece", "Patitas", "7", nil, CheckNotFound},
+		{"cancelada", "Bienestar Animal", "7", &RegistryEntry{Name: "FUNDACION BIENESTAR ANIMAL", Status: "CANCELADA", LegalForm: "FUNDACIONES"}, CheckInactive},
+		{"en liquidación", "Atención Animal", "7", active("FUNDACION ATENCION ANIMAL EN LIQUIDACIÓN", "FUNDACIONES"), CheckInactive},
+		{"empresa", "Animal Venture", "7", active("ANIMAL VENTURE SAS", "SOCIEDADES POR ACCIONES SIMPLIFICADAS SAS"), CheckNotNonprofit},
+		{"otro nombre", "Refugio Las Patas", "7", active("FUNDACION BIENESTAR ANIMAL", "FUNDACIONES"), CheckNameMismatch},
+		{"otro dígito", "Bienestar Animal", "3", active("FUNDACION BIENESTAR ANIMAL", "FUNDACIONES"), CheckDigitDiffers},
 	}
 	for _, c := range cases {
-		status, reason := ShelterDecision(c.entered, c.dv, c.entry)
-		if status != c.status || reason != c.reason {
-			t.Errorf("%s: %s/%s, se esperaba %s/%s", c.name, status, reason, c.status, c.reason)
+		if reason := CheckShelter(c.entered, c.dv, c.entry); reason != c.reason {
+			t.Errorf("%s: %s, se esperaba %s", c.name, reason, c.reason)
 		}
 	}
 }

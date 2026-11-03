@@ -11,15 +11,26 @@ import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/components/ui/Toast";
 import { normalizeNit } from "@/domain/shelter";
 import { errorMessage } from "@/features/errorMessages";
+import type { TKey } from "@/i18n/core";
 import { useI18n } from "@/i18n/I18nProvider";
-import { BackendError } from "@/services/backendTypes";
+import { BackendError, type ErrorCode } from "@/services/backendTypes";
 import { STORAGE_KEYS, writeJSON } from "@/services/storage";
 import { useBackend, useCurrentUser } from "@/store/backend";
 
+/** Por qué el RUES no confirmó el refugio, en el campo que hay que corregir. */
+const REFUSALS: Partial<Record<ErrorCode, { field: "name" | "nit"; key: TKey }>> = {
+  nit_taken: { field: "nit", key: "pawfamily.shelterNitTaken" },
+  nit_inactive: { field: "nit", key: "pawfamily.shelterNitInactive" },
+  nit_not_found: { field: "nit", key: "pawfamily.shelterNitNotFound" },
+  nit_not_nonprofit: { field: "nit", key: "pawfamily.shelterNotNonprofit" },
+  nit_dv_mismatch: { field: "nit", key: "pawfamily.shelterDvMismatch" },
+  shelter_name_mismatch: { field: "name", key: "pawfamily.shelterNameMismatch" },
+};
+
 /**
- * Entrar como refugio: nombre y NIT. La API revisa el NIT en el RUES: una fundación, asociación o
- * corporación activa con ese nombre queda verificada al instante y pasa al panel del refugio; si
- * no se puede confirmar, queda en revisión y se puede corregir.
+ * Entrar como refugio: nombre y NIT. La API revisa el NIT en el RUES y decide sola: una fundación,
+ * asociación o corporación activa con ese nombre queda verificada al instante y pasa al panel del
+ * refugio; si no, dice qué corregir. Solo si el RUES no responde queda esperando y se avisa después.
  */
 export default function ShelterScreen() {
   const { t } = useI18n();
@@ -57,8 +68,8 @@ export default function ShelterScreen() {
       }
     } catch (err) {
       const code = err instanceof BackendError ? err.code : "unknown";
-      if (code === "nit_taken") setErrors({ nit: t("pawfamily.shelterNitTaken") });
-      else if (code === "nit_inactive") setErrors({ nit: t("pawfamily.shelterNitInactive") });
+      const refusal = REFUSALS[code];
+      if (refusal) setErrors({ [refusal.field]: t(refusal.key) });
       else toast(errorMessage(code, t), "error");
     } finally {
       setSending(false);

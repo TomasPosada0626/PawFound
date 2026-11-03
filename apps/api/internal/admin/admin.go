@@ -437,23 +437,22 @@ func (p *Panel) users(w http.ResponseWriter, r *http.Request) {
 	p.render(w, r, http.StatusOK, "users", view{Title: "Cuentas", Section: "users", Data: map[string]any{"Q": q, "Users": found}})
 }
 
-// shelters lista los refugios en revisión (para aprobarlos o rechazarlos) y los verificados (para
-// quitarles la verificación si hace falta), con lo que dijo el RUES.
+// shelters lista los refugios verificados (para quitarles la verificación si hace falta), los que
+// tienen la verificación quitada (para devolverla si fue un error) y cuántos esperan al RUES. La
+// verificación es automática: aquí no se aprueba nada a mano.
 func (p *Panel) shelters(w http.ResponseWriter, r *http.Request) {
 	list, err := p.App.Shelters(r.Context())
 	if err != nil {
 		p.fail(w, err)
 		return
 	}
-	var pending, verified []app.Shelter
+	groups := map[string][]app.Shelter{}
 	for _, s := range list {
-		if s.Status == "pending" {
-			pending = append(pending, s)
-		} else {
-			verified = append(verified, s)
-		}
+		groups[s.Status] = append(groups[s.Status], s)
 	}
-	p.render(w, r, http.StatusOK, "shelters", view{Title: "Refugios", Section: "shelters", Data: map[string]any{"Pending": pending, "Verified": verified}})
+	p.render(w, r, http.StatusOK, "shelters", view{Title: "Refugios", Section: "shelters", Data: map[string]any{
+		"Verified": groups["verified"], "Removed": groups["rejected"], "Waiting": len(groups["pending"]),
+	}})
 }
 
 func (p *Panel) user(w http.ResponseWriter, r *http.Request) {
