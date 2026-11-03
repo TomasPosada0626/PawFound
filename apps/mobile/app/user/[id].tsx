@@ -4,7 +4,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { FounderTag } from "@/components/FounderTag";
-import { ShelterTag } from "@/components/pawfamily";
+import { ShelterShowcase, ShelterTag } from "@/components/pawfamily";
 import { BadgeTile } from "@/components/badges";
 import { AppHeader, BackButton, Screen } from "@/components/layout";
 import { PetPhoto, UserAvatar } from "@/components/pets";
@@ -208,6 +208,9 @@ export default function PublicProfileScreen() {
           </View>
         </Card>
       </Pressable>
+
+      {/* Refugio verificado: lo que tiene en adopción y sus adopciones logradas. */}
+      <ShelterShowcase userId={person.id} />
 
       {/* Actividad real */}
       <Card className="mt-4">

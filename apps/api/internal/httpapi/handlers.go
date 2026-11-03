@@ -629,6 +629,25 @@ func (s *Server) apply(w http.ResponseWriter, r *http.Request) {
 	respond(w, http.StatusCreated, application, err)
 }
 
+func (s *Server) userAdoptions(w http.ResponseWriter, r *http.Request) {
+	list, err := s.App.UserAdoptions(r.Context(), viewerID(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) adoptionUpdates(w http.ResponseWriter, r *http.Request) {
+	list, err := s.App.AdoptionUpdates(r.Context(), actor(r), chi.URLParam(r, "id"))
+	respond(w, http.StatusOK, list, err)
+}
+
+func (s *Server) addAdoptionUpdate(w http.ResponseWriter, r *http.Request) {
+	var in app.AdoptionUpdateInput
+	if !decode(w, r, &in) {
+		return
+	}
+	update, err := s.App.AddAdoptionUpdate(r.Context(), actor(r), chi.URLParam(r, "id"), in)
+	respond(w, http.StatusCreated, update, err)
+}
+
 func (s *Server) reportAdoption(w http.ResponseWriter, r *http.Request) {
 	var in app.AdoptionReportInput
 	if !decode(w, r, &in) {

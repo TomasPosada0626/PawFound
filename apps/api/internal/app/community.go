@@ -46,6 +46,8 @@ type PublicProfile struct {
 	Pets         []ProfilePet           `json:"pets"`
 	Reported     int                    `json:"reported"`
 	Found        int                    `json:"found"`
+	// Shelter: solo en refugios verificados, con lo que tienen en adopción y sus adopciones logradas.
+	Shelter *ShelterSummary `json:"shelter,omitempty"`
 }
 
 // Profile arma el perfil público de una cuenta.
@@ -80,6 +82,9 @@ func (a *App) Profile(ctx context.Context, viewerID, userID string) (PublicProfi
 	}
 	if err := a.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE kind = 'lost'), count(*) FILTER (WHERE kind = 'found')
 		FROM pets WHERE owner_id = $1 AND NOT moderation_removed AND withdrawn_at IS NULL`, userID).Scan(&p.Reported, &p.Found); err != nil {
+		return PublicProfile{}, err
+	}
+	if p.Shelter, err = a.shelterSummary(ctx, userID); err != nil {
 		return PublicProfile{}, err
 	}
 	if viewerID != userID {

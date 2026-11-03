@@ -8,6 +8,8 @@ import type {
   AdoptionInput,
   AdoptionReportReason,
   ApplicationInput,
+  AdoptionUpdate,
+  ShelterSummary,
 } from "@/domain/adoption";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
 import type { ImpactStats, PublishAllowance } from "@/domain/rules";
@@ -139,6 +141,7 @@ type ApiProfile = {
   following: number;
   followStatus: FollowStatus;
   badges: BadgeProgress[];
+  shelter?: ShelterSummary;
   pets: (Pick<
     OwnedPet,
     "id" | "name" | "species" | "breed" | "sex" | "age" | "size" | "color" | "collar" | "description" | "shyOrIndoor"
@@ -169,6 +172,7 @@ function emptyState(): BackendState {
     places: [],
     remoteBadges: {},
     network: { requests: [], followers: [], following: [], sent: [] },
+    shelterSummaries: {},
     followInfo: {},
     remoteRatings: {},
     follows: [],
@@ -749,6 +753,24 @@ export class ApiBackend {
     return created.id;
   }
 
+  /** Lo que una cuenta tiene hoy en adopción (perfil público de un refugio). */
+  async loadUserAdoptions(userId: string): Promise<string[]> {
+    const list = await this.request<ApiAdoption[]>("GET", `/v1/users/${userId}/adoptions`);
+    this.mergeAdoptions(list);
+    return list.map((a) => a.id);
+  }
+
+  /** Novedades de la nueva familia: las ven quien dio en adopción y quien adoptó. */
+  async loadAdoptionUpdates(adoptionId: string): Promise<AdoptionUpdate[]> {
+    return this.request<AdoptionUpdate[]>("GET", `/v1/adoptions/${adoptionId}/updates`);
+  }
+
+  /** Quien adoptó cuenta cómo está la mascota: una foto, unas palabras o las dos. */
+  async addAdoptionUpdate(adoptionId: string, input: { photo?: string; body: string }): Promise<AdoptionUpdate> {
+    const photo = input.photo ? await this.upload(input.photo, "adoption") : undefined;
+    return this.request<AdoptionUpdate>("POST", `/v1/adoptions/${adoptionId}/updates`, { photo, body: input.body });
+  }
+
   async loadMyAdoptions(): Promise<string[]> {
     const list = await this.request<ApiAdoption[]>("GET", "/v1/me/adoptions");
     this.mergeAdoptions(list);
@@ -1186,6 +1208,9 @@ export class ApiBackend {
       users: { ...this.state.users, [userId]: user },
       remoteBadges: { ...this.state.remoteBadges, [userId]: p.badges },
       remoteRatings: { ...this.state.remoteRatings, [userId]: { average: p.rating, count: p.ratingCount } },
+      shelterSummaries: p.shelter
+        ? { ...this.state.shelterSummaries, [userId]: p.shelter }
+        : Object.fromEntries(Object.entries(this.state.shelterSummaries).filter(([id]) => id !== userId)),
       followInfo: {
         ...this.state.followInfo,
         [userId]: { followers: p.followers, following: p.following, status: p.followStatus },

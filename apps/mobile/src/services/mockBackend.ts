@@ -8,6 +8,8 @@ import {
   type AdoptionInput,
   type AdoptionReportReason,
   type ApplicationInput,
+  type AdoptionUpdate,
+  ADOPTION_UPDATE_MAX,
 } from "@/domain/adoption";
 import { normalizeNit } from "@/domain/shelter";
 import { approximateLocation, distanceMeters } from "@/domain/geo";
@@ -119,6 +121,8 @@ export class MockBackend {
   private readonly now: () => Date;
   private readonly translator?: Translator;
   private seq = 0;
+  /** Novedades de las adopciones (en la demostración viven solo en memoria). */
+  private adoptionUpdates: AdoptionUpdate[] = [];
 
   constructor(initial: BackendState, options: BackendOptions = {}) {
     this.state = initial;
@@ -1247,6 +1251,45 @@ export class MockBackend {
     };
     this.commit({ adoptions: [adoption, ...this.state.adoptions] });
     return adoption.id;
+  }
+
+  async loadUserAdoptions(userId: string): Promise<string[]> {
+    return this.state.adoptions
+      .filter((a) => a.ownerId === userId && (a.status === "available" || a.status === "in_process"))
+      .map((a) => a.id);
+  }
+
+  /** Quien adoptó: la solicitud aceptada de una adopción ya concretada. */
+  private adopterOf(adoptionId: string): string | undefined {
+    const adoption = this.state.adoptions.find((a) => a.id === adoptionId);
+    if (adoption?.status !== "adopted") return undefined;
+    return this.state.adoptionApplications.find((a) => a.adoptionId === adoptionId && a.status === "accepted")?.applicantId;
+  }
+
+  async loadAdoptionUpdates(adoptionId: string): Promise<AdoptionUpdate[]> {
+    const user = this.requireUser();
+    const adoption = this.state.adoptions.find((a) => a.id === adoptionId);
+    if (!adoption) throw new BackendError("not_found");
+    if (user.id !== adoption.ownerId && user.id !== this.adopterOf(adoptionId)) throw new BackendError("not_allowed");
+    return this.adoptionUpdates.filter((u) => u.adoptionId === adoptionId).sort((a, b) => b.at.localeCompare(a.at));
+  }
+
+  async addAdoptionUpdate(adoptionId: string, input: { photo?: string; body: string }): Promise<AdoptionUpdate> {
+    const user = this.requireVerified();
+    if (!this.state.adoptions.some((a) => a.id === adoptionId)) throw new BackendError("not_found");
+    if (user.id !== this.adopterOf(adoptionId)) throw new BackendError("not_allowed");
+    const body = input.body.trim().slice(0, ADOPTION_UPDATE_MAX);
+    if (!body && !input.photo) throw new BackendError("invalid_input");
+    const update: AdoptionUpdate = {
+      id: this.id("upd"),
+      adoptionId,
+      authorId: user.id,
+      photo: input.photo,
+      body,
+      at: this.iso(),
+    };
+    this.adoptionUpdates = [update, ...this.adoptionUpdates];
+    return update;
   }
 
   async loadMyAdoptions(): Promise<string[]> {

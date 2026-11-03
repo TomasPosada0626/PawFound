@@ -693,6 +693,9 @@ var adoptionTexts = map[string]map[string][2]string{
 		"shelter_verified":     {"✅ Refugio verificado", "{name} vuelve a aparecer como refugio verificado en PawFamily."},
 		"shelter_rejected":     {"Verificación de refugio", "Moderación quitó la verificación de {name}. Escríbenos si crees que es un error."},
 		"adoption_completed":   {"🏡 ¡Bienvenido el nuevo integrante!", "{name} ya es parte de tu familia. Ganaste la insignia «Nuevo integrante»."},
+		"application_expired":  {"Solicitud de adopción vencida", "Tu solicitud para adoptar a {name} venció sin respuesta. Hay más peluditos esperando un hogar en PawFamily."},
+		"adoption_followup":    {"🐾 ¿Cómo está {name}?", "Cuéntale a quien te la dio cómo le va: comparte una foto en PawFamily."},
+		"adoption_update":      {"📸 Novedades de {name}", "Su nueva familia compartió cómo está. Míralo en PawFamily."},
 	},
 	"en": {
 		"application_new":      {"🏡 New adoption request", "Someone wants to adopt {name}. Check the request in PawFamily."},
@@ -702,6 +705,9 @@ var adoptionTexts = map[string]map[string][2]string{
 		"shelter_verified":     {"✅ Shelter verified", "{name} shows as a verified shelter in PawFamily again."},
 		"shelter_rejected":     {"Shelter verification", "Moderation removed {name}'s verification. Write to us if you think it's a mistake."},
 		"adoption_completed":   {"🏡 Welcome, new family member!", "{name} is now part of your family. You earned the “New member” badge."},
+		"application_expired":  {"Adoption request expired", "Your request to adopt {name} expired without an answer. More pets are waiting for a home in PawFamily."},
+		"adoption_followup":    {"🐾 How is {name} doing?", "Tell the person who gave them to you how it is going: share a photo in PawFamily."},
+		"adoption_update":      {"📸 News about {name}", "Their new family shared how they are doing. See it in PawFamily."},
 	},
 }
 
