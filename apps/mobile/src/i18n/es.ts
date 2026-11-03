@@ -1170,6 +1170,8 @@ export const es = {
     panda: "Avatar de panda",
     bunny: "Avatar de conejo",
     bear: "Avatar de oso",
+    pug: "Avatar de pug",
+    hamster: "Avatar de hámster",
   },
   settings: {
     personal: "Información personal",

@@ -40,7 +40,7 @@ var (
 	// LocationKinds: ubicación actual y punto de encuentro (solo DM) o una veterinaria.
 	LocationKinds = set("current", "meeting", "place")
 	Langs         = set("es", "en")
-	Avatars       = set("dog", "cat", "fox", "panda", "bunny", "bear")
+	Avatars       = set("dog", "cat", "fox", "panda", "bunny", "bear", "pug", "hamster")
 	// Títulos del perfil (con emoji en la app). Los cinco primeros son los originales.
 	Titles = set("animal_lover", "rescuer", "neighbor", "volunteer", "foster",
 		"dog_family", "cat_family", "paw_angel", "treat_fan", "furry_heart")

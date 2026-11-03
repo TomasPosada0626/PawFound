@@ -11,6 +11,7 @@ import { useDevicePrefs } from "@/store/devicePrefs";
 import { useTheme } from "@/theme/ThemeProvider";
 import { statusColor } from "@/theme/tokens";
 
+import { AvatarArt } from "./avatars";
 import { Icon, type IconName } from "./ui/Icon";
 import { cn, Text } from "./ui/Text";
 
@@ -129,29 +130,13 @@ export function PetAvatar({
   );
 }
 
-const AVATARS: Record<AvatarId, { emoji: string; bg: string }> = {
-  dog: { emoji: "🐶", bg: "#FDE8C8" },
-  cat: { emoji: "🐱", bg: "#E5E0FB" },
-  fox: { emoji: "🦊", bg: "#FFE1D6" },
-  panda: { emoji: "🐼", bg: "#DDF3EE" },
-  bunny: { emoji: "🐰", bg: "#FCE3EE" },
-  bear: { emoji: "🐻", bg: "#E6EEF9" },
-};
+export { AVATAR_IDS } from "./avatars";
 
-export const AVATAR_IDS = Object.keys(AVATARS) as AvatarId[];
-
+/** Avatar ilustrado de una cuenta sin foto propia (src/components/avatars.tsx). */
 export function AvatarGlyph({ avatar, size = 56 }: { avatar: AvatarId; size?: number }) {
-  const a = AVATARS[avatar] ?? AVATARS.dog;
   return (
-    <View
-      className="items-center justify-center rounded-full"
-      style={{ width: size, height: size, backgroundColor: a.bg }}
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-    >
-      <Text style={{ fontSize: size * 0.52, lineHeight: size * 0.66 }} maxFontSizeMultiplier={1}>
-        {a.emoji}
-      </Text>
+    <View style={{ width: size, height: size }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <AvatarArt avatar={avatar} size={size} />
     </View>
   );
 }
