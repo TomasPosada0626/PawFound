@@ -150,15 +150,6 @@ export default function NotificationSettingsScreen() {
           value={prefs.email}
           onChange={(v) => set({ email: v })}
         />
-        <Divider />
-        <ToggleRow
-          icon="calendar-outline"
-          tone="primary"
-          title={t("notificationSettings.digest")}
-          description={t("notificationSettings.digestDesc")}
-          value={prefs.dailyDigest}
-          onChange={(v) => set({ dailyDigest: v })}
-        />
       </SettingsCard>
 
       <Banner

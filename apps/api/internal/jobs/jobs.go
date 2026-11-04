@@ -73,6 +73,10 @@ func Tick(ctx context.Context, a *app.App) error {
 	if _, _, err := a.RunShelterChecks(ctx); err != nil {
 		return err
 	}
+	// Reportes que llegaron mientras se esperaba entre un correo a moderación y otro.
+	if _, err := a.NotifyModerators(ctx); err != nil {
+		return err
+	}
 	// Cuentas de ADMIN_EMAILS ya verificadas (por si ADMIN_EMAILS se agregó después).
 	if _, err := a.PromoteAdmins(ctx, ""); err != nil {
 		return err

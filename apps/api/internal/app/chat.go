@@ -501,11 +501,7 @@ func (a *App) pushMessage(ctx context.Context, from Actor, m Message) {
 			})
 		}
 	}
-	if len(messages) > 0 {
-		if err := a.Push.Send(ctx, messages); err != nil {
-			a.Log.Error("push de mensaje", "err", err)
-		}
-	}
+	a.sendPush(ctx, messages, "push de mensaje")
 }
 
 // MarkThreadRead mueve la marca de lectura al último mensaje.

@@ -62,6 +62,9 @@ export default function ChatScreen() {
     return threadMessages(state, thread.id);
   }, [state, thread]);
   const isMember = Boolean(user && thread?.memberIds.includes(user.id));
+  // La traducción automática solo se ofrece si el servidor tradujo mensajes de este chat: sin
+  // proveedor de traducción el interruptor no haría nada.
+  const hasTranslations = messages.some((m) => Object.keys(m.translations ?? {}).length > 0);
 
   const threadId = thread?.id;
   useEffect(() => {
@@ -397,15 +400,17 @@ export default function ChatScreen() {
             }}
           />
         ) : null}
-        <ToggleRow
-          icon="language"
-          tone="blue"
-          title={t("chat.autoTranslate")}
-          description={t("chat.autoTranslateHint")}
-          value={autoTranslate}
-          onChange={setAutoTranslate}
-          testID="toggle-auto-translate"
-        />
+        {hasTranslations ? (
+          <ToggleRow
+            icon="language"
+            tone="blue"
+            title={t("chat.autoTranslate")}
+            description={t("chat.autoTranslateHint")}
+            value={autoTranslate}
+            onChange={setAutoTranslate}
+            testID="toggle-auto-translate"
+          />
+        ) : null}
         <ListRow
           icon={thread.archivedBy.includes(user.id) ? "file-tray-outline" : "archive-outline"}
           tone="neutral"

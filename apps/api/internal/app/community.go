@@ -217,6 +217,9 @@ func (a *App) ReportUser(ctx context.Context, ac Actor, targetID string, in User
 	_, err := a.DB.Exec(ctx, `INSERT INTO reports (id, reporter_id, target_kind, reported_user_id, thread_id, message_id, reason, note, created_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT DO NOTHING`, domain.NewID("rep"), ac.ID, kind, targetID, threadID, messageID,
 		in.Reason, optional(domain.Clean(in.Note, domain.ReportNoteMax)), a.now())
+	if err == nil {
+		a.reported()
+	}
 	return err
 }
 
@@ -238,6 +241,9 @@ func (a *App) ReportPet(ctx context.Context, ac Actor, petID string, in UserRepo
 	_, err = a.DB.Exec(ctx, `INSERT INTO reports (id, reporter_id, target_kind, reported_user_id, pet_id, reason, note, created_at)
 		VALUES ($1, $2, 'pet', $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`, domain.NewID("rep"), ac.ID, row.OwnerID, petID, in.Reason,
 		optional(domain.Clean(in.Note, domain.ReportNoteMax)), a.now())
+	if err == nil {
+		a.reported()
+	}
 	return err
 }
 

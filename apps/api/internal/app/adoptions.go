@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -679,6 +680,9 @@ func (a *App) ReportAdoption(ctx context.Context, ac Actor, adoptionID string, i
 	_, err = a.DB.Exec(ctx, `INSERT INTO reports (id, reporter_id, target_kind, reported_user_id, adoption_id, reason, note, created_at)
 		VALUES ($1, $2, 'adoption', $3, $4, $5, $6, $7)`, domain.NewID("rep"), ac.ID, row.OwnerID, adoptionID, in.Reason,
 		optional(domain.Clean(in.Note, domain.ReportNoteMax)), a.now())
+	if err == nil {
+		a.reported()
+	}
 	return err
 }
 
@@ -734,17 +738,20 @@ func (a *App) pushAdoption(ctx context.Context, userID, kind, petName, url strin
 			Channel: channelUpdates, Silent: domain.IsQuietTime(person.Prefs, a.now()),
 		})
 	}
-	if len(messages) > 0 {
-		if err := a.Push.Send(ctx, messages); err != nil {
-			a.Log.Error("enviar push de PawFamily", "err", err)
-		}
-	}
+	a.sendPush(ctx, messages, "enviar push de PawFamily")
 }
 
-// mailNewApplication avisa por correo a quien publicó. Si falla, el aviso de la app ya llegó.
+// mailNewApplication avisa por correo a quien publicó, si no apagó los correos en Ajustes. Si falla,
+// el aviso de la app ya llegó.
 func (a *App) mailNewApplication(ctx context.Context, ownerID, petName string) {
 	var email, name, lang string
-	if err := a.DB.QueryRow(ctx, `SELECT email, name, lang FROM users WHERE id = $1`, ownerID).Scan(&email, &name, &lang); err != nil {
+	var rawPrefs []byte
+	if err := a.DB.QueryRow(ctx, `SELECT email, name, lang, notification_prefs FROM users WHERE id = $1`, ownerID).Scan(&email, &name, &lang, &rawPrefs); err != nil {
+		return
+	}
+	prefs := domain.DefaultNotificationPrefs()
+	_ = json.Unmarshal(rawPrefs, &prefs)
+	if !prefs.Email {
 		return
 	}
 	notice := providers.AdoptionRequestNotice(petName, strings.TrimRight(a.WebBaseURL, "/"), lang)
