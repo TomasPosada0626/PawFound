@@ -9,8 +9,9 @@ PawFound está en el **piloto de Android**:
 - El trabajo de las Fases 2 y 3 (diseño y MVP) se hizo en ramas `feature/<nombre>` con pull
   requests a `develop`, la mayoría sin enlazar un Issue.
 
-Por eso los hitos de GitHub muestran Issues abiertos que ya están resueltos en el código. El historial
-real está en los pull requests fusionados.
+Por eso el 4 de noviembre de 2026 se cerraron los 46 Issues que seguían abiertos: los hechos como
+completados y los descartados o pendientes con su motivo. El historial real está en los pull
+requests fusionados.
 
 | Fase | Estado |
 | --- | --- |

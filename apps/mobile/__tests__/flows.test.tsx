@@ -133,6 +133,17 @@ describe("chats con traducción automática", () => {
     await fireEvent.changeText(screen.getByTestId("chat-input"), "Voy en camino");
     await fireEvent.press(screen.getByTestId("chat-send"));
     expect(await screen.findByText("Voy en camino")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByLabelText("Más opciones"));
+    expect(await screen.findByTestId("toggle-auto-translate")).toBeOnTheScreen();
+  });
+
+  it("sin mensajes traducidos no ofrece la traducción automática", async () => {
+    await loginAs("u_valentina");
+    await open("/chat/grp_rocky");
+    expect(await screen.findByText("Pegamos carteles en la Avenida Las Vegas.")).toBeOnTheScreen();
+    await fireEvent.press(screen.getByLabelText("Más opciones"));
+    expect(await screen.findByText("Ver caso")).toBeOnTheScreen();
+    expect(screen.queryByTestId("toggle-auto-translate")).toBeNull();
   });
 });
 

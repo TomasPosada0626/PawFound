@@ -75,6 +75,9 @@ describe("geo", () => {
   it("formatea distancias según el idioma", () => {
     expect(formatDistance(4, "es")).toBe("10 m");
     expect(formatDistance(347, "es")).toBe("350 m");
+    // Redondear a decenas no debe mostrar "1000 m": ya es un kilómetro.
+    expect(formatDistance(996, "es")).toBe("1 km");
+    expect(formatDistance(994, "es")).toBe("990 m");
     expect(formatDistance(1800, "es")).toBe("1,8 km");
     expect(formatDistance(1800, "en")).toBe("1.8 km");
     expect(formatDistance(12_400, "es")).toBe("12 km");

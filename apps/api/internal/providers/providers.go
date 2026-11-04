@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -54,6 +55,14 @@ type Mailer interface {
 // ErrDisabled: la función necesita un proveedor que todavía no se activó.
 var ErrDisabled = errors.New("proveedor no configurado")
 
+// UnregisteredTokens: el servicio push respondió que estos celulares ya no reciben avisos (la app se
+// desinstaló o se quitó el permiso). El resto del envío salió bien; quien envía debe borrarlos.
+type UnregisteredTokens struct{ Tokens []string }
+
+func (e *UnregisteredTokens) Error() string {
+	return fmt.Sprintf("%d celulares ya no reciben push", len(e.Tokens))
+}
+
 // ExpoPush envía por el servicio push de Expo, que entrega por FCM (Android) y APNs (iOS)
 // con el mismo código. Requiere la evaluación del proveedor (issue #39) antes de activarse
 // con PUSH_PROVIDER=expo.
@@ -73,7 +82,16 @@ type expoMessage struct {
 	Priority  string            `json:"priority"`
 }
 
-// Send agrupa de a 100 mensajes, el máximo que acepta Expo por petición.
+// expoTicket es la respuesta de Expo para cada mensaje, en el mismo orden en que se enviaron.
+type expoTicket struct {
+	Status  string `json:"status"`
+	Details struct {
+		Error string `json:"error"`
+	} `json:"details"`
+}
+
+// Send agrupa de a 100 mensajes, el máximo que acepta Expo por petición. Si Expo dice que un
+// celular ya no está registrado, lo devuelve en un *UnregisteredTokens al final.
 func (p ExpoPush) Send(ctx context.Context, messages []PushMessage) error {
 	endpoint := p.Endpoint
 	if endpoint == "" {
@@ -83,6 +101,7 @@ func (p ExpoPush) Send(ctx context.Context, messages []PushMessage) error {
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Second}
 	}
+	var gone []string
 	for start := 0; start < len(messages); start += 100 {
 		batch := messages[start:min(start+100, len(messages))]
 		payload := make([]expoMessage, len(batch))
@@ -107,10 +126,22 @@ func (p ExpoPush) Send(ctx context.Context, messages []PushMessage) error {
 		if err != nil {
 			return err
 		}
+		var tickets struct {
+			Data []expoTicket `json:"data"`
+		}
+		_ = json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&tickets)
 		_ = res.Body.Close()
 		if res.StatusCode >= 300 {
 			return fmt.Errorf("expo push respondió %d", res.StatusCode)
 		}
+		for i, ticket := range tickets.Data {
+			if i < len(batch) && ticket.Status == "error" && ticket.Details.Error == "DeviceNotRegistered" {
+				gone = append(gone, batch[i].Token)
+			}
+		}
+	}
+	if len(gone) > 0 {
+		return &UnregisteredTokens{Tokens: gone}
 	}
 	return nil
 }

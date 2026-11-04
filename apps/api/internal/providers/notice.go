@@ -1,6 +1,9 @@
 package providers
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // Notice es un aviso por correo con un botón (por ejemplo, una solicitud de adopción nueva).
 type Notice struct {
@@ -28,6 +31,42 @@ func AdoptionRequestNotice(petName, link, lang string) Notice {
 		Button:    "Abrir PawFound", Link: link,
 		Safety: "En PawFamily la adopción es 100 % gratuita: nunca pidas ni pagues dinero.",
 		Ignore: "Recibes este correo porque diste una mascota en adopción en PawFamily.",
+	}
+}
+
+// ModerationNotice avisa a moderación que hay reportes nuevos en el panel. urgent: al menos uno es
+// por posible estafa o porque pidieron dinero en PawFamily.
+func ModerationNotice(count int, urgent bool, link, lang string) Notice {
+	n := strconv.Itoa(count)
+	if lang == "en" {
+		intro := n + " new reports are waiting in the moderation panel."
+		if count == 1 {
+			intro = "1 new report is waiting in the moderation panel."
+		}
+		if urgent {
+			intro += " At least one is about a possible scam or someone asking for money: review it soon."
+		}
+		return Notice{
+			Lang: "en", Subject: "🛡️ New reports in PawFound (" + n + ")",
+			Preheader: intro, Title: "New reports to review", Intro: intro,
+			Button: "Open the panel", Link: link,
+			Safety: "Sign-in to the panel always asks for the code sent to your email.",
+			Ignore: "You get this email because your PawFound account moderates the community.",
+		}
+	}
+	intro := "Hay " + n + " reportes nuevos esperando revisión en el panel de moderación."
+	if count == 1 {
+		intro = "Hay 1 reporte nuevo esperando revisión en el panel de moderación."
+	}
+	if urgent {
+		intro += " Al menos uno es por posible estafa o porque pidieron dinero: revísalo pronto."
+	}
+	return Notice{
+		Lang: "es", Subject: "🛡️ Reportes nuevos en PawFound (" + n + ")",
+		Preheader: intro, Title: "Reportes nuevos por revisar", Intro: intro,
+		Button: "Abrir el panel", Link: link,
+		Safety: "Entrar al panel siempre pide el código que llega a tu correo.",
+		Ignore: "Recibes este correo porque tu cuenta de PawFound modera la comunidad.",
 	}
 }
 

@@ -47,9 +47,10 @@ export function regionForRadius(center: LatLng, radius: number, padding = 1.35):
   return { ...center, latitudeDelta, longitudeDelta };
 }
 
-/** Formatea metros como "350 m" o "1,2 km" según el idioma. */
+/** Formatea metros como "350 m" o "1,2 km" según el idioma. De 995 m en adelante ya es "1 km". */
 export function formatDistance(meters: number, locale: string): string {
-  if (meters < 1000) return `${Math.max(10, Math.round(meters / 10) * 10)} m`;
+  const rounded = Math.max(10, Math.round(meters / 10) * 10);
+  if (rounded < 1000) return `${rounded} m`;
   const km = meters / 1000;
   const digits = km < 10 ? 1 : 0;
   return `${km.toLocaleString(locale, { maximumFractionDigits: digits, minimumFractionDigits: 0 })} km`;

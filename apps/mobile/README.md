@@ -77,7 +77,11 @@ app/                    rutas (expo-router): (tabs), pet/[id], report, chat/[id]
                         pawfamily, user/[id], my-pets, alerta, historias, veterinarias, seguidores
 src/domain/             reglas puras: círculo de vida, alertas, coincidencias, insignias,
                         calificaciones, validación, NIT, geo y privacidad
-src/services/           ApiBackend, MockBackend, seed, selectores, almacenamiento local
+src/services/           apiBackend.ts y mockBackend.ts (la clase final de cada backend), seed, selectores,
+                        almacenamiento local
+src/services/api/       el cliente de la API por partes: base (HTTP, sesión, tiempo real), cuenta,
+                        casos, PawFamily, chats y ajustes, más los tipos compartidos
+src/services/mock/      el modo demostración por partes: base, cuentas, casos, chats, comunidad y constantes
 src/store/              providers: backend, preferencias del dispositivo, ubicación
 src/features/           lógica compartida entre pantallas (mensajes de error, etc.)
 src/hooks/              hooks (useAuthGate y otros)

@@ -26,7 +26,9 @@ moderación con criterio. Se puede reportar:
 - una publicación de PawFamily: pide dinero, estafa, contenido inapropiado u otro;
 - una veterinaria con datos equivocados.
 
-El reporte llega con su contexto (por ejemplo, el mensaje reportado) a la cola del panel `/admin`.
+El reporte llega con su contexto (por ejemplo, el mensaje reportado) a la cola del panel `/admin`,
+y moderación recibe un correo que solo dice cuántos reportes nuevos hay (y si alguno es por estafa o
+porque pidieron dinero), sin datos de las personas.
 
 Los reportes no ocultan nada automáticamente solo por cantidad: varios reportes por sí solos no
 retiran una publicación, precisamente para evitar el sabotaje coordinado. Una persona del equipo

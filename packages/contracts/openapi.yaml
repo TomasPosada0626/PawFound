@@ -1019,8 +1019,8 @@ components:
         quietFrom: { type: string, pattern: "^\\d{2}:\\d{2}$" }
         quietTo: { type: string, pattern: "^\\d{2}:\\d{2}$" }
         push: { type: boolean }
-        email: { type: boolean }
-        dailyDigest: { type: boolean }
+        email: { type: boolean, description: Correo cuando alguien pide adoptar una mascota que la cuenta publicó }
+        dailyDigest: { type: boolean, description: Sin uso; se conserva por compatibilidad }
     PrivacyPrefs:
       type: object
       properties:

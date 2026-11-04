@@ -190,13 +190,15 @@ func TestApplyAcceptDeclineAndAdopt(t *testing.T) {
 	}
 	h.expectError(http.StatusConflict, "already_applied", http.MethodPost, apply, camila.Token, applicationBody(nil))
 	h.must(http.StatusCreated, http.MethodPost, apply, david.Token, applicationBody(map[string]any{"fullName": "David Gómez"}), nil)
+	// Con los correos apagados en Ajustes, el aviso sigue llegando por la app pero no por correo.
+	h.exec(`UPDATE users SET notification_prefs = notification_prefs || '{"email": false}' WHERE id = $1`, owner.ID)
 	h.must(http.StatusCreated, http.MethodPost, apply, other.Token, applicationBody(map[string]any{"fullName": "Otra Persona"}), nil)
 
 	// A quien publicó le llega por la app y por correo.
 	if got := h.pushesTo(owner); len(got) != 3 || got[0].URL != "/pawfamily/mias" || !strings.Contains(got[0].Body, "Luna") {
 		t.Fatalf("avisos a quien publicó = %+v", got)
 	}
-	if len(h.mailer.notices) != 3 || !strings.Contains(h.mailer.notices[0], "Luna") {
+	if len(h.mailer.notices) != 2 || !strings.Contains(h.mailer.notices[0], "Luna") {
 		t.Fatalf("correos = %v", h.mailer.notices)
 	}
 
