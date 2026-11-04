@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: PawFound API
-  version: 0.2.0-dev
+  version: 0.3.0
   description: >
     Contrato de la API de PawFound. Fuente de verdad del request/response shape entre
     apps/api y apps/mobile. Las formas coinciden con apps/mobile/src/domain/types.ts.
@@ -9,8 +9,10 @@ info:
     Reglas transversales: toda ubicación que devuelve la API ya está aproximada a celdas de
     250 m (nunca el punto exacto); los errores de negocio llegan como {"error": {"code",
     "params"}} con códigos traducibles por la app; las acciones de escritura comunitaria
-    exigen celular verificado (insignia azul).
+    exigen correo verificado (insignia azul).
 servers:
+  - url: https://pawfound-api.onrender.com
+    description: Producción
   - url: http://localhost:8080
     description: Desarrollo local
 security:
@@ -23,6 +25,7 @@ tags:
   - name: chats
   - name: community
   - name: media
+  - name: pawfamily
 
 paths:
   /health:
@@ -361,8 +364,17 @@ paths:
     post:
       operationId: reunite
       tags: [pets]
-      summary: Cierra el caso y agradece hasta 5 personas que participaron ("Ángel de patas")
-      requestBody: { content: { application/json: { schema: { type: object, properties: { helperIds: { type: array, items: { type: string }, maxItems: 5 } } } } } }
+      summary: >
+        Solo quien abrió el caso lo cierra. Agradece hasta 5 personas que participaron ("Ángel de
+        patas") y las califica de 1 a 5 estrellas; cierra el grupo y los mensajes directos del caso.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                helperIds: { type: array, items: { type: string }, maxItems: 5 }
+                ratings: { type: object, additionalProperties: { type: integer, minimum: 1, maximum: 5 }, description: "Id de la persona → estrellas" }
       responses:
         "200": { description: Cerrado, content: { application/json: { schema: { $ref: "#/components/schemas/Pet" } } } }
   /v1/pets/{id}/helpers:
@@ -596,7 +608,7 @@ paths:
               required: [file, purpose]
               properties:
                 file: { type: string, format: binary }
-                purpose: { type: string, enum: [pet, owned, chat, story, avatar] }
+                purpose: { type: string, enum: [pet, owned, chat, story, avatar, adoption] }
       responses:
         "201": { description: Subida, content: { application/json: { schema: { $ref: "#/components/schemas/UploadedMedia" } } } }
         "422": { $ref: "#/components/responses/Error" }
@@ -610,6 +622,244 @@ paths:
       responses:
         "200": { description: JPEG, content: { image/jpeg: {} } }
         "404": { $ref: "#/components/responses/Error" }
+
+  /v1/online:
+    get:
+      operationId: online
+      tags: [community]
+      security: []
+      summary: Personas conectadas ahora por WebSocket (para el inicio)
+      responses:
+        "200": { description: Conectadas, content: { application/json: { schema: { type: object, properties: { count: { type: integer } } } } } }
+  /v1/impact:
+    get:
+      operationId: cityImpact
+      tags: [community]
+      security: []
+      summary: «Nuestro impacto» de una ciudad, con todos sus casos (también los cerrados)
+      parameters:
+        - { name: city, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Cifras, content: { application/json: { schema: { $ref: "#/components/schemas/Impact" } } } }
+  /v1/pets/{id}/contact:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: setContactPhone
+      tags: [pets]
+      summary: La familia agrega o quita ("") el celular del afiche; se borra al cerrar el caso
+      requestBody: { required: true, content: { application/json: { schema: { type: object, properties: { phone: { type: string } } } } } }
+      responses:
+        "200": { description: Caso, content: { application/json: { schema: { $ref: "#/components/schemas/Pet" } } } }
+        "422": { $ref: "#/components/responses/Error" }
+
+  /v1/users/search:
+    get:
+      operationId: searchUsers
+      tags: [community]
+      summary: Busca por nombre de usuario, sin necesidad de escribir el @
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+      responses:
+        "200": { description: Personas, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Person" } } } } }
+        "429": { $ref: "#/components/responses/Error" }
+  /v1/users/{id}/follow:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: follow
+      tags: [community]
+      summary: Envía la solicitud para seguirse; al aceptarla quedan siguiéndose las dos. A los 3 rechazos espera 30 días (follow_wait)
+      responses:
+        "200": { description: Estado, content: { application/json: { schema: { type: object, properties: { status: { $ref: "#/components/schemas/FollowStatus" } } } } } }
+        "409": { $ref: "#/components/responses/Error" }
+        "429": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: unfollow
+      tags: [community]
+      summary: Deja de seguir o cancela la solicitud enviada (solo de su lado)
+      responses:
+        "204": { description: Hecho }
+  /v1/users/{id}/adoptions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: userAdoptions
+      tags: [pawfamily]
+      security: [{}, { bearer: [] }]
+      summary: Lo que una cuenta (por ejemplo, un refugio) tiene en adopción
+      responses:
+        "200": { description: Publicaciones, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Adoption" } } } } }
+  /v1/me/network:
+    get:
+      operationId: myNetwork
+      tags: [community]
+      summary: Solicitudes, seguidores, seguidos y solicitudes enviadas. Solo la propia cuenta las ve
+      responses:
+        "200": { description: Red, content: { application/json: { schema: { $ref: "#/components/schemas/Network" } } } }
+  /v1/me/followers/{id}/accept:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: acceptFollower
+      tags: [community]
+      responses:
+        "204": { description: Ahora se siguen las dos }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/me/followers/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: removeFollower
+      tags: [community]
+      summary: Rechaza una solicitud o elimina a un seguidor
+      responses:
+        "204": { description: Hecho }
+
+  /v1/adoptions:
+    get:
+      operationId: searchAdoptions
+      tags: [pawfamily]
+      security: [{}, { bearer: [] }]
+      summary: Mascotas disponibles para adoptar, cerca o en toda la ciudad
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number } }
+        - { name: lng, in: query, required: true, schema: { type: number } }
+        - { name: radius, in: query, schema: { type: integer, description: Metros; sin radio y con city, toda la ciudad } }
+        - { name: city, in: query, schema: { type: string } }
+        - { name: species, in: query, schema: { $ref: "#/components/schemas/Species" } }
+        - { name: sex, in: query, schema: { $ref: "#/components/schemas/Sex" } }
+        - { name: size, in: query, schema: { $ref: "#/components/schemas/Size" } }
+        - { name: age, in: query, schema: { $ref: "#/components/schemas/Age" } }
+      responses:
+        "200": { description: Publicaciones, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Adoption" } } } } }
+        "400": { $ref: "#/components/responses/Error" }
+    post:
+      operationId: createAdoption
+      tags: [pawfamily]
+      summary: Publica una mascota en adopción (requiere aceptar las políticas de PawFamily)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AdoptionInput" } } } }
+      responses:
+        "201": { description: Publicada, content: { application/json: { schema: { $ref: "#/components/schemas/Adoption" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /v1/adoptions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAdoption
+      tags: [pawfamily]
+      security: [{}, { bearer: [] }]
+      summary: La dirección solo llega a quien publicó y a la persona aceptada
+      responses:
+        "200": { description: Publicación, content: { application/json: { schema: { $ref: "#/components/schemas/Adoption" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+    delete:
+      operationId: withdrawAdoption
+      tags: [pawfamily]
+      summary: Quien publicó la retira
+      responses:
+        "204": { description: Retirada }
+  /v1/adoptions/{id}/adopted:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: markAdopted
+      tags: [pawfamily]
+      summary: Marca la adopción como lograda; quien adoptó gana «Nuevo integrante» y empieza el seguimiento
+      responses:
+        "204": { description: Adoptada }
+  /v1/adoptions/{id}/applications:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: adoptionApplications
+      tags: [pawfamily]
+      summary: Solicitudes recibidas; solo para quien publicó
+      responses:
+        "200": { description: Solicitudes, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Application" } } } } }
+  /v1/adoptions/{id}/apply:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: applyToAdopt
+      tags: [pawfamily]
+      summary: Envía la solicitud para adoptar. Vence a los 14 días sin respuesta
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ApplicationInput" } } } }
+      responses:
+        "201": { description: Enviada, content: { application/json: { schema: { $ref: "#/components/schemas/Application" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /v1/adoptions/{id}/report:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: reportAdoption
+      tags: [pawfamily]
+      summary: Manda la publicación a moderación (por ejemplo, si piden dinero)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AdoptionReportInput" } } } }
+      responses:
+        "204": { description: En la cola de moderación }
+  /v1/adoptions/{id}/updates:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: adoptionUpdates
+      tags: [pawfamily]
+      summary: Seguimiento de la adopción, para quien la dio y quien adoptó
+      responses:
+        "200": { description: Novedades, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/AdoptionUpdate" } } } } }
+    post:
+      operationId: addAdoptionUpdate
+      tags: [pawfamily]
+      summary: Quien adoptó cuenta cómo está la mascota (se le pide a los 7 y 30 días)
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AdoptionUpdateInput" } } } }
+      responses:
+        "201": { description: Agregada, content: { application/json: { schema: { $ref: "#/components/schemas/AdoptionUpdate" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /v1/adoption-applications/{id}/accept:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: acceptApplication
+      tags: [pawfamily]
+      summary: Quien publicó acepta; se abre un chat directo con quien quiere adoptar
+      responses:
+        "200": { $ref: "#/components/responses/ThreadId" }
+  /v1/adoption-applications/{id}/decline:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: declineApplication
+      tags: [pawfamily]
+      responses:
+        "204": { description: Rechazada }
+  /v1/me/adoption-terms:
+    post:
+      operationId: acceptAdoptionTerms
+      tags: [pawfamily]
+      summary: Acepta las políticas de PawFamily (se guarda como consentimiento con su versión)
+      responses:
+        "204": { description: Aceptadas }
+  /v1/me/shelter:
+    post:
+      operationId: verifyShelter
+      tags: [pawfamily]
+      summary: >
+        Verifica el refugio con su NIT en el RUES de Confecámaras y decide solo. Verificado al
+        instante si es una fundación, asociación o corporación activa con el mismo nombre y dígito;
+        si no, 422 con el motivo (nit_not_found, nit_not_nonprofit, shelter_name_mismatch,
+        nit_dv_mismatch, nit_inactive). Si el RUES no responde, queda "pending" y se reintenta cada hora.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ShelterInput" } } } }
+      responses:
+        "200": { description: Resultado, content: { application/json: { schema: { $ref: "#/components/schemas/ShelterResult" } } } }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+        "503": { $ref: "#/components/responses/Error" }
+  /v1/me/adoptions:
+    get:
+      operationId: myAdoptions
+      tags: [pawfamily]
+      summary: Mis publicaciones de adopción, con las solicitudes por responder
+      responses:
+        "200": { description: Publicaciones, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Adoption" } } } } }
+  /v1/me/adoption-applications:
+    get:
+      operationId: myApplications
+      tags: [pawfamily]
+      summary: Mis solicitudes para adoptar, cada una con su publicación
+      responses:
+        "200": { description: Solicitudes, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Application" } } } } }
 
 components:
   securitySchemes:
@@ -643,7 +893,9 @@ components:
               type: string
               enum: [unauthorized, invalid_credentials, email_taken, invalid_phone, wrong_code, locked, expired,
                 rate_limited, not_allowed, not_found, cannot_message, invalid_username, username_taken, muted, suspended,
-                invalid_input, invalid_image, provider_unavailable, story_full, unknown]
+                invalid_input, invalid_image, provider_unavailable, storage_unavailable, story_full, follow_wait,
+                adoption_terms, already_applied, nit_taken, nit_inactive, nit_not_found, nit_not_nonprofit,
+                nit_dv_mismatch, shelter_name_mismatch, unknown]
             params: { type: object, additionalProperties: true }
     Lang: { type: string, enum: [es, en] }
     Species: { type: string, enum: [dog, cat, other] }
@@ -663,7 +915,7 @@ components:
       properties:
         name: { type: string, description: Nombre y al menos un apellido }
         email: { type: string, format: email }
-        username: { type: string, pattern: "^@?[a-z0-9_]{3,20}$" }
+        username: { type: string, pattern: "^[a-z0-9_]{3,20}$", description: Sin caracteres especiales ni @ }
         password: { type: string, minLength: 8, description: Con mayúscula, minúscula y número }
         lang: { $ref: "#/components/schemas/Lang" }
         acceptTerms: { type: boolean }
@@ -696,7 +948,7 @@ components:
         email: { type: string }
         phone: { type: string }
         verified: { type: boolean, description: Correo verificado (insignia azul) }
-        avatar: { type: string, enum: [dog, cat, fox, panda, bunny, bear] }
+        avatar: { type: string, enum: [dog, cat, fox, panda, bunny, bear, pug, hamster] }
         photoUrl: { type: string, description: Foto de perfil propia (pública); sin ella se muestra el avatar }
         title:
           type: string
@@ -708,6 +960,9 @@ components:
         mutedUntil: { type: string, format: date-time }
         lang: { $ref: "#/components/schemas/Lang" }
         role: { type: string, enum: [user, moderator, admin] }
+        founder: { type: boolean, description: Cuenta de quien creó PawFound }
+        shelterName: { type: string }
+        shelterStatus: { type: string, enum: [verified, pending, rejected], description: rejected = moderación quitó la verificación }
     PublicUser:
       type: object
       description: Nombre corto ("Valentina A."); nunca correo ni celular
@@ -724,6 +979,8 @@ components:
         verified: { type: boolean, description: Correo verificado (insignia azul) }
         createdAt: { type: string, format: date-time }
         lang: { $ref: "#/components/schemas/Lang" }
+        founder: { type: boolean }
+        shelter: { type: string, description: Nombre del refugio, solo si está verificado }
     UserSummary:
       type: object
       properties:
@@ -734,11 +991,12 @@ components:
         verified: { type: boolean, description: Correo verificado (insignia azul) }
         createdAt: { type: string, format: date-time }
         lang: { $ref: "#/components/schemas/Lang" }
+        shelter: { type: string, description: Nombre del refugio, solo si está verificado }
     ProfilePatch:
       type: object
       properties:
         name: { type: string }
-        username: { type: string, pattern: "^@?[a-z0-9_]{3,20}$" }
+        username: { type: string, pattern: "^[a-z0-9_]{3,20}$", description: Sin caracteres especiales ni @ }
         avatar: { type: string }
         title: { type: string }
         bio: { type: string }
@@ -756,6 +1014,7 @@ components:
         groups: { type: boolean }
         lifeCircle: { type: boolean }
         angelAlerts: { type: boolean }
+        friendAlerts: { type: boolean, description: Se perdió o apareció la mascota de alguien que sigues }
         quietHours: { type: boolean }
         quietFrom: { type: string, pattern: "^\\d{2}:\\d{2}$" }
         quietTo: { type: string, pattern: "^\\d{2}:\\d{2}$" }
@@ -784,6 +1043,7 @@ components:
           properties:
             allowed: { type: boolean }
             retryAt: { type: string, format: date-time }
+        activeSessions: { type: integer, description: Sesiones abiertas de la cuenta }
     Sighting:
       type: object
       properties:
@@ -831,6 +1091,7 @@ components:
         helperIds: { type: array, items: { type: string }, description: Solo para la familia }
         moderationRemoved: { type: boolean }
         currentRadius: { type: integer, description: Radio vigente en metros (círculo de vida o radio elegido) }
+        contactPhone: { type: string, description: Celular opcional del afiche; se borra al cerrar el caso }
     ReportInput:
       type: object
       required: [kind, species, sex, age, size, lastSeenAt, location, zone]
@@ -972,7 +1233,8 @@ components:
         userId: { type: string }
         kind:
           type: string
-          enum: [sighting, case_closed, possible_match, owned_match, angel_alert, life_circle, thanked]
+          enum: [angel_alert, life_circle, found_nearby, sighting, case_closed, possible_match, owned_match, thanked,
+            friend_lost, friend_found, case_reminder, archive_warning, case_archived]
         petId: { type: string }
         ownedPetId: { type: string, description: En owned_match, la mascota propia que se parece }
         at: { type: string, format: date-time }
@@ -980,9 +1242,11 @@ components:
     BadgeProgress:
       type: object
       properties:
-        id: { type: string, enum: [verified, reporter, rescuer, eyes, paw_angel, reunion, spreader, community] }
+        id:
+          type: string
+          enum: [verified, reporter, rescuer, eyes, quick, paw_angel, protector, reunion, spreader, community, popular, new_member]
         count: { type: integer }
-        tier: { type: integer, minimum: 0, maximum: 3 }
+        tier: { type: integer, minimum: 0, maximum: 5, description: "0 bloqueada, 1 bronce, 2 plata, 3 oro; Popular llega a 5 (Leyenda)" }
         maxTier: { type: integer }
         next: { type: [integer, "null"] }
     PublicProfile:
@@ -992,6 +1256,12 @@ components:
         memberDays: { type: integer }
         likes: { type: integer }
         likedByMe: { type: boolean }
+        rating: { type: number, description: Promedio de las últimas 20 calificaciones; 0 antes de la décima }
+        ratingCount: { type: integer }
+        followers: { type: integer }
+        following: { type: integer }
+        followStatus: { $ref: "#/components/schemas/FollowStatus" }
+        shelter: { $ref: "#/components/schemas/ShelterSummary" }
         badges: { type: array, items: { $ref: "#/components/schemas/BadgeProgress" } }
         pets:
           type: array
@@ -1046,3 +1316,134 @@ components:
         openingHours: { type: string }
         emergency: { type: boolean }
         source: { type: string }
+    FollowStatus: { type: string, enum: [none, pending, accepted] }
+    Person:
+      allOf:
+        - { $ref: "#/components/schemas/UserSummary" }
+        - type: object
+          properties:
+            username: { type: string }
+    Network:
+      type: object
+      description: Solo la ve la propia cuenta; los perfiles muestran únicamente los números
+      properties:
+        requests: { type: array, items: { $ref: "#/components/schemas/Person" }, description: Solicitudes recibidas }
+        followers: { type: array, items: { $ref: "#/components/schemas/Person" } }
+        following: { type: array, items: { $ref: "#/components/schemas/Person" } }
+        sent: { type: array, items: { $ref: "#/components/schemas/Person" }, description: Solicitudes enviadas sin responder }
+    Impact:
+      type: object
+      properties:
+        enough: { type: boolean, description: Falso si la ciudad todavía tiene muy pocos casos para mostrar cifras }
+        reunited: { type: integer }
+        reportsThisMonth: { type: integer }
+        activeCases: { type: integer }
+        reunitedWithin14DaysPct: { type: integer, description: Métrica principal del MVP }
+    ShelterSummary:
+      type: object
+      description: Solo en refugios verificados
+      properties:
+        name: { type: string }
+        available: { type: integer, description: Mascotas que tiene en adopción }
+        adopted: { type: integer, description: Adopciones logradas en PawFamily }
+    ShelterInput:
+      type: object
+      required: [name, nit]
+      properties:
+        name: { type: string, maxLength: 80 }
+        nit: { type: string, description: 'Con dígito de verificación: "900.123.456-8", "900123456-8" o "9001234568"' }
+    ShelterResult:
+      type: object
+      properties:
+        status: { type: string, enum: [verified, pending], description: pending solo si el RUES no respondió }
+        officialName: { type: string, description: Razón social según el RUES }
+    Adoption:
+      type: object
+      properties:
+        id: { type: string }
+        owner: { $ref: "#/components/schemas/UserSummary" }
+        name: { type: string }
+        species: { $ref: "#/components/schemas/Species" }
+        breed: { type: string }
+        sex: { $ref: "#/components/schemas/Sex" }
+        age: { $ref: "#/components/schemas/Age" }
+        size: { $ref: "#/components/schemas/Size" }
+        color: { type: string }
+        description: { type: string }
+        vaccinated: { type: boolean }
+        sterilized: { type: boolean }
+        photos: { type: array, items: { type: string, format: uri } }
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+        status: { type: string, enum: [available, in_process, adopted, withdrawn] }
+        createdAt: { type: string, format: date-time }
+        adoptedAt: { type: string, format: date-time }
+        address: { type: string, description: Solo para quien publicó y la persona aceptada }
+        pending: { type: integer, description: Solicitudes por responder, solo para quien publicó }
+        myApplication: { type: string, enum: [pending, accepted, declined, expired], description: Estado de la solicitud de quien mira }
+    AdoptionInput:
+      type: object
+      required: [name, species, sex, age, size, description, photos, location, zone]
+      properties:
+        name: { type: string }
+        species: { $ref: "#/components/schemas/Species" }
+        breed: { type: string }
+        sex: { $ref: "#/components/schemas/Sex" }
+        age: { $ref: "#/components/schemas/Age" }
+        size: { $ref: "#/components/schemas/Size" }
+        color: { type: string }
+        description: { type: string }
+        vaccinated: { type: boolean }
+        sterilized: { type: boolean }
+        photos: { type: array, items: { type: string }, minItems: 1, maxItems: 5, description: Ids de fotos subidas con purpose=adoption }
+        location: { $ref: "#/components/schemas/LatLng" }
+        zone: { type: string }
+        address: { type: string, description: Opcional }
+    Application:
+      type: object
+      properties:
+        id: { type: string }
+        adoptionId: { type: string }
+        applicant: { $ref: "#/components/schemas/UserSummary" }
+        fullName: { type: string }
+        household: { type: integer, description: Personas que viven en la casa }
+        neighborhood: { type: string }
+        city: { type: string }
+        hadPets: { type: boolean }
+        petsCount: { type: integer }
+        reason: { type: string }
+        status: { type: string, enum: [pending, accepted, declined, expired] }
+        threadId: { type: string, description: Chat directo, al aceptarla }
+        createdAt: { type: string, format: date-time }
+        adoption: { $ref: "#/components/schemas/Adoption" }
+    ApplicationInput:
+      type: object
+      required: [fullName, household, neighborhood, city, reason]
+      properties:
+        fullName: { type: string }
+        household: { type: integer, minimum: 1 }
+        neighborhood: { type: string }
+        city: { type: string }
+        hadPets: { type: boolean }
+        petsCount: { type: integer, minimum: 0 }
+        reason: { type: string }
+    AdoptionUpdate:
+      type: object
+      properties:
+        id: { type: string }
+        adoptionId: { type: string }
+        authorId: { type: string }
+        photo: { type: string, format: uri }
+        body: { type: string }
+        at: { type: string, format: date-time }
+    AdoptionUpdateInput:
+      type: object
+      properties:
+        photo: { type: string, description: Id de una foto subida con purpose=adoption }
+        body: { type: string, maxLength: 300 }
+    AdoptionReportInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, enum: [money, scam, inappropriate, other] }
+        note: { type: string, maxLength: 300 }

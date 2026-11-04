@@ -31,19 +31,20 @@ Material 3 como base de componentes nativos, no controles estilo iOS).
 - **Navegación**: el gesto/botón de "Atrás" del sistema Android siempre funciona; ningún
   flujo atrapa a la persona usuaria sin salida.
 
-## Revisión retroactiva del flujo ya diseñado
+## Revisión retroactiva del primer flujo diseñado
 
-[`docs/flujos/onboarding-login-registro.md`](flujos/onboarding-login-registro.md) (#11),
-único flujo existente hasta ahora:
+[`docs/flujos/onboarding-login-registro.md`](flujos/onboarding-login-registro.md) (#11), el
+primer flujo diseñado (hoy la verificación es por correo, no por SMS):
 
 - Labels reales en campos, `accessibilityLabel` en el ícono de contraseña y en las
-  casillas del código SMS, anuncio de error del SMS por región viva, dos botones de tema
-  con estado — todo ya definido en la crítica de #11, consistente con este estándar.
+  casillas del código de verificación, anuncio del error del código por región viva, dos
+  botones de tema con estado — todo ya definido en la crítica de #11, consistente con este estándar.
 - **Falta agregar**: nota explícita de touch targets ≥48dp en los botones/checkboxes del
   flujo. Se agrega en este mismo cambio (ver el flujo actualizado).
 
 ## Cómo se aplica de acá en adelante
 
-Cada issue de diseño de flujo (#12–#16) reemplaza su sección "Accesibilidad" genérica por
-una lista de puntos específicos de esa pantalla contra este checklist, en vez de diferirlo
-a una issue futura.
+Cada pantalla nueva se revisa contra este checklist en el mismo PR que la crea, no en uno
+futuro. En la app, las pruebas verifican el contraste AA de los tokens de color en modo claro y
+oscuro (`src/__tests__/foundations.test.ts`), y los flujos usan etiquetas accesibles reales para
+encontrar los elementos, así que una etiqueta que falta rompe la prueba.

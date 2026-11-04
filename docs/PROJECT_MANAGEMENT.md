@@ -1,16 +1,31 @@
 # Gestión del proyecto
 
-## Tablero recomendado
+## Estado (3 de noviembre de 2026)
 
-Usa un GitHub Project con las columnas:
+PawFound está en el **piloto de Android**:
 
-`Backlog` → `Ready` → `In progress` → `In review` → `Done`
+- La app se instala como APK y se actualiza por EAS Update.
+- La API, la base de datos y el sitio están en producción.
+- El trabajo de las Fases 2 y 3 (diseño y MVP) se hizo en ramas `feature/<nombre>` con pull
+  requests a `develop`, la mayoría sin enlazar un Issue.
 
-Cada Issue debe tener responsable, prioridad, estimación ligera y criterio de aceptación.
+Por eso los hitos de GitHub muestran Issues abiertos que ya están resueltos en el código. El historial
+real está en los pull requests fusionados.
+
+| Fase | Estado |
+| --- | --- |
+| 0 — Fundación | Hecha: gobernanza, documentación, legal y automatización base (v0.0.1) |
+| 1 — Descubrimiento | Hecha: entrevistas y hallazgos en [docs/investigacion/](investigacion/) |
+| 2 — Diseño | Hecha en la app: flujos, pantallas y accesibilidad |
+| 3 — MVP | En producción para el piloto: API, app Android, PawFamily, moderación y sitio |
+| 4 — Lanzamiento Android | Pendiente: prueba cerrada en Google Play, ficha de la tienda, dominio propio y revisión legal |
+
+## Tablero
+
+GitHub Project con las columnas `Backlog` → `Ready` → `In progress` → `In review` → `Done`. Cada
+Issue lleva prioridad, estimación ligera y criterio de aceptación.
 
 ## Etiquetas
-
-Crear y mantener estas etiquetas:
 
 | Grupo | Etiquetas |
 | --- | --- |
@@ -23,50 +38,43 @@ Crear y mantener estas etiquetas:
 | Estimación | `points: 1`, `points: 2`, `points: 3`, `points: 5`, `points: 8` |
 | Dependencias | `dependency: blocked`, `dependency: external` |
 
-## Hitos iniciales
+## Hitos
 
 1. **Fase 0 — Fundación**: visión, documentación, gobernanza y backlog inicial.
-2. **Fase 1 — Descubrimiento**: investigación de usuarios, requisitos y definición de MVP.
+2. **Fase 1 — Descubrimiento**: investigación de usuarios, requisitos y definición del MVP.
 3. **Fase 2 — Diseño**: flujos, prototipo y criterios de accesibilidad.
 4. **Fase 3 — MVP (v0.1.0)**: implementación, pruebas y piloto.
 5. **Fase 4 — Lanzamiento Android**: operación, métricas y mejora continua.
 
-## Épicas y cadencia
+Las épicas (producto y descubrimiento, experiencia móvil, plataforma y datos, seguridad y privacidad,
+operaciones de lanzamiento) son Issues de tipo `epic`; sus tareas las enlazan en la descripción.
 
-Las épicas agrupan resultados verificables: producto y descubrimiento, experiencia móvil,
-plataforma y datos, seguridad y privacidad, y operaciones de lanzamiento. Cada épica se
-representa con una Issue de tipo `epic`; sus tareas enlazan la épica en la descripción.
+## Flujo de trabajo
 
-Los sprints tienen dos semanas. La planificación selecciona únicamente issues `ready`, con
-dependencias resueltas y capacidad explícita. La revisión del sprint verifica los criterios
-de aceptación y la retrospectiva registra mejoras accionables.
-
-## Backlog inicial
-
-| Orden | Resultado | Prioridad | Puntos | Fase |
-| --- | --- | --- | --- | --- |
-| 1 | Gobernanza, seguridad, legal y automatización base | alta | 5 | 0 |
-| 2 | Investigación de cuidadores, refugios y validación de MVP | alta | 5 | 1 |
-| 3 | Flujos de reporte, búsqueda, chat y accesibilidad | alta | 8 | 2 |
-| 4 | API Go, PostgreSQL/PostGIS, autenticación y moderación | crítica | 8 | 3 |
-| 5 | App Expo Android: feed, mapa, reporte y chat | crítica | 8 | 3 |
-| 6 | Alertas consentidas, imágenes seguras y observabilidad | crítica | 8 | 3 |
-| 7 | Piloto, soporte, operación y publicación Android | alta | 5 | 4 |
+Ramas `feature/<nombre-corto>` desde `develop`, pull request a `develop` con el CI en verde, y de
+`develop` a `main` cuando hay un conjunto listo para publicar. Al fusionar a `main` se publican la API
+y el sitio, y después se lanza la actualización de la app. Detalle en
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Definición de listo
 
-Un Issue está listo cuando tiene contexto, alcance, criterio de aceptación, riesgos conocidos y dependencias identificadas.
+Un Issue está listo cuando tiene contexto, alcance, criterio de aceptación, riesgos conocidos y
+dependencias identificadas.
 
 ## Definición de terminado
 
-Una tarea está terminada cuando cumple sus criterios de aceptación, está revisada, documentada y validada de forma proporcional al riesgo.
+Una tarea está terminada cuando cumple sus criterios de aceptación, está revisada, documentada y
+validada de forma proporcional al riesgo.
 
-Para cualquier cambio de código (API o app; no aplica a documentación pura), además:
+Para cualquier cambio de código (API, app o web), además:
 
 - **Pruebas unitarias** de la lógica nueva o modificada.
-- **Análisis estático** sin hallazgos nuevos sin resolver (linter + escáner de seguridad del lenguaje correspondiente).
-- **Pruebas end-to-end** del flujo completo afectado, no solo de la unidad aislada, cuando el cambio toca un flujo de usuario.
-- **Pruebas de vulnerabilidades** (dependencias y, cuando aplique, el propio código) antes de fusionar a `develop`.
-- **Cobertura de pruebas ≥ 80 %** en el código nuevo o modificado del módulo tocado.
+- **Análisis estático** sin hallazgos nuevos sin resolver (linter y escáner de seguridad del lenguaje).
+- **Pruebas de flujo completo** cuando el cambio toca un flujo de usuario: en la API contra PostGIS
+  real y en la app sobre el router real.
+- **Pruebas de vulnerabilidades** de dependencias (`govulncheck`, `npm audit`) antes de fusionar.
+- **Cobertura** dentro del mínimo del CI: ≥ 90 % total en la API y ≥ 80 % de líneas y sentencias en la app.
+- **Documentación** al día: contrato OpenAPI si cambia una ruta y los documentos afectados.
 
-El detalle de herramientas por capa está en [docs/ARCHITECTURE.md](ARCHITECTURE.md#estrategia-de-pruebas-y-seguridad).
+El detalle de herramientas por capa está en
+[docs/ARCHITECTURE.md](ARCHITECTURE.md#calidad-pruebas-y-seguridad).
