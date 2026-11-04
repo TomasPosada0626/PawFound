@@ -11,15 +11,22 @@ condiciones de los planes gratuitos cambian: confírmalas al crear cada cuenta.
 | Base de datos | Neon (PostgreSQL con PostGIS) | Cuentas, reportes, chats |
 | API (`apps/api`) | Render (plan gratis) u Oracle Cloud Always Free | Nada en disco |
 | Fotos | Cloudflare R2 | Fotos sin EXIF ni GPS |
-| Correo (códigos) | Brevo (SMTP) | Correo de destino y el mensaje |
+| Correo (códigos y avisos) | Brevo (API web) | Correo de destino y el mensaje |
 | Notificaciones push | Servicio push de Expo (EAS) | Token del celular y el aviso |
-| Compilar la app | EAS Build | El código de la app |
+| Compilar y actualizar la app | EAS Build y EAS Update | El código de la app |
+| Despertador de la API | cron-job.org | Nada personal (solo visita `/health`) |
+| Verificación de refugios | RUES en datos.gov.co | El NIT que se consulta |
 
 ## 1. Sitio web: Cloudflare Pages
 
 1. En Cloudflare, *Workers & Pages* → *Create* → *Pages* → conectar el repositorio de GitHub.
 2. Directorio raíz `apps/web`, comando `npm run build`, carpeta de salida `dist`.
 3. Variable `SITE_URL` con la dirección que te asigne, por ejemplo `https://pawfound.pages.dev`.
+4. La carpeta `apps/web/functions` se publica sola como función de Pages: arma la página pública
+   de cada caso (`/mascota/<id>`) con los datos de la API. La variable `API_URL` cambia la API que
+   consulta; por defecto usa la de producción.
+
+Cada push a `main` publica el sitio; los PR reciben una vista previa.
 
 Sin dominio propio, esa dirección es la del proyecto. Cuando la tengas, actualiza:
 `EXPO_PUBLIC_WEB_URL` (app), `PUBLIC_WEB_URL` (API) y los `intentFilters` y
@@ -115,7 +122,11 @@ EXPO_PUBLIC_API_URL=https://<tu-api> EXPO_PUBLIC_WEB_URL=https://pawfound.pages.
   npx eas-cli build -p android --profile preview   # APK para probar en celulares
 ```
 
-La API key de Google Maps va en `app.json` → `android.config.googleMaps.apiKey` antes del build.
+La clave de Google Maps va en la variable `GOOGLE_MAPS_API_KEY` de EAS (entorno `preview`), y
+`app.config.js` la inyecta en el build. Nunca va en `app.json`: el repositorio es público. En la
+consola de Google Cloud, restríngela al paquete `app.pawfound` y a la huella SHA-1 del certificado.
+Las demás variables de la app (`EXPO_PUBLIC_API_URL`, `EXPO_PUBLIC_WEB_URL`) también se guardan en
+el entorno de EAS.
 
 ### Actualizaciones sin reinstalar (EAS Update)
 
@@ -125,8 +136,15 @@ compilar ni reinstalar:
 
 ```bash
 cd apps/mobile
-npx eas-cli update --channel preview --environment preview --message "qué cambió"
+# 1. Confirmar que la huella local coincide con la del APK instalado (id del build en expo.dev)
+npx eas-cli fingerprint:compare --build-id <id-del-build> --environment preview --non-interactive
+# 2. Publicar
+npx eas-cli update --channel preview --environment preview --platform android --message "qué cambió"
 ```
+
+Publica siempre desde `main` actualizado, después de que su CI pase. Si la huella no coincide y no
+cambiaste nada nativo, revisa primero los finales de línea (CRLF) de `.gitignore` y `eas.json`: en
+Windows alteran la huella.
 
 Si la actualización llega en los primeros segundos, la app se reinicia con ella; si no, la usa
 la próxima vez que se abra. Los cambios nativos (permisos, librerías nuevas, ícono) cambian la
@@ -204,7 +222,7 @@ anterior dentro del plazo de su plan; confirmar ese plazo en su panel.
 ## 11. Comandos de administración
 
 Se corren en el computador, contra la base de producción, con `DATABASE_URL` de Neon y las variables
-de R2 en la terminal (`ENV=development` y cualquier `JWT_SECRET` de 32 o más caracteres):
+de R2 en la terminal (`APP_ENV=development` y cualquier `JWT_SECRET` de 32 o más caracteres):
 
 - `go run ./cmd/api fundador <usuario>`: identifica la cuenta de quien creó PawFound.
 - `go run ./cmd/api limpiar-pruebas`: muestra cuánto borraría, sin borrar nada.

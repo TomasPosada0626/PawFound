@@ -1,6 +1,6 @@
 # Política de privacidad
 
-Última actualización: 2 de noviembre de 2026. Versión: 1.3.
+Última actualización: 3 de noviembre de 2026. Versión: 1.4.
 
 ## 1. Quién trata tus datos
 
@@ -57,7 +57,12 @@ Decreto 1377 de 2013 y demás normas concordantes. Contacto:
 - **PawFamily (adopción)**: lo que publicas para dar una mascota en adopción (fotos, datos, zona y, si
   quieres, la dirección) y lo que envías para adoptar: tu nombre, cuántas personas viven contigo, tu barrio
   y ciudad, si has tenido mascotas y cuántas, y por qué quieres adoptar. La solicitud solo la ve quien
-  publicó, y la dirección solo quien publicó y la persona aceptada para adoptar.
+  publicó, y la dirección solo quien publicó y la persona aceptada para adoptar. Después de adoptar,
+  las fotos y textos de seguimiento que compartes solo los ven quien dio la mascota en adopción y tú.
+- **Refugios**: si verificas un refugio o fundación, su nombre y su NIT. Para verificarlo consultamos
+  ese NIT en el RUES de Confecámaras y guardamos la razón social que aparece allí y el resultado. El
+  nombre del refugio verificado, lo que tiene en adopción y cuántas adopciones logró se muestran en su
+  perfil público.
 - **Datos técnicos mínimos**: identificadores de dispositivo para notificaciones push y
   registros técnicos del servidor, sin el contenido de tus mensajes ni tus datos de cuenta.
 - **Consentimientos**: registro de qué autorizaste o retiraste, cuándo y con qué versión de
@@ -91,6 +96,8 @@ ayudan a operar el servicio y reciben solo los datos necesarios para su función
 - **Brevo**: envío de correos (tu correo, tu nombre y el código o enlace).
 - **Expo** y **Firebase Cloud Messaging de Google**: envío de notificaciones.
 - **Google Maps**: muestra el mapa de la app.
+- **datos.gov.co (RUES de Confecámaras)**: recibe solo el NIT del refugio que se verifica, para
+  confirmar que es una entidad sin ánimo de lucro activa.
 
 Las notificaciones viajan
 por Expo y, en Android, por Firebase Cloud Messaging de Google: reciben el identificador
@@ -123,11 +130,12 @@ OpenStreetMap (© colaboradores de OpenStreetMap, licencia ODbL).
 
 Un reporte se archiva al marcar la mascota como encontrada, y deja de verse si eliges
 eliminar la publicación desde tu perfil; la información se conserva para atender
-reclamos y moderación, hasta que elimines tu cuenta, y entonces se borra. El grupo del caso se cierra solo en ese momento y queda para leer. Los chats
-directos no se cierran ni se borran solos: cada persona decide archivarlos
-o eliminarlos de su lista, y un mensaje directo lo cierra cualquiera de las dos personas. Al
-cerrarse un caso se quitan sus historias y dejan de verse las ubicaciones compartidas en sus
-mensajes directos.
+reclamos y moderación, hasta que elimines tu cuenta, y entonces se borra. Un caso sin novedades
+se archiva a los 60 días, con aviso una semana antes. Al cerrarse un caso se cierran su grupo y
+sus mensajes directos, que quedan para leer; se quitan sus historias y dejan de verse las
+ubicaciones compartidas en esos mensajes. Un mensaje directo también lo cierra cualquiera de las
+dos personas, y cada persona decide archivar o eliminar chats de su lista. En PawFamily, una
+solicitud sin respuesta vence a los 14 días.
 
 ## 6. Tus derechos (ARCO)
 
@@ -143,8 +151,8 @@ quedas conforme, puedes acudir a la Superintendencia de Industria y Comercio.
 
 ## 7. Menores de edad
 
-PawFound no está dirigido a menores de edad sin la supervisión de una persona adulta
-responsable. Si detectamos una cuenta de una persona menor sin esa supervisión, podremos
+Para crear una cuenta debes confirmar que tienes 18 años o más. PawFound no está dirigido a
+menores de edad sin la supervisión de una persona adulta responsable. Si detectamos una cuenta de una persona menor sin esa supervisión, podremos
 suspenderla mientras se resuelve.
 
 ## 8. Transferencias internacionales

@@ -1,145 +1,206 @@
 # Arquitectura técnica
 
-> Decisiones ya tomadas en [docs/PROJECT_MANAGEMENT.md](PROJECT_MANAGEMENT.md) y [PRODUCT.md](../PRODUCT.md); este documento las desarrolla técnicamente. Se actualiza a medida que se implementan las épicas de la [wiki](https://github.com/TomasPosada0626/PawFound/wiki/Gobernanza-del-proyecto).
+Cómo están hechas y cómo se conectan las piezas de PawFound. Las reglas de producto están en
+[PRODUCT.md](../PRODUCT.md); cómo publicarlas y operarlas, en [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ## Visión general
 
-PawFound tiene dos componentes: una API en Go que expone el dominio (usuarios, mascotas, reportes, casos, grupos, mensajería) y una app Expo (React Native) para Android que la consume.
+Tres aplicaciones en un monorepo:
+
+- una **API en Go** que guarda y decide todo;
+- una **app Expo** para Android (iOS después, con el mismo código);
+- un **sitio en Astro** con la presentación, la ayuda, los documentos legales y la página pública de cada caso.
 
 ```text
-┌─────────────────────┐        HTTPS/JSON        ┌──────────────────────┐
-│   App Expo (Android) │ ────────────────────────▶│      API (Go)        │
-│  mapa · reportes ·    │◀──────────────────────── │  auth · geoespacial · │
-│  chats · perfil       │      push (FCM)          │  mensajería · moder. │
-└─────────────────────┘                            └──────────┬───────────┘
-                                                                │
-                       ┌────────────────────────────────────────┼───────────────────────────┐
-                       ▼                                        ▼                            ▼
-              ┌─────────────────┐                    ┌──────────────────┐          ┌──────────────────┐
-              │ PostgreSQL +     │                    │ Upstash Redis     │          │ Cloudflare R2      │
-              │ PostGIS          │                    │ caché / rate limit│          │ imágenes (sin EXIF)│
-              └─────────────────┘                    └──────────────────┘          └──────────────────┘
-                                                                │
-                                                                ▼
-                                                       ┌──────────────────┐
-                                                       │ Sentry (errores) │
-                                                       └──────────────────┘
+                         HTTPS / JSON + WebSocket
+ ┌──────────────────┐ ───────────────────────────▶ ┌────────────────────────────┐
+ │ App Expo         │                              │ API Go (Render)            │
+ │ Android          │ ◀─────────────────────────── │ REST /v1 · WS /v1/ws       │
+ │ EAS Update (OTA) │   push: Expo Push → FCM      │ panel /admin · tareas      │
+ └──────────────────┘                              └─────────────┬──────────────┘
+          ▲                                                      │
+          │ enlaces /mascota/<id>                                 │
+ ┌────────┴──────────────────┐   GET /v1/pets/{id}   ┌───────────┼────────────────┬──────────────┬───────────────┐
+ │ Sitio Astro               │ ───────────────────▶  ▼           ▼                ▼              ▼               ▼
+ │ (Cloudflare Pages +       │               ┌──────────────┐ ┌───────────────┐ ┌───────────┐ ┌────────────┐ ┌──────────────┐
+ │  función de Pages)        │               │ Neon         │ │ Cloudflare R2 │ │ Brevo     │ │ RUES       │ │ OpenStreetMap│
+ └───────────────────────────┘               │ PostgreSQL + │ │ fotos sin     │ │ correo    │ │ datos.gov  │ │ (Overpass)   │
+                                             │ PostGIS      │ │ EXIF ni GPS   │ │           │ │ refugios   │ │ veterinarias │
+                                             └──────────────┘ └───────────────┘ └───────────┘ └────────────┘ └──────────────┘
 ```
 
-## Backend (API)
+Un servicio externo (cron-job.org) visita `/health` cada 5 minutos para que el plan gratuito
+de Render no duerma la API. GitHub Actions corre el CI y, como respaldo, vigila la API y la
+mantiene despierta.
 
-- **Lenguaje**: Go.
-- **API HTTP**: router Chi, con contrato OpenAPI explícito y versionable.
-- **Tiempo real**: WebSockets para mensajería (DM y grupos de caso).
-- **Base de datos**: PostgreSQL con la extensión PostGIS, para modelar ubicación aproximada y resolver búsquedas por radio ("círculo de vida"). Hosting inicial: Supabase (Postgres + PostGIS, capa gratuita) para desarrollo/MVP; Supabase pausa proyectos tras una semana sin actividad, por lo que **no** es la solución definitiva de producción — reevaluar antes del lanzamiento público.
-- **Acceso a datos**: pgx con SQL explícito (sin ORM) junto a cada caso de uso en `apps/api/internal/app`; sqlc queda como opción si las consultas crecen. Migraciones SQL versionadas y embebidas en el binario (`internal/db/migrations`), revisadas por PR; nunca cambios manuales directos en una base de datos de staging/producción.
-- **Autenticación**: correo o nombre de usuario y contraseña (hash Argon2id); el correo se verifica con un código de 6 dígitos, que al completarse otorga automáticamente la insignia azul. La app no ofrece entrar con Google ni Apple (decisión del 2026-11-01); el código OIDC de la API queda sin uso. Sesión con JWT.
-- **Imágenes**: la app sube cada foto a `POST /v1/media` (máx. 8 MB) y la API la decodifica, aplica la orientación, la redimensiona a 1600 px y la re-codifica como JPEG: el archivo guardado nunca conserva EXIF ni GPS, aunque la app falle en quitarlos. Se calcula un hash perceptual; una foto casi idéntica a la de otra cuenta abre un reporte automático de posible estafa. Cambio frente a la idea inicial de subir directo a R2 con URL firmada: así la limpieza de metadatos está garantizada en el servidor. El almacenamiento es local hasta activar R2 detrás de `media.Store`. Las fotos de chat solo las ven los miembros del chat.
-- **Límites de negocio en backend**: máximo 2 publicaciones por cuenta por día, validado en la API (nunca solo en el cliente).
-- **Geoespacial**: cada mascota reportada tiene una ubicación aproximada y un radio de búsqueda que se expande automáticamente con el tiempo transcurrido desde el último avistamiento (regla exacta pendiente de [definir en producto](https://github.com/TomasPosada0626/PawFound/issues) — épica Producto y descubrimiento).
-- **Mensajería**: modelo compartido para DMs y grupos, con fotos; cada caso (mascota) crea automáticamente su grupo asociado ("Encontremos a [nombre]" / "Encontremos a su familia"). Tiempo real por WebSocket (`/v1/ws`): el token se envía en el primer mensaje, nunca en la URL.
-- **Panel de moderación**: web en `/admin`, servido por la misma API, sin JavaScript (formularios con CSRF, cookie HttpOnly/SameSite=Strict, CSP estricta). Cola de reportes con el mensaje reportado y su contexto, historial de la persona, sanción sugerida (aviso → 24 h → 7 días → suspensión) y bitácora de solo inserción. El acceso se otorga con `api grant-role <correo> moderator`.
-- **Alertas por ubicación real**: la app envía su punto en segundo plano solo al moverse ~250 m (tarea de `expo-location`, sin servicio fijo); la API guarda el último punto aproximado en `alert_zones` y lo deja de usar a las 24 h sin actualizar. Alcance: `max(250 m, círculo de vida)`.
-- **Verificación por correo**: código de 6 dígitos guardado como HMAC (`email_verifications`), enviado por SMTP con cualquier proveedor; en desarrollo se escribe en el log.
-- **App ↔ API**: `apps/mobile/src/services/apiBackend.ts` implementa la misma interfaz que el backend de demostración (`Backend`) y se activa con `EXPO_PUBLIC_API_URL`.
-- **Veterinarias**: tabla `places`, importada de OpenStreetMap con `api import-places` (atribución ODbL obligatoria). La app pide la lista con una celda aproximada de 1 km y calcula las distancias en el celular; "Vamos" abre la ruta en Waze, Google Maps o Mapas de Apple con un enlace universal (sin API de pago).
-- **Ubicación en el chat**: mensajes `location` (migración 0003). La ubicación actual y el punto de encuentro solo van en mensajes directos y no son en vivo; la veterinaria a donde se lleva una mascota también puede ir al grupo del caso (nombre y punto salen de `places`). Dejan de verse, y se borran sus coordenadas, cuando quien la envió la quita (`DELETE /messages/{id}/location`), al cerrar el mensaje directo o al cerrarse el caso.
-- **Sitio web**: `apps/web` (Astro, estático, sin rastreadores) con la landing, la guía, la ayuda, los documentos legales y el destino de los enlaces compartidos.
-- **Moderación**: reglas descritas en [docs/legal/moderacion-y-ugc.md](legal/moderacion-y-ugc.md) — revisión proporcional al riesgo, no ocultamiento automático solo por volumen de reportes (3 reportes por sí solos no ocultan nada; se evalúan con señales adicionales, precisamente para evitar sabotaje coordinado).
-- **Traducción de chats**: cada mensaje guarda el idioma de quien lo escribió (`lang`) y la API
-  lo traduce una sola vez hacia cada idioma presente entre los miembros del hilo
-  (`translations`). La app muestra la traducción al idioma de quien lee, con "Ver original"
-  y un interruptor para desactivarla. El proveedor (DeepL, Google o un LLM) recibe contenido
-  de chat, así que queda sujeto a la misma evaluación de privacidad que los demás proveedores
-  antes de activarse; sin proveedor, los mensajes se muestran en su idioma original.
-- **Alerta Ángel**: notificación push (no SMS) a los celulares cuya zona de alertas aproximada queda dentro del círculo de vida de una mascota perdida: al publicarse (círculo inicial) y luego por un job periódico a medida que el círculo crece. Una alerta por persona y caso, máximo 5 por día, respetando el modo descanso. El push abre `/alerta/angel/<id>` (también enlace universal `https://pawfound.pages.dev/alerta/angel/<id>`). Reglas en `apps/mobile/src/domain/alerts.ts`, para portarlas igual a la API.
-- **Antispam y convivencia**: no existen bloqueos entre personas; se reporta (`userReports`) y moderación decide. La API limita mensajes por minuto por cuenta (Upstash Redis) y aplica restricciones temporales para escribir (`mutedUntil`).
-- **Insignias y "me gusta"**: calculadas en el servidor a partir de hechos (reportes, avistamientos, agradecimientos al cerrar un caso, casos compartidos, grupos); la app solo las muestra. Los "me gusta" de perfil son uno por cuenta verificada.
+## API (`apps/api`)
 
-## App (Expo / Android)
+- **Go 1.26** con el router **chi** y SQL explícito con **pgx** (sin ORM). Las consultas viven
+  junto a cada caso de uso en `internal/app`.
+- **Migraciones** SQL versionadas y embebidas en el binario (`internal/db/migrations`, hoy
+  0001 a 0017). Se aplican al arrancar (`MIGRATE_ON_START`) y nunca se cambia la base a mano.
+- **Contrato**: [packages/contracts/openapi.yaml](../packages/contracts/openapi.yaml)
+  documenta cada ruta. Los errores de negocio llegan como `{"error": {"code", "params"}}` con
+  códigos que la app traduce.
+- **Autenticación**:
+  - contraseña con hash Argon2id y token de acceso JWT de 15 minutos;
+  - refresh token opaco y rotativo, con un año de vida deslizante: la sesión nunca se cierra
+    sola, solo cuando la persona la cierra;
+  - el correo se verifica con un código de 6 dígitos, guardado como HMAC.
 
-- **Framework**: Expo (React Native) + TypeScript + NativeWind (Tailwind para React Native). Lanzamiento inicial en Android; iOS llega más adelante y debe comportarse igual (ya están `ios.bundleIdentifier` y `associatedDomains` en `app.json`, y la lógica no depende de la plataforma). Web solo para desarrollo de UI. Idioma inicial español, inglés soportado desde el día uno (sin strings embebidos en componentes).
-- **Certificate pinning**: mencionado como buena práctica de seguridad, pero es complejo bajo el flujo administrado de Expo — confirmar el flujo de build nativo elegido (EAS Build / bare workflow) antes de asumirlo como requisito duro.
-- **Notificaciones**: `expo-notifications` en la app (mismo código para Android e iOS), con canales de Android separados ("Alertas Ángel" y "Novedades de casos"). La API envía por FCM (Android) y APNs (iOS, vía FCM o el servicio push de Expo), sujeto a la evaluación del proveedor (issue #39). En modo demostración la app presenta notificaciones locales.
-- **Cliente API**: generado desde el contrato OpenAPI de la API, para evitar desincronización entre app y backend.
-- **Navegación principal**: Inicio, Mapa, Reportar (`+`), Mensajes (DM / Grupos / Notificaciones), Perfil.
-- **Tema**: soporta modo claro y modo oscuro.
-- **Referencia visual**: las 16 pantallas de [`Diseño ideal/`](../Diseño%20ideal/) son la fuente de verdad del diseño hasta que exista un `DESIGN.md` formal (`/impeccable document` o `/impeccable new-work`).
+  Sin inicio de sesión con Google ni Apple (decisión del 2026-11-01): el código OIDC de la API
+  queda sin uso.
+- **Tiempo real**: WebSocket en `/v1/ws`; el token va en el primer mensaje, nunca en la URL.
+  Llegan al instante los mensajes, los avisos, los casos nuevos y los cierres. `/v1/online`
+  cuenta las personas conectadas.
+- **Geoespacial**: PostGIS resuelve las búsquedas por radio. Toda ubicación pública se aproxima
+  a celdas fijas de 250 m (deterministas, para que no se puedan promediar). El círculo de vida
+  de una perdida crece con la raíz del tiempo desde el último avistamiento: 250 m al
+  publicarse y 2 km a los 30 minutos. La fórmula se valida con los mismos vectores en la app y
+  en la API ([fixtures](../packages/contracts/fixtures/)).
+- **Fotos**: la app sube cada foto a `POST /v1/media` (máximo 8 MB). La API la decodifica, la
+  orienta, la reduce a 1600 px y la vuelve a codificar en JPEG: nunca se guarda EXIF ni GPS,
+  aunque la app falle en quitarlos.
+  - Un hash perceptual detecta fotos casi idénticas de otra cuenta y abre un reporte de
+    posible estafa.
+  - Se guardan en Cloudflare R2 (o en `MEDIA_DIR` en local) y siempre las sirve la API: las de
+    chat solo a los miembros del chat.
+- **Mensajería**: un solo modelo para mensajes directos y grupos, con fotos y ubicación puntual.
+  - Cada caso crea su grupo («Encontremos a…»).
+  - Al cerrar el caso se cierran su grupo y sus mensajes directos, y se borran las coordenadas
+    compartidas en ellos.
+  - La ubicación solo va en mensajes directos, nunca en vivo.
+  - Cada mensaje guarda su idioma. Hay una interfaz de traducción, pero sin proveedor
+    configurado se muestra el original.
+- **Alerta Ángel**:
+  - Origen del punto: la app envía la ubicación aproximada al moverse unos 250 m, también en
+    segundo plano. El servidor guarda solo el último punto (`alert_zones`) durante 30 días y
+    lo borra al cerrar la última sesión.
+  - Destinatarios: a quien esté a menos de 250 m le llega al publicarse el caso; a los demás,
+    cuando el círculo de vida los alcanza.
+  - Límites: una alerta por persona y caso, máximo 5 al día, en silencio en modo descanso.
+- **Tareas periódicas** (`internal/jobs`, una sola instancia a la vez con un candado de la base):
+  - el crecimiento de la Alerta Ángel y, con él, las coincidencias nuevas entre perdidas y encontradas;
+  - los recordatorios del caso (3, 7 y 14 días) y el archivo a los 60 días;
+  - las solicitudes de PawFamily que vencen a los 14 días y el seguimiento a los 7 y 30 días;
+  - la revisión de refugios en el RUES;
+  - la limpieza de sesiones, códigos y fotos sin usar.
 
-## Proveedores externos
+  Corren cada 10 minutos si hubo actividad reciente y cada hora si no, para cuidar la cuota de Neon.
+- **PawFamily**: publicaciones de adopción, solicitudes, chat al aceptar, seguimiento con foto y
+  perfiles de refugio.
+  - Los refugios se verifican solos con el RUES de Confecámaras (datos abiertos de
+    datos.gov.co): una fundación, asociación o corporación activa con el mismo nombre y dígito
+    de verificación queda verificada; si no, se rechaza diciendo por qué.
+  - Si el RUES no responde se reintenta cada hora, y cada mes se revisan los verificados.
+  - Un NIT verifica una sola cuenta (índice único en la base).
+- **Comunidad**:
+  - seguirse con solicitud aceptada;
+  - «me gusta» libres desde el perfil;
+  - calificaciones de ayuda al cerrar un caso, cuyo promedio solo se muestra desde la décima;
+  - insignias calculadas en el servidor a partir de hechos; nunca se otorgan a mano.
 
-| Proveedor | Uso | Datos | Estado |
-| --- | --- | --- | --- |
-| Cloudflare R2 | Almacenamiento de imágenes | Archivos sin metadatos EXIF | Por evaluar |
-| Firebase Cloud Messaging | Notificaciones push Android | Token de dispositivo y mensaje mínimo | Por evaluar |
-| Upstash Redis | Caché y límites de uso (rate limiting) | Claves técnicas efímeras | Por evaluar |
-| Sentry | Telemetría de errores | Telemetría minimizada | Por evaluar |
+  No hay bloqueos: se reporta y moderación decide.
+- **Límites**:
+  - los de negocio se cuentan en la base: 2 reportes por día, 12 mensajes por minuto y 5
+    alertas por día;
+  - los intentos de inicio de sesión, verificación y restablecimiento se cuentan en la base
+    con un hash de la clave (sobreviven a los reinicios del plan gratuito); si la base falla,
+    se cuentan en memoria.
+- **Panel de moderación** (`/admin`), servido por la misma API y sin JavaScript:
+  - seguridad: formularios con CSRF, cookie HttpOnly y SameSite=Strict, CSP estricta y segundo
+    factor por correo;
+  - herramientas: cola de reportes con contexto, historial de la persona, sanciones
+    escalonadas (aviso, 24 horas, 7 días, suspensión), bitácora de solo inserción, actividad
+    de la app y refugios.
+- **Privacidad**: exportar los datos y eliminar la cuenta son autoservicio (`GET /v1/me/export`,
+  `DELETE /v1/me`). Eliminar borra todo lo de la cuenta y confirma por correo.
+- **Errores**: Sentry está integrado y apagado mientras no exista `SENTRY_DSN`.
 
-Ningún proveedor se activa en producción sin completar su evaluación de seguridad y privacidad — ver [docs/legal/incidentes-y-proveedores.md](legal/incidentes-y-proveedores.md).
+## App (`apps/mobile`)
+
+- **Expo SDK 57**, React Native, TypeScript estricto, NativeWind y expo-router. Español e inglés
+  desde el primer día: ningún texto vive en un componente y TypeScript exige las mismas claves
+  en los dos idiomas.
+- **Dos backends con la misma interfaz** (`Backend`):
+  - `ApiBackend` (`src/services/apiBackend.ts`) habla con la API y se activa con
+    `EXPO_PUBLIC_API_URL`.
+  - `MockBackend` es una demostración en memoria con las mismas reglas.
+
+  El cliente está escrito a mano: sus tipos (`src/domain/types.ts`) y el contrato OpenAPI se
+  actualizan juntos en el mismo PR.
+- **Reglas puras** en `src/domain` (círculo de vida, alertas, coincidencias, insignias,
+  calificaciones), gemelas de `apps/api/internal/domain`.
+- **Notificaciones**: `expo-notifications` con canales de Android separados («Alertas Ángel» y
+  «Novedades de casos»). La API las envía por el servicio push de Expo, que en Android las
+  entrega por FCM.
+- **Ubicación en segundo plano** para la Alerta Ángel con una tarea de `expo-location`, sin
+  servicio fijo en primer plano.
+- **Actualizaciones**: EAS Update en el canal `preview`, con `runtimeVersion` por huella
+  (*fingerprint*). Los cambios de JavaScript llegan sin reinstalar; los nativos piden un APK nuevo.
+- **Mapa**: `react-native-maps` con Google Maps en Android. La clave sale de la variable
+  `GOOGLE_MAPS_API_KEY` de EAS (`app.config.js`), nunca del repositorio.
+- **Navegación**: Inicio, Mapa, Reportar (`+`), Mensajes y Perfil, más PawFamily desde Inicio.
+  Modo claro y oscuro.
+- **Errores**: Sentry opcional con `EXPO_PUBLIC_SENTRY_DSN`. Hoy no está configurado.
+
+## Sitio web (`apps/web`)
+
+Astro estático en Cloudflare Pages, sin rastreadores ni recursos de terceros:
+
+- **Páginas**: presentación, guía, ayuda, privacidad y términos (leídos de `docs/legal/`),
+  eliminar cuenta y restablecer contraseña. La página de restablecer envía la clave nueva
+  directo a la API.
+- **Caso compartido**: la función de Pages `functions/mascota/[id].js` arma
+  `/mascota/<id>` con los datos públicos del caso (`GET /v1/pets/{id}`) y sus etiquetas Open
+  Graph, y responde 404 si el caso ya no está disponible.
+- **Enlaces a la app**: `.well-known/assetlinks.json` hace que esos enlaces abran la app instalada.
+
+## Proveedores
+
+El inventario completo, con qué datos recibe cada uno y su estado, está en
+[docs/legal/incidentes-y-proveedores.md](legal/incidentes-y-proveedores.md). Ningún proveedor
+se activa sin evaluar antes qué datos recibe.
 
 ## Principios de datos
 
-- No se muestran coordenadas ni direcciones exactas por defecto; el mapa y los reportes trabajan con ubicación aproximada.
-- Una publicación y su chat de caso se archivan al marcar la mascota como encontrada; no se eliminan automáticamente.
-- Los consentimientos (ubicación, notificaciones) son granulares, revocables y auditables — ver [docs/legal/consentimientos.md](legal/consentimientos.md).
+- Nunca se muestran coordenadas ni direcciones exactas por defecto. La excepción es la ubicación
+  que una persona envía en un mensaje directo, y la dirección de una adopción, que solo ven quien
+  publica y la persona aceptada.
+- El autor de un reporte aparece con nombre corto (por ejemplo, «Valentina A.»).
+- Los consentimientos se guardan con fecha y versión del texto ([consentimientos](legal/consentimientos.md)).
+- Retener lo mínimo: la ubicación para alertas es solo el último punto, los códigos vencen en un
+  día y los respaldos cifrados en 30.
 
-## Estructura del repositorio
+## Calidad, pruebas y seguridad
 
-Monorepo: `apps/mobile` (Expo/React Native), `apps/api` (Go), `packages/contracts`
-(contrato OpenAPI compartido y cliente TypeScript generado), `infra` (Docker Compose,
-migraciones, configuración de entornos). Se documenta ahora como estructura objetivo; se
-crea cuando arranque el código real en Fase 3, no antes.
+| Capa | Pruebas | Estático | Vulnerabilidades |
+| --- | --- | --- | --- |
+| API (Go) | `go test` con pruebas de integración y de flujo completo contra PostGIS real; cobertura total ≥ 90 % (CI) | `go vet`, `gofmt`, `golangci-lint` (con gofumpt y gosec) | `govulncheck` |
+| App (Expo) | Jest + React Native Testing Library, con los flujos completos sobre el router real; cobertura ≥ 80 % de líneas y sentencias | TypeScript estricto, ESLint, Prettier, `expo install --check` | `npm audit` (bloquea críticos) |
+| Web (Astro) | `node --test` de la función del caso compartido y `npm run build` | — | `npm audit` (bloquea altos) |
+
+El CI (`.github/workflows/ci.yml`) corre todo en cada PR, y `quality.yml` valida el Markdown.
+Renovate mantiene las dependencias al día. Falta la capa de pruebas en un dispositivo real
+(Maestro o Detox), que necesita un emulador en el CI.
 
 ## Entornos
 
-`local`, `staging` y `producción`, cada uno con su propia base de datos y sus propios
-secretos — nunca compartidos ni mezclados entre entornos. Alertas de presupuesto/cuota
-configuradas en cada proveedor gratuito desde el primer día (gratis no significa que no
-pueda generar un cobro al superar el umbral).
+- **Local**: Docker Compose con PostGIS, la API con `APP_ENV=development` (los correos y push se
+  escriben en el log) y la app en modo demostración o apuntando a la API local.
+- **Producción**: Render, Neon, R2, Cloudflare Pages y Brevo, con secretos propios.
 
-## Fuera de alcance en v1
+No hay `staging` todavía. Cada entorno tiene su base y sus secretos, que nunca se mezclan ni se
+suben al repositorio (es público).
 
-Deliberadamente no se usan microservicios, Kubernetes, GraphQL, Kafka ni IA de matching en
-la primera versión — añaden complejidad antes de validar el producto.
+## Fuera de alcance
 
-## Entorno local y CI
-
-- **Entorno local**: Docker Compose (API + PostgreSQL/PostGIS + Redis), sin depender de servicios en la nube para desarrollar.
-- **Pruebas y CI**: GitHub Actions. `golangci-lint` + `gofumpt` + `go vet` en el backend; Renovate o Dependabot para mantener dependencias al día en ambos proyectos.
-- **Backups**: exportables, con una prueba real de restauración antes del lanzamiento.
-- **Antes del lanzamiento público**: pentest básico automatizado (OWASP ZAP); idealmente un servicio profesional pago antes de abrir la app al público general — más allá del escaneo de vulnerabilidades de dependencias que ya corre en cada PR.
-
-## Estrategia de pruebas y seguridad
-
-Barra de calidad obligatoria para todo código (no documentación), definida en
-[docs/PROJECT_MANAGEMENT.md § Definición de terminado](PROJECT_MANAGEMENT.md#definición-de-terminado):
-pruebas unitarias, análisis estático, pruebas end-to-end de flujos completos y pruebas de
-vulnerabilidades, con cobertura ≥ 80 % en el código nuevo o modificado.
-
-| Capa | Unitarias | Estático | E2E | Vulnerabilidades |
-| --- | --- | --- | --- | --- |
-| API (Go) | `go test` + testify | `golangci-lint` | pruebas de integración contra Postgres/PostGIS real (Docker Compose) | `govulncheck` (dependencias) + `gosec` (código) |
-| App (Expo/RN/TS) | Jest + React Native Testing Library | ESLint + TypeScript en modo estricto | Detox o Maestro sobre los flujos completos (login→registro→reportar→chat de caso) | `npm audit` / Dependabot |
-| Ambas | — | — | — | Revisión de secretos antes de cada commit (no commitear tokens ni credenciales) |
-
-CI (GitHub Actions) ejecuta lint + pruebas unitarias + escaneo de vulnerabilidades en cada
-PR hacia `develop`; los E2E de flujo completo corren al menos antes de cada fusión de
-`develop` a `main` (cierre de fase). Un PR de código sin este checklist cubierto no se
-fusiona — ver `.github/pull_request_template.md`.
-
-## Decisiones ya resueltas
-
-- Fórmula del círculo de vida compartida entre app y API mediante vectores de prueba en
-  [`packages/contracts/fixtures/life-circle.json`](../packages/contracts/fixtures/life-circle.json):
-  `apps/mobile/src/domain/lifeCircle.ts` y `apps/api/internal/lifecircle` validan contra el
-  mismo archivo. La aproximación de ubicación (celdas fijas de 250 m, deterministas para que
-  no se puedan promediar) está implementada igual en ambos lados.
-
-- Radio del "círculo de vida" **por perfil** (especie + si hubo evento traumático), no una sola fórmula — [issue #10](https://github.com/TomasPosada0626/PawFound/issues/10). Ver la tabla completa en [PRODUCT.md § Capabilities and Constraints](../PRODUCT.md#capabilities-and-constraints). Informado por literatura general de búsqueda de mascotas perdidas, no por consulta directa con un experto certificado.
-- Ubicación en mapa/detalle: siempre aproximada, nunca dirección exacta por defecto; la dirección exacta solo se comparte manualmente por mensaje directo — [issue #46](https://github.com/TomasPosada0626/PawFound/issues/46).
-- Métricas de éxito del MVP: tasa de reencuentro a 14 días como métrica principal — [issue #9](https://github.com/TomasPosada0626/PawFound/issues/9), detalle en [PRODUCT.md § Métricas de éxito](../PRODUCT.md#métricas-de-éxito-mvp).
+Sin microservicios, Kubernetes, GraphQL, colas ni IA de coincidencias: añaden complejidad antes
+de validar el producto con el piloto.
 
 ## Decisiones abiertas
 
-- Umbral y trámite vigente de registro ante el Registro Nacional de Bases de Datos (RNBD) de la SIC — verificar con asesoría legal.
-- Tratamiento reforzado de datos de personas menores de edad — pendiente de definición legal.
+- Umbral y trámite vigente del Registro Nacional de Bases de Datos (RNBD) de la SIC: confirmar
+  con asesoría legal.
+- Tratamiento reforzado de datos de menores de edad: pendiente de definición legal.
+- Dominio propio: sin él, los correos llegan a spam con más facilidad.
