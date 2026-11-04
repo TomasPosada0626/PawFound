@@ -17,17 +17,19 @@ que no aplica.
 
 ## Menores de edad
 
-PawFound probablemente tendrá personas usuarias menores de edad. El tratamiento de sus
-datos requiere un análisis reforzado (consentimiento de representante legal cuando
-corresponda, minimización adicional) que todavía no está definido — punto abierto
-explícito para la revisión legal, no asumir un tratamiento igual al de personas adultas.
+Para crear una cuenta hay que confirmar que se tienen 18 años o más. Aun así, una persona menor
+podría declarar otra edad o usar la app con un adulto. El tratamiento reforzado de sus datos
+(consentimiento de representante legal, minimización adicional) sigue siendo un punto abierto
+para la revisión legal.
 
 ## Datos y finalidades
 
-PawFound tratará datos de cuenta, publicaciones, mensajes, reportes de moderación,
-consentimientos, datos técnicos mínimos y ubicación aproximada. Se usarán para prestar el
-servicio, prevenir abuso, atender solicitudes, mejorar seguridad y cumplir obligaciones
-legales. No se mostrarán direcciones ni coordenadas exactas de forma predeterminada. La
+PawFound trata datos de cuenta, perfil y red (seguidores, «me gusta», calificaciones),
+reportes de mascotas, publicaciones y solicitudes de adopción, mensajes, reportes de moderación,
+consentimientos, datos técnicos mínimos y ubicación aproximada. De los refugios guarda además su
+nombre, su NIT, la razón social que devuelve el RUES y el resultado de esa revisión. Se usan para
+prestar el servicio, prevenir abuso, atender solicitudes, mejorar la seguridad y cumplir
+obligaciones legales; nunca para publicidad ni se venden. No se mostrarán direcciones ni coordenadas exactas de forma predeterminada. La
 excepción es la ubicación que la persona decide enviar en un mensaje directo (su ubicación
 actual o un punto de encuentro, nunca en grupos y nunca en vivo): solo la ve la otra persona
 y sus coordenadas se borran cuando quien la envió la quita, cuando se cierra la conversación
@@ -44,17 +46,32 @@ plazos legales aplicables, por el correo [pawfoundoficial@gmail.com](mailto:pawf
 
 ## Transferencias y encargados
 
-Los proveedores se documentarán en el inventario de datos antes de activarse. Cualquier
-transferencia internacional se evaluará con las salvaguardas legales correspondientes.
-Aplica en particular a los proveedores previstos con infraestructura fuera de Colombia:
-Supabase (base de datos), Cloudflare (imágenes), Firebase (notificaciones) — ver
-[incidentes-y-proveedores.md](incidentes-y-proveedores.md) para el inventario completo.
+Cada proveedor queda en el inventario antes de activarse, con qué datos recibe y para qué. Hoy
+procesan datos fuera de Colombia, principalmente en Estados Unidos:
+
+- Render (API) y Neon (base de datos);
+- Cloudflare (fotos, sitio web y red);
+- Brevo (correo);
+- Expo y Firebase Cloud Messaging (notificaciones);
+- Google Maps (mapa).
+
+Para verificar refugios se consulta el NIT en datos.gov.co. El inventario completo está en
+[incidentes-y-proveedores.md](incidentes-y-proveedores.md). Las salvaguardas de cada
+transferencia internacional quedan para la revisión legal.
 
 ## Retención
 
-Los plazos de retención y anonimización se aprobarán legalmente antes de producción. Una
-publicación se archivará al marcar la mascota como encontrada; no se eliminará
-automáticamente, y el grupo del caso se cerrará en ese momento. Los chats directos no se
-cierran ni se borran solos: cada persona los archiva o los
-elimina de su lista. Las coordenadas de una ubicación compartida en el chat se borran en
-cuanto deja de ser visible.
+Los plazos vigentes están en la sección 5 de la [política de privacidad](politica-de-privacidad.md);
+quedan sujetos a la revisión legal.
+
+- **Casos**: se archivan al cerrarse o a los 60 días sin novedades. Al cerrarse un caso se cierran
+  su grupo y sus mensajes directos, que quedan para leer, y se quitan sus historias. Un mensaje
+  directo también lo cierra cualquiera de las dos personas, y cada una archiva o elimina chats de
+  su lista.
+- **Ubicaciones**: las coordenadas de una ubicación compartida en un chat se borran en cuanto deja
+  de ser visible. La ubicación para alertas guarda solo el último punto y se borra al cerrar la
+  última sesión o a los 30 días sin actualizarse.
+- **PawFamily**: una solicitud sin respuesta vence a los 14 días.
+- **Cuenta**: al eliminarla se borra todo lo de la cuenta. En los grupos de otros casos solo quedan
+  los avisos automáticos, sin su nombre.
+- **Respaldos**: copias cifradas que se borran a los 30 días.

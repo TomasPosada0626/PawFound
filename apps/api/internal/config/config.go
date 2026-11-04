@@ -1,7 +1,7 @@
 // Package config lee la configuración de la API desde variables de entorno (infra/.env.example).
 //
 // Falla al arrancar ante combinaciones peligrosas, en vez de descubrirlas en producción:
-// sin JWT_SECRET, SMS de desarrollo o código SMS fijo fuera de desarrollo, etc.
+// sin JWT_SECRET, código de verificación fijo (DEV_FIXED_CODE) fuera de desarrollo, etc.
 package config
 
 import (

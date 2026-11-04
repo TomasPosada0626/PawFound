@@ -1,6 +1,6 @@
 # Términos y condiciones de uso
 
-Última actualización: 2 de noviembre de 2026. Versión: 1.1.
+Última actualización: 3 de noviembre de 2026. Versión: 1.2.
 
 ## 1. Aceptación
 
@@ -17,9 +17,8 @@ emergencia de bienestar animal, contacta a las autoridades u organizaciones comp
 
 ## 3. Cuentas y verificación
 
-- Debes registrarte con datos veraces, declarar que cumples la edad mínima requerida, y un
-  correo al que tengas acceso real, para completar la verificación con un código de 6
-  dígitos.
+- Debes registrarte con datos veraces, confirmar que tienes 18 años o más y usar un correo
+  al que tengas acceso real, para completar la verificación con un código de 6 dígitos.
 - Cada cuenta puede publicar hasta 2 reportes por día. Este límite existe para prevenir
   spam y proteger la confiabilidad de la comunidad.
 - La insignia azul de verificado indica que el correo de la cuenta fue confirmado (con el
@@ -53,9 +52,12 @@ salvo lo necesario para prevenir fraude o cumplir una obligación legal.
 
 ## 6. Reportes, apelaciones y suspensión
 
-Podemos limitar el alcance, archivar, retirar contenido o suspender cuentas ante
-incumplimientos, de forma proporcional al riesgo y con revisión humana, según nuestras normas de moderación. Toda decisión de moderación que te afecte
-incluye un canal de apelación descrito en [Ayuda](/ayuda).
+En PawFound nadie bloquea a nadie: si alguien incumple estos Términos, repórtalo desde su
+perfil, su mensaje o su publicación. Podemos advertir, restringir temporalmente la escritura,
+retirar contenido o suspender cuentas, de forma proporcional al riesgo y con revisión humana,
+según nuestras normas de moderación. Si no estás de acuerdo con una decisión que te afecte,
+escríbenos a [pawfoundoficial@gmail.com](mailto:pawfoundoficial@gmail.com) desde el correo de tu
+cuenta y la revisamos de nuevo, como se explica en [Ayuda](/ayuda).
 
 ## 7. Privacidad y ubicación
 
@@ -88,7 +90,10 @@ PawFamily es la sección de PawFound para dar y buscar mascotas en adopción.
   dar en adopción y la que envías para adoptar es legítima.
 - **La decisión es de quien publica.** Puede aceptar o rechazar cada solicitud. Al aceptar se abre un chat
   para coordinar directamente; PawFound no participa en la entrega ni la garantiza.
-- **Refugios.** Los refugios pueden pedir una verificación adicional con su NIT.
+- **Refugios.** Los refugios y fundaciones pueden verificarse con su NIT, que se revisa
+  automáticamente en el RUES de Confecámaras: se verifica una entidad sin ánimo de lucro activa con
+  ese nombre. Un NIT verifica una sola cuenta. Usar el NIT de otra entidad es suplantación: moderación
+  quita la verificación y esa cuenta ya no puede verificarse sola.
 
 ## 10. Disponibilidad del servicio
 

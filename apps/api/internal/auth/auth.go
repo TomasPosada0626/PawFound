@@ -1,6 +1,6 @@
 // Package auth reúne las primitivas de autenticación de la API: contraseñas (Argon2id),
-// tokens de acceso (JWT HS256 de vida corta), refresh tokens opacos, códigos SMS y la
-// verificación de ID tokens de Google y Apple (OIDC).
+// tokens de acceso (JWT HS256 de vida corta), refresh tokens opacos, códigos de verificación del
+// correo y la verificación de ID tokens de Google y Apple (OIDC, sin uso en la app).
 package auth
 
 import (
@@ -137,13 +137,14 @@ func HashToken(token string) []byte {
 	return sum[:]
 }
 
-// SMSCode genera un código de 6 dígitos con crypto/rand.
+// SMSCode genera el código de 6 dígitos que verifica el correo, con crypto/rand. Conserva el nombre
+// de cuando la verificación iba a ser por SMS.
 func SMSCode() string {
 	n, _ := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	return fmt.Sprintf("%06d", n.Int64())
 }
 
-// CodeHasher guarda los códigos SMS como HMAC: si la base se filtra, un código de 6 dígitos
+// CodeHasher guarda los códigos de verificación como HMAC: si la base se filtra, un código de 6 dígitos
 // no se puede recuperar sin el secreto del servidor.
 type CodeHasher struct{ key []byte }
 

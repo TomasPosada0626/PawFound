@@ -21,6 +21,7 @@
 | Render (EE. UU., Virginia) | aloja la API | lo que pasa por la API mientras se atiende; registros técnicos (ruta, estado y duración de cada petición), sin el contenido de los mensajes | en uso |
 | Neon (PostgreSQL/PostGIS, EE. UU., Virginia) | base de datos | todos los datos de la app | en uso |
 | Cloudflare R2 | fotos | fotos re-codificadas en JPEG, sin EXIF ni GPS | en uso |
+| Cloudflare R2 (bucket aparte) | respaldos diarios de la base | copia cifrada de la base; sin la clave no se puede leer | preparado, inactivo hasta configurar sus secretos |
 | Cloudflare Pages | sitio web (pawfound.pages.dev) | visitas a la web; la página /restablecer envía la nueva contraseña directo a la API | en uso |
 | Brevo | correos de verificación y restablecimiento | correo, nombre y el código o enlace | en uso |
 | Expo (EAS Build y Update) | compilar la app y publicar actualizaciones | ninguno de las personas usuarias | en uso |
@@ -29,10 +30,27 @@
 | Firebase Cloud Messaging (Google) | entregar las notificaciones en Android | token push del celular y el texto de la notificación | evaluado (ver abajo) |
 | Google Maps SDK (Android) | mapa dentro de la app | la zona del mapa que se ve y datos técnicos del celular, según los términos de Google | en uso |
 | OpenStreetMap / Overpass | importar veterinarias desde el servidor | ninguno de las personas usuarias | en uso |
-| GitHub | código y revisiones automáticas | ninguno de las personas usuarias | en uso |
+| datos.gov.co (RUES de Confecámaras) | verificar refugios de PawFamily | el NIT consultado, sin datos de la cuenta | en uso |
+| cron-job.org | visitar `/health` cada 5 minutos para que la API no se duerma | ninguno de las personas usuarias | en uso |
+| GitHub | código, revisiones automáticas y tareas programadas | ninguno de las personas usuarias | en uso |
 
 Ningún proveedor se habilita sin evaluar antes qué datos recibe, para qué y por cuánto
-tiempo.
+tiempo. Un proveedor nuevo se agrega a esta tabla y a la sección 4 de la
+[política de privacidad](politica-de-privacidad.md) en el mismo PR que lo activa.
+
+## Evaluación: RUES (datos.gov.co)
+
+- **Para qué:** confirmar que un refugio de PawFamily es una fundación, asociación o corporación
+  con matrícula activa, sin que nadie tenga que revisarlo a mano.
+- **Datos:** la API consulta el NIT (sin dígito de verificación) en el conjunto de datos abiertos
+  del RUES. No envía el nombre, el correo ni ningún dato de la cuenta.
+- **Qué se guarda:** la razón social que devuelve el RUES, el resultado de la revisión y su fecha.
+  Se borran al eliminar la cuenta.
+- **Licencia:** datos abiertos de Confecámaras bajo CC BY-SA 4.0: la app, el panel y la web citan
+  la fuente.
+- **Riesgo conocido:** el NIT y la razón social de una fundación son públicos, así que alguien
+  podría intentar verificarse con los de otra. Lo limitan el índice único (un NIT verifica una sola
+  cuenta) y que moderación puede quitar la verificación.
 
 ## Evaluación: Firebase Cloud Messaging
 
