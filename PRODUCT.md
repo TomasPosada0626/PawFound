@@ -167,6 +167,7 @@ Nombre: **PawFound**. Isotipo: pin con silueta de perro o gato dentro de una hue
 ## Evidence on Hand
 
 - 16 pantallas de referencia visual en `Diseño ideal/` (nombres literales): `login.png`, `Registro.png`, `Home.png`, `Mapa.png`, `Mascota especifica.png`, `Reporte perdida.png`, `Reporte encontrada.png`, `Chats DM.png`, `Chats Grupos.png`, `Chatss notificaciones.png`, `Pefil.png`, `Editar perfil.png`, `Notificaciones.png`, `Privacidad y seguridad.png`, `Soporte y ayuda.png`, `Alerta Angel.png`. Son la referencia de cómo deben verse las pantallas. Algunas decisiones posteriores las reemplazan: Alerta Ángel por push y no por SMS, y sin inicio de sesión social.
+- Capturas reales de la app (modo demostración, datos de ejemplo) en `assets/capturas/`.
 - La app, la API y el sitio están en producción para el piloto. Todavía no hay métricas, testimonios ni casos de estudio publicables: no inventar ninguno.
 - `docs/legal/*.md`: política de privacidad, términos y borradores internos para Colombia, pendientes de revisión legal formal.
 
