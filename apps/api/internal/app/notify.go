@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -135,13 +136,30 @@ func (a *App) deliver(ctx context.Context, list []Notification) {
 			})
 		}
 	}
-	if len(messages) > 0 {
-		if err := a.Push.Send(ctx, messages); err != nil {
-			a.Log.Error("enviar push", "count", len(messages), "err", err)
-			return
-		}
+	if a.sendPush(ctx, messages, "enviar push") {
 		_, _ = a.DB.Exec(ctx, `UPDATE notifications SET pushed = true WHERE id = ANY($1)`, ids)
 	}
+}
+
+// sendPush envía los avisos y borra los celulares que el servicio push ya no reconoce (la app se
+// desinstaló o se quitó el permiso). Devuelve si el envío salió.
+func (a *App) sendPush(ctx context.Context, messages []providers.PushMessage, what string) bool {
+	if len(messages) == 0 {
+		return false
+	}
+	err := a.Push.Send(ctx, messages)
+	var gone *providers.UnregisteredTokens
+	if errors.As(err, &gone) {
+		if _, err := a.DB.Exec(ctx, `DELETE FROM devices WHERE token = ANY($1)`, gone.Tokens); err != nil {
+			a.Log.Error("borrar celulares sin push", "err", err)
+		}
+		return true
+	}
+	if err != nil {
+		a.Log.Error(what, "count", len(messages), "err", err)
+		return false
+	}
+	return true
 }
 
 // notificationURL replica src/features/notifications.ts: las alertas abren su pantalla.

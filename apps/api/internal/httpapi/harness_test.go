@@ -59,13 +59,33 @@ func (c *clock) Advance(d time.Duration) {
 type fakePush struct {
 	mu   sync.Mutex
 	sent []providers.PushMessage
+	// gone: celulares que el servicio push ya no reconoce (como si la app se hubiera desinstalado).
+	gone map[string]bool
 }
 
 func (p *fakePush) Send(_ context.Context, m []providers.PushMessage) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.sent = append(p.sent, m...)
+	var gone []string
+	for _, msg := range m {
+		if p.gone[msg.Token] {
+			gone = append(gone, msg.Token)
+		}
+	}
+	if len(gone) > 0 {
+		return &providers.UnregisteredTokens{Tokens: gone}
+	}
 	return nil
+}
+
+func (p *fakePush) uninstall(token string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.gone == nil {
+		p.gone = map[string]bool{}
+	}
+	p.gone[token] = true
 }
 
 func (p *fakePush) all() []providers.PushMessage {

@@ -142,3 +142,35 @@ func TestExpoPushBatchesAndSilence(t *testing.T) {
 		t.Fatal("error de red ignorado")
 	}
 }
+
+func TestExpoPushReportsUnregisteredDevices(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"data":[{"status":"ok","id":"a"},{"status":"error","message":"no registrado","details":{"error":"DeviceNotRegistered"}},{"status":"error","details":{"error":"MessageRateExceeded"}}]}`))
+	}))
+	defer server.Close()
+	msgs := []PushMessage{{Token: "vivo"}, {Token: "desinstalado"}, {Token: "lento"}}
+	err := (ExpoPush{Endpoint: server.URL}).Send(context.Background(), msgs)
+	var gone *UnregisteredTokens
+	if !errors.As(err, &gone) || len(gone.Tokens) != 1 || gone.Tokens[0] != "desinstalado" || gone.Error() == "" {
+		t.Fatalf("celulares sin push = %v", err)
+	}
+}
+
+func TestModerationNotice(t *testing.T) {
+	for _, c := range []struct {
+		count  int
+		urgent bool
+		lang   string
+		want   string
+	}{
+		{1, false, "es", "Hay 1 reporte nuevo"},
+		{3, true, "es", "posible estafa"},
+		{1, false, "en", "1 new report"},
+		{2, true, "en", "possible scam"},
+	} {
+		n := ModerationNotice(c.count, c.urgent, "https://api/admin/reports", c.lang)
+		if !strings.Contains(n.Intro, c.want) || n.Link != "https://api/admin/reports" || n.Lang != c.lang {
+			t.Errorf("%d/%v/%s: %+v", c.count, c.urgent, c.lang, n)
+		}
+	}
+}

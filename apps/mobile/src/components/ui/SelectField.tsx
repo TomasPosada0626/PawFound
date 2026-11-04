@@ -7,7 +7,7 @@ import { Icon, type IconName } from "./Icon";
 import { OptionList, Sheet, type Option } from "./Sheet";
 import { cn, Text } from "./Text";
 
-/** Campo desplegable (Género, Edad, Tamaño, Tipo de mascota…) que abre una hoja con opciones. */
+/** Campo desplegable (Sexo, Edad, Tamaño, Tipo de mascota…) que abre una hoja con opciones. */
 export function SelectField<V extends string | number>({
   label,
   value,

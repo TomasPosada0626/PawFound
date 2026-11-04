@@ -289,11 +289,7 @@ func (a *App) pushFollow(ctx context.Context, userID, kind, fromName, url string
 			Channel: channelUpdates, Silent: domain.IsQuietTime(person.Prefs, a.now()),
 		})
 	}
-	if len(messages) > 0 {
-		if err := a.Push.Send(ctx, messages); err != nil {
-			a.Log.Error("enviar push de seguidores", "err", err)
-		}
-	}
+	a.sendPush(ctx, messages, "enviar push de seguidores")
 }
 
 // rating calcula la calificación vigente de una cuenta y cuántas calificaciones reales tiene.
