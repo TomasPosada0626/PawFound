@@ -112,7 +112,9 @@ mantiene despierta.
     factor por correo;
   - herramientas: cola de reportes con contexto, historial de la persona, sanciones
     escalonadas (aviso, 24 horas, 7 días, suspensión), bitácora de solo inserción, actividad
-    de la app y refugios.
+    de la app y refugios;
+  - aviso por correo a moderación y administración cuando llegan reportes: el primero al
+    instante y, como mucho, uno cada 30 minutos con los que se acumulen.
 - **Privacidad**: exportar los datos y eliminar la cuenta son autoservicio (`GET /v1/me/export`,
   `DELETE /v1/me`). Eliminar borra todo lo de la cuenta y confirma por correo.
 - **Errores**: Sentry está integrado y apagado mientras no exista `SENTRY_DSN`.
@@ -123,9 +125,10 @@ mantiene despierta.
   desde el primer día: ningún texto vive en un componente y TypeScript exige las mismas claves
   en los dos idiomas.
 - **Dos backends con la misma interfaz** (`Backend`):
-  - `ApiBackend` (`src/services/apiBackend.ts`) habla con la API y se activa con
-    `EXPO_PUBLIC_API_URL`.
-  - `MockBackend` es una demostración en memoria con las mismas reglas.
+  - `ApiBackend` (`src/services/apiBackend.ts`, por partes en `src/services/api/`) habla con
+    la API y se activa con `EXPO_PUBLIC_API_URL`.
+  - `MockBackend` (`src/services/mockBackend.ts`, por partes en `src/services/mock/`) es una
+    demostración en memoria con las mismas reglas.
 
   El cliente está escrito a mano: sus tipos (`src/domain/types.ts`) y el contrato OpenAPI se
   actualizan juntos en el mismo PR.

@@ -144,7 +144,7 @@ Las notificaciones son avisos de la comunidad, no alertas gubernamentales ni SMS
   - quien pide dinero se reporta, y moderación retira la publicación y puede suspender la cuenta.
 - **Buscar**: cerca, con distancia elegible o en toda la ciudad. Filtros de especie, sexo, tamaño y edad. Sin filtro de raza, porque los criollos no tienen raza.
 - **Publicar**: de 1 a 5 fotos, datos, zona y, si se quiere, la dirección. La dirección solo la ven quien publica y la persona aceptada.
-- **Solicitar**: nombre, cuántas personas viven en la casa, barrio y ciudad, si ha tenido mascotas y cuántas, y por qué quiere adoptar. Quien publica recibe aviso en la app y por correo.
+- **Solicitar**: nombre, cuántas personas viven en la casa, barrio y ciudad, si ha tenido mascotas y cuántas, y por qué quiere adoptar. Quien publica recibe aviso en la app y por correo (el correo se puede apagar en Ajustes › Notificaciones).
 - **Decidir**: quien publica acepta o rechaza. Al aceptar se abre un chat directo. Una solicitud sin respuesta vence a los 14 días, sin límite de solicitudes por persona.
 - **Seguimiento**: a los 7 y 30 días de adoptar se le pide a la nueva familia una foto de cómo está la mascota. Quien la dio en adopción la ve.
 - **Refugios** (decisión del 2026-11-03): verificación 100 % automática con el RUES de Confecámaras.
